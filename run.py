@@ -7,6 +7,7 @@ from flask import flash, redirect, render_template, request, url_for
 from app import app, admin_required, current_user, login_required, DB_PATH, DATA_DIR
 from binary_store import add_record, records_for_user
 from crypto_store import decrypt_notes, encrypt_notes
+from hash_demo import create_demo_hash, verify_by_full_pepper_scan
 from json_store import list_notes
 from parallel_tasks import run_thread_demo
 import api_routes  # noqa: F401 - registrira REST rute i REST klijent
@@ -120,6 +121,34 @@ def crypto_demo():
         "crypto.html",
         encrypted_path=encrypted_path,
         decrypted_notes=decrypted_notes,
+    )
+
+
+@app.route("/hash", methods=["GET", "POST"])
+@login_required
+def hash_demo_page():
+    user = current_user()
+    input_text = request.form.get("text", "ParKING demo") if request.method == "POST" else "ParKING demo"
+    result = None
+    verification = None
+
+    if request.method == "POST":
+        if not input_text:
+            flash("Unesite tekst za sažimanje.", "danger")
+        else:
+            result = create_demo_hash(user.id, user.username, input_text)
+            verification = verify_by_full_pepper_scan(
+                user.id,
+                user.username,
+                input_text,
+                result["digest"],
+            )
+
+    return render_template(
+        "hash_demo.html",
+        input_text=input_text,
+        result=result,
+        verification=verification,
     )
 
 
