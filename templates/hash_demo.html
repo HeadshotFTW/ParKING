@@ -1,45 +1,44 @@
 {% extends "base.html" %}
 {% block title %}SHA-256 - ParKING{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">SHA-256: sol i papar</h1>
+<h1 class="h3 mb-3">{{ tr('hash.title') }}</h1>
 
 <p class="text-muted">
-    Demonstracija funkcije sažimanja SHA-256 s promjenjivom soli koja se izvodi po pravilu iz korisničkog ID-a i korisničkog imena,
-    bez spremanja soli u bazu ili datoteku. Za papar se koristi vrijednost iz raspona 0-255, a provjera prolazi kroz svih 256 mogućnosti.
+    {{ tr('hash.description') }}
 </p>
 
 <form method="post" class="card card-body mb-4">
-    <label class="form-label" for="text">Tekst za sažimanje</label>
+    <label class="form-label" for="text">{{ tr('hash.input') }}</label>
     <input class="form-control mb-3" id="text" name="text" value="{{ input_text }}" required>
-    <button class="btn btn-primary" type="submit">Izračunaj i provjeri</button>
+    <button class="btn btn-primary" type="submit">{{ tr('hash.calculate') }}</button>
 </form>
 
 {% if result %}
 <div class="card mb-4">
     <div class="card-body">
-        <h2 class="h5">Rezultat sažimanja</h2>
+        <h2 class="h5">{{ tr('hash.result') }}</h2>
         <dl class="row mb-0">
-            <dt class="col-sm-3">Algoritam</dt><dd class="col-sm-9">{{ result.algorithm }}</dd>
-            <dt class="col-sm-3">Pravilo za sol</dt><dd class="col-sm-9"><code>SHA256("ParKING-SHA256-salt:&lt;user_id&gt;:&lt;username&gt;")[0:16]</code></dd>
-            <dt class="col-sm-3">Sol</dt><dd class="col-sm-9"><code class="text-break">{{ result.salt_hex }}</code></dd>
-            <dt class="col-sm-3">SHA-256 sažetak</dt><dd class="col-sm-9"><code class="text-break">{{ result.digest }}</code></dd>
-            <dt class="col-sm-3">Raspon papra</dt><dd class="col-sm-9">{{ result.pepper_range }}</dd>
+            <dt class="col-sm-3">{{ tr('hash.algorithm') }}</dt><dd class="col-sm-9">{{ result.algorithm }}</dd>
+            <dt class="col-sm-3">{{ tr('hash.salt_rule') }}</dt><dd class="col-sm-9"><code>SHA256("ParKING-SHA256-salt:&lt;user_id&gt;:&lt;username&gt;")[0:16]</code></dd>
+            <dt class="col-sm-3">{{ tr('hash.salt') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.salt_hex }}</code></dd>
+            <dt class="col-sm-3">{{ tr('hash.digest') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.digest }}</code></dd>
+            <dt class="col-sm-3">{{ tr('hash.pepper_range') }}</dt><dd class="col-sm-9">{{ result.pepper_range }}</dd>
         </dl>
     </div>
 </div>
 
 <div class="alert {% if verification.valid %}alert-success{% else %}alert-danger{% endif %}">
-    <strong>Provjera papra:</strong>
+    <strong>{{ tr('hash.verify') }}:</strong>
     {% if verification.valid %}
-        sažetak je potvrđen. Pronađeni papar: <strong>{{ verification.matches|join(', ') }}</strong>.
+        {{ tr('hash.valid') }}: <strong>{{ verification.matches|join(', ') }}</strong>.
     {% else %}
-        nije pronađena odgovarajuća vrijednost papra.
+        {{ tr('hash.invalid') }}
     {% endif %}
-    Provjereno je svih <strong>{{ verification.attempts }}</strong> mogućih vrijednosti.
+    {{ tr('hash.checked') }} <strong>{{ verification.attempts }}</strong> {{ tr('hash.values') }}
 </div>
 {% endif %}
 
 <div class="alert alert-info">
-    Ovo je demonstracijska funkcionalnost za kriterij projekta. Korisničke lozinke i dalje koriste Werkzeugov namjenski password hashing i nisu vezane uz ovaj demo.
+    {{ tr('hash.note') }}
 </div>
 {% endblock %}
