@@ -2,6 +2,9 @@
 {% block title %}{{ parking.name }} - ParKING{% endblock %}
 {% block content %}
 <div class="card">
+    {% if parking.photo %}
+        <img src="{{ url_for('parking_image', parking_id=parking.id) }}" class="card-img-top" style="max-height: 420px; object-fit: cover" alt="{{ parking.name }}">
+    {% endif %}
     <div class="card-body">
         <h1 class="h3">{{ parking.name }}</h1>
         <dl class="row">
