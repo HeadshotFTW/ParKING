@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{% if user %}Uredi korisnika{% else %}Dodaj korisnika{% endif %} · ParKING{% endblock %}
+{% block content %}
+<div class="form-card">
+    <h2>{% if user %}Uredi korisnika{% else %}Dodaj korisnika{% endif %}</h2>
+    <form method="post" class="mt-4">
+        <div class="mb-3">
+            <label class="form-label">Korisničko ime</label>
+            <input class="form-control" name="username" value="{{ user.username if user else '' }}" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Lozinka {% if user %}<span class="text-muted">(ostavite prazno ako se ne mijenja)</span>{% endif %}</label>
+            <input class="form-control" type="password" name="password" {% if not user %}required{% endif %}>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Uloga</label>
+            <select class="form-select" name="role">
+                <option value="USER" {% if not user or user.role == 'USER' %}selected{% endif %}>USER</option>
+                <option value="ADMIN" {% if user and user.role == 'ADMIN' %}selected{% endif %}>ADMIN</option>
+            </select>
+        </div>
+        <button class="btn btn-primary">Spremi</button>
+        <a class="btn btn-secondary" href="{{ url_for('admin_users') }}">Odustani</a>
+    </form>
+</div>
+{% endblock %}
