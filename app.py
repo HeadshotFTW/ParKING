@@ -1,3 +1,4 @@
+import configparser
 import os
 from pathlib import Path
 from datetime import datetime
@@ -9,10 +10,52 @@ from flask import (
 )
 
 from models import db, User, ParkingSpot, Reservation
+from json_store import add_note, delete_note, get_note, list_notes, update_note
+from translations import TRANSLATIONS
 
 
 BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "data" / "parking.db"
+DATA_DIR = BASE_DIR / "data"
+DB_PATH = DATA_DIR / "parking.db"
+CONFIG_PATH = BASE_DIR / "config.ini"
+
+DEFAULT_SETTINGS = {
+    "default_language": "hr",
+    "items_per_page": "10",
+}
+
+
+def load_settings():
+    parser = configparser.ConfigParser()
+    parser["app"] = DEFAULT_SETTINGS.copy()
+    if CONFIG_PATH.exists():
+        parser.read(CONFIG_PATH, encoding="utf-8")
+
+    language = parser.get("app", "default_language", fallback="hr").lower()
+    if language not in {"hr", "en"}:
+        language = "hr"
+
+    try:
+        items_per_page = int(parser.get("app", "items_per_page", fallback="10"))
+    except ValueError:
+        items_per_page = 10
+
+    items_per_page = max(1, min(items_per_page, 50))
+    return {
+        "default_language": language,
+        "items_per_page": items_per_page,
+    }
+
+
+def save_settings(default_language, items_per_page):
+    parser = configparser.ConfigParser()
+    parser["app"] = {
+        "default_language": default_language,
+        "items_per_page": str(items_per_page),
+    }
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        parser.write(handle)
+
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-later")
@@ -29,11 +72,25 @@ def current_user():
     return db.session.get(User, user_id)
 
 
+def current_language():
+    settings = load_settings()
+    language = session.get("lang", settings["default_language"])
+    return language if language in {"hr", "en"} else "hr"
+
+
+def tr(key):
+    language = current_language()
+    return TRANSLATIONS.get(language, {}).get(
+        key,
+        TRANSLATIONS["hr"].get(key, key),
+    )
+
+
 def login_required(view_func):
     @wraps(view_func)
     def wrapped(*args, **kwargs):
         if current_user() is None:
-            flash("Za ovu radnju morate biti prijavljeni.", "warning")
+            flash(tr("flash.login_required"), "warning")
             return redirect(url_for("login", next=request.path))
         return view_func(*args, **kwargs)
     return wrapped
@@ -44,7 +101,7 @@ def admin_required(view_func):
     def wrapped(*args, **kwargs):
         user = current_user()
         if user is None:
-            flash("Za ovu radnju morate biti prijavljeni.", "warning")
+            flash(tr("flash.login_required"), "warning")
             return redirect(url_for("login", next=request.path))
         if not user.is_admin():
             abort(403)
@@ -53,13 +110,25 @@ def admin_required(view_func):
 
 
 @app.context_processor
-def inject_user():
-    return {"current_user": current_user()}
+def inject_globals():
+    return {
+        "current_user": current_user(),
+        "tr": tr,
+        "lang": current_language(),
+        "settings": load_settings(),
+    }
 
 
 @app.route("/")
 def index():
     return redirect(url_for("parkings"))
+
+
+@app.route("/language/<language>")
+def set_language(language):
+    if language in {"hr", "en"}:
+        session["lang"] = language
+    return redirect(request.referrer or url_for("parkings"))
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -72,13 +141,13 @@ def register():
         password = request.form.get("password", "")
 
         if len(username) < 3:
-            flash("Korisničko ime mora imati najmanje 3 znaka.", "danger")
+            flash(tr("flash.username_short"), "danger")
             return render_template("register.html")
         if len(password) < 4:
-            flash("Lozinka mora imati najmanje 4 znaka.", "danger")
+            flash(tr("flash.password_short"), "danger")
             return render_template("register.html")
         if User.query.filter_by(username=username).first():
-            flash("Korisničko ime već postoji.", "danger")
+            flash(tr("flash.username_exists"), "danger")
             return render_template("register.html")
 
         user = User(username=username, role="USER")
@@ -86,7 +155,7 @@ def register():
         db.session.add(user)
         db.session.commit()
         session["user_id"] = user.id
-        flash("Registracija je uspješna.", "success")
+        flash(tr("flash.register_ok"), "success")
         return redirect(url_for("parkings"))
 
     return render_template("register.html")
@@ -103,11 +172,11 @@ def login():
         user = User.query.filter_by(username=username).first()
 
         if not user or not user.check_password(password):
-            flash("Neispravno korisničko ime ili lozinka.", "danger")
+            flash(tr("flash.login_bad"), "danger")
             return render_template("login.html")
 
         session["user_id"] = user.id
-        flash("Prijava uspješna.", "success")
+        flash(tr("flash.login_ok"), "success")
         return redirect(url_for("parkings"))
 
     return render_template("login.html")
@@ -115,8 +184,10 @@ def login():
 
 @app.route("/logout")
 def logout():
+    language = current_language()
     session.clear()
-    flash("Odjavljeni ste.", "info")
+    session["lang"] = language
+    flash(tr("flash.logout_ok"), "info")
     return redirect(url_for("login"))
 
 
@@ -124,6 +195,13 @@ def logout():
 def parkings():
     location = request.args.get("location", "").strip()
     sort = request.args.get("sort", "price_asc")
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+
+    settings = load_settings()
+    per_page = settings["items_per_page"]
     query = ParkingSpot.query
 
     if location:
@@ -136,11 +214,23 @@ def parkings():
     else:
         query = query.order_by(ParkingSpot.price_per_hour.asc())
 
+    total = query.count()
+    items = query.offset((page - 1) * per_page).limit(per_page).all()
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    if page > total_pages and total > 0:
+        return redirect(url_for(
+            "parkings", location=location, sort=sort, page=total_pages
+        ))
+
     return render_template(
         "parkings.html",
-        parkings=query.all(),
+        parkings=items,
         location=location,
         sort=sort,
+        page=page,
+        total_pages=total_pages,
+        total=total,
     )
 
 
@@ -154,7 +244,9 @@ def parking_detail(parking_id):
 @login_required
 def my_parkings():
     user = current_user()
-    items = ParkingSpot.query.filter_by(owner_id=user.id).order_by(ParkingSpot.id.desc()).all()
+    items = ParkingSpot.query.filter_by(
+        owner_id=user.id
+    ).order_by(ParkingSpot.id.desc()).all()
     return render_template("my_parkings.html", parkings=items)
 
 
@@ -171,7 +263,7 @@ def parking_new():
             price = -1
 
         if not name or not location or price < 0:
-            flash("Unesite naziv, lokaciju i ispravnu cijenu.", "danger")
+            flash(tr("flash.parking_invalid"), "danger")
             return render_template("parking_form.html", parking=None)
 
         parking = ParkingSpot(
@@ -183,7 +275,7 @@ def parking_new():
         )
         db.session.add(parking)
         db.session.commit()
-        flash("Parking je dodan.", "success")
+        flash(tr("flash.parking_added"), "success")
         return redirect(url_for("my_parkings"))
 
     return render_template("parking_form.html", parking=None)
@@ -206,7 +298,7 @@ def parking_edit(parking_id):
             price = -1
 
         if not name or not location or price < 0:
-            flash("Unesite naziv, lokaciju i ispravnu cijenu.", "danger")
+            flash(tr("flash.parking_invalid"), "danger")
             return render_template("parking_form.html", parking=parking)
 
         parking.name = name
@@ -214,7 +306,7 @@ def parking_edit(parking_id):
         parking.price_per_hour = price
         parking.description = description
         db.session.commit()
-        flash("Parking je ažuriran.", "success")
+        flash(tr("flash.parking_updated"), "success")
         return redirect(url_for("my_parkings"))
 
     return render_template("parking_form.html", parking=parking)
@@ -229,7 +321,7 @@ def parking_delete(parking_id):
 
     db.session.delete(parking)
     db.session.commit()
-    flash("Parking je obrisan.", "info")
+    flash(tr("flash.parking_deleted"), "info")
     return redirect(url_for("my_parkings"))
 
 
@@ -240,7 +332,7 @@ def reserve(parking_id):
     user = current_user()
 
     if parking.owner_id == user.id:
-        flash("Ne možete rezervirati vlastiti parking.", "warning")
+        flash(tr("flash.reserve_own"), "warning")
         return redirect(url_for("parking_detail", parking_id=parking.id))
 
     if request.method == "POST":
@@ -251,11 +343,11 @@ def reserve(parking_id):
             start_time = datetime.fromisoformat(start_raw)
             end_time = datetime.fromisoformat(end_raw)
         except ValueError:
-            flash("Unesite ispravan datum i vrijeme.", "danger")
+            flash(tr("flash.datetime_invalid"), "danger")
             return render_template("reservation_form.html", parking=parking)
 
         if end_time <= start_time:
-            flash("Završetak mora biti nakon početka.", "danger")
+            flash(tr("flash.end_after_start"), "danger")
             return render_template("reservation_form.html", parking=parking)
 
         conflict = Reservation.query.filter_by(
@@ -267,7 +359,7 @@ def reserve(parking_id):
         ).first()
 
         if conflict:
-            flash("Parking je već rezerviran u tom terminu.", "danger")
+            flash(tr("flash.reservation_conflict"), "danger")
             return render_template("reservation_form.html", parking=parking)
 
         reservation = Reservation(
@@ -279,7 +371,7 @@ def reserve(parking_id):
         )
         db.session.add(reservation)
         db.session.commit()
-        flash("Rezervacija je spremljena.", "success")
+        flash(tr("flash.reservation_saved"), "success")
         return redirect(url_for("my_reservations"))
 
     return render_template("reservation_form.html", parking=parking)
@@ -303,8 +395,60 @@ def cancel_reservation(reservation_id):
 
     reservation.status = "CANCELLED"
     db.session.commit()
-    flash("Rezervacija je otkazana.", "info")
+    flash(tr("flash.reservation_cancelled"), "info")
     return redirect(url_for("my_reservations"))
+
+
+# --- JSON CRUD: korisničke bilješke ---
+
+@app.route("/notes")
+@login_required
+def notes():
+    return render_template("notes.html", notes=list_notes(current_user().id))
+
+
+@app.route("/notes/new", methods=["GET", "POST"])
+@login_required
+def note_new():
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        text = request.form.get("text", "").strip()
+        if not title:
+            flash(tr("flash.note_title_required"), "danger")
+            return render_template("note_form.html", note=None)
+        add_note(current_user().id, title, text)
+        flash(tr("flash.note_added"), "success")
+        return redirect(url_for("notes"))
+    return render_template("note_form.html", note=None)
+
+
+@app.route("/notes/<int:note_id>/edit", methods=["GET", "POST"])
+@login_required
+def note_edit(note_id):
+    note = get_note(current_user().id, note_id)
+    if not note:
+        abort(404)
+
+    if request.method == "POST":
+        title = request.form.get("title", "").strip()
+        text = request.form.get("text", "").strip()
+        if not title:
+            flash(tr("flash.note_title_required"), "danger")
+            return render_template("note_form.html", note=note)
+        update_note(current_user().id, note_id, title, text)
+        flash(tr("flash.note_updated"), "success")
+        return redirect(url_for("notes"))
+
+    return render_template("note_form.html", note=note)
+
+
+@app.route("/notes/<int:note_id>/delete", methods=["POST"])
+@login_required
+def note_delete(note_id):
+    if not delete_note(current_user().id, note_id):
+        abort(404)
+    flash(tr("flash.note_deleted"), "info")
+    return redirect(url_for("notes"))
 
 
 # --- Administracija: CRUD nad tablicom users ---
@@ -412,14 +556,20 @@ def admin_reservation_new():
             end_time = datetime.fromisoformat(request.form.get("end_time", ""))
         except (ValueError, TypeError):
             flash("Unesite ispravne podatke rezervacije.", "danger")
-            return render_template("admin_reservation_form.html", reservation=None, users=users, parkings=parkings)
+            return render_template(
+                "admin_reservation_form.html",
+                reservation=None, users=users, parkings=parkings
+            )
 
         status = request.form.get("status", "ACTIVE").upper()
         if status not in {"ACTIVE", "CANCELLED"}:
             status = "ACTIVE"
         if end_time <= start_time:
             flash("Završetak mora biti nakon početka.", "danger")
-            return render_template("admin_reservation_form.html", reservation=None, users=users, parkings=parkings)
+            return render_template(
+                "admin_reservation_form.html",
+                reservation=None, users=users, parkings=parkings
+            )
 
         reservation = Reservation(
             user_id=user_id,
@@ -433,7 +583,10 @@ def admin_reservation_new():
         flash("Rezervacija je dodana.", "success")
         return redirect(url_for("admin_reservations"))
 
-    return render_template("admin_reservation_form.html", reservation=None, users=users, parkings=parkings)
+    return render_template(
+        "admin_reservation_form.html",
+        reservation=None, users=users, parkings=parkings
+    )
 
 
 @app.route("/admin/reservations/<int:reservation_id>/edit", methods=["GET", "POST"])
@@ -451,14 +604,20 @@ def admin_reservation_edit(reservation_id):
             end_time = datetime.fromisoformat(request.form.get("end_time", ""))
         except (ValueError, TypeError):
             flash("Unesite ispravne podatke rezervacije.", "danger")
-            return render_template("admin_reservation_form.html", reservation=reservation, users=users, parkings=parkings)
+            return render_template(
+                "admin_reservation_form.html",
+                reservation=reservation, users=users, parkings=parkings
+            )
 
         status = request.form.get("status", "ACTIVE").upper()
         if status not in {"ACTIVE", "CANCELLED"}:
             status = "ACTIVE"
         if end_time <= start_time:
             flash("Završetak mora biti nakon početka.", "danger")
-            return render_template("admin_reservation_form.html", reservation=reservation, users=users, parkings=parkings)
+            return render_template(
+                "admin_reservation_form.html",
+                reservation=reservation, users=users, parkings=parkings
+            )
 
         reservation.user_id = user_id
         reservation.parking_id = parking_id
@@ -469,7 +628,10 @@ def admin_reservation_edit(reservation_id):
         flash("Rezervacija je ažurirana.", "success")
         return redirect(url_for("admin_reservations"))
 
-    return render_template("admin_reservation_form.html", reservation=reservation, users=users, parkings=parkings)
+    return render_template(
+        "admin_reservation_form.html",
+        reservation=reservation, users=users, parkings=parkings
+    )
 
 
 @app.route("/admin/reservations/<int:reservation_id>/delete", methods=["POST"])
@@ -482,13 +644,38 @@ def admin_reservation_delete(reservation_id):
     return redirect(url_for("admin_reservations"))
 
 
+# --- INI postavke ---
+
+@app.route("/admin/settings", methods=["GET", "POST"])
+@admin_required
+def admin_settings():
+    settings = load_settings()
+
+    if request.method == "POST":
+        language = request.form.get("default_language", "hr").lower()
+        if language not in {"hr", "en"}:
+            language = "hr"
+
+        try:
+            items_per_page = int(request.form.get("items_per_page", "10"))
+        except ValueError:
+            items_per_page = 10
+        items_per_page = max(1, min(items_per_page, 50))
+
+        save_settings(language, items_per_page)
+        flash(tr("flash.settings_saved"), "success")
+        return redirect(url_for("admin_settings"))
+
+    return render_template("admin_settings.html", app_settings=settings)
+
+
 @app.errorhandler(403)
 def forbidden(_error):
     return render_template("403.html"), 403
 
 
 def create_database():
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
     with app.app_context():
         db.create_all()
 
