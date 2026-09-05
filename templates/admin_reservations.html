@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Admin rezervacije · ParKING{% endblock %}
+{% block title %}{% if lang == 'en' %}Admin reservations{% else %}Admin rezervacije{% endif %} · ParKING{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1>Rezervacije</h1>
-        <p class="text-muted mb-0">Administratorski CRUD nad tablicom reservations.</p>
+        <h1>{% if lang == 'en' %}Reservations{% else %}Rezervacije{% endif %}</h1>
+        <p class="text-muted mb-0">{% if lang == 'en' %}Administrator CRUD over the reservations table.{% else %}Administratorski CRUD nad tablicom reservations.{% endif %}</p>
     </div>
-    <a class="btn btn-success" href="{{ url_for('admin_reservation_new') }}">+ Dodaj rezervaciju</a>
+    <a class="btn btn-success" href="{{ url_for('admin_reservation_new') }}">+ {% if lang == 'en' %}Add reservation{% else %}Dodaj rezervaciju{% endif %}</a>
 </div>
 
 <div class="table-responsive">
@@ -14,13 +14,13 @@
     <thead>
         <tr>
             <th>ID</th>
-            <th>Korisnik</th>
+            <th>{% if lang == 'en' %}User{% else %}Korisnik{% endif %}</th>
             <th>Parking</th>
-            <th>Početak</th>
-            <th>Završetak</th>
-            <th>Status</th>
-            <th>Ukupno</th>
-            <th class="text-end">Akcije</th>
+            <th>{{ tr('common.start') }}</th>
+            <th>{{ tr('common.end') }}</th>
+            <th>{{ tr('common.status') }}</th>
+            <th>{{ tr('common.total') }}</th>
+            <th class="text-end">{% if lang == 'en' %}Actions{% else %}Akcije{% endif %}</th>
         </tr>
     </thead>
     <tbody>
@@ -34,14 +34,14 @@
             <td>{{ reservation.status }}</td>
             <td>{{ "%.2f"|format(reservation.total_price()) }} €</td>
             <td class="text-end">
-                <a class="btn btn-sm btn-warning" href="{{ url_for('admin_reservation_edit', reservation_id=reservation.id) }}">Uredi</a>
-                <form class="d-inline" method="post" action="{{ url_for('admin_reservation_delete', reservation_id=reservation.id) }}" onsubmit="return confirm('Obrisati rezervaciju?')">
-                    <button class="btn btn-sm btn-danger">Obriši</button>
+                <a class="btn btn-sm btn-warning" href="{{ url_for('admin_reservation_edit', reservation_id=reservation.id) }}">{{ tr('common.edit') }}</a>
+                <form class="d-inline" method="post" action="{{ url_for('admin_reservation_delete', reservation_id=reservation.id) }}" onsubmit="return confirm('{% if lang == 'en' %}Delete reservation?{% else %}Obrisati rezervaciju?{% endif %}')">
+                    <button class="btn btn-sm btn-danger">{{ tr('common.delete') }}</button>
                 </form>
             </td>
         </tr>
         {% else %}
-        <tr><td colspan="8">Nema rezervacija.</td></tr>
+        <tr><td colspan="8">{% if lang == 'en' %}There are no reservations.{% else %}Nema rezervacija.{% endif %}</td></tr>
         {% endfor %}
     </tbody>
 </table>
