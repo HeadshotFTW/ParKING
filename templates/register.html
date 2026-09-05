@@ -1,18 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Registracija · ParKING{% endblock %}
+{% block title %}{{ tr('register.title') }} - ParKING{% endblock %}
 {% block content %}
-<div class="form-card">
-    <h2 class="mb-3">Registracija</h2>
-    <form method="post">
-        <div class="mb-3">
-            <label class="form-label">Korisničko ime</label>
-            <input class="form-control" name="username" minlength="3" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Lozinka</label>
-            <input class="form-control" type="password" name="password" minlength="4" required>
-        </div>
-        <button class="btn btn-primary">Kreiraj račun</button>
-    </form>
+<div class="row justify-content-center">
+    <div class="col-md-5">
+        <h1 class="h3 mb-3">{{ tr('register.title') }}</h1>
+        <form method="post" class="card card-body">
+            <label class="form-label">{{ tr('common.username') }}</label>
+            <input class="form-control mb-3" name="username" minlength="3" required autofocus>
+            <label class="form-label">{{ tr('common.password') }}</label>
+            <input class="form-control mb-3" type="password" name="password" minlength="4" required>
+            <button class="btn btn-primary">{{ tr('register.submit') }}</button>
+        </form>
+    </div>
 </div>
 {% endblock %}
