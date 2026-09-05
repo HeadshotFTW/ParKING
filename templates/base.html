@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="hr">
+<html lang="{{ lang }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,20 +11,27 @@
 <nav class="navbar navbar-expand-lg bg-dark navbar-dark mb-4">
     <div class="container">
         <a class="navbar-brand fw-bold" href="{{ url_for('parkings') }}">ParKING</a>
-        <div class="navbar-nav ms-auto">
-            <a class="nav-link" href="{{ url_for('parkings') }}">Parkinzi</a>
+        <div class="navbar-nav ms-auto align-items-lg-center">
+            <a class="nav-link" href="{{ url_for('parkings') }}">{{ tr('nav.parkings') }}</a>
             {% if current_user %}
-                <a class="nav-link" href="{{ url_for('my_parkings') }}">Moji parkinzi</a>
-                <a class="nav-link" href="{{ url_for('my_reservations') }}">Moje rezervacije</a>
+                <a class="nav-link" href="{{ url_for('my_parkings') }}">{{ tr('nav.my_parkings') }}</a>
+                <a class="nav-link" href="{{ url_for('my_reservations') }}">{{ tr('nav.my_reservations') }}</a>
+                <a class="nav-link" href="{{ url_for('notes') }}">{{ tr('nav.notes') }}</a>
                 {% if current_user.is_admin() %}
-                    <a class="nav-link" href="{{ url_for('admin_users') }}">Korisnici</a>
-                    <a class="nav-link" href="{{ url_for('admin_reservations') }}">Admin rezervacije</a>
+                    <a class="nav-link" href="{{ url_for('admin_users') }}">{{ tr('nav.users') }}</a>
+                    <a class="nav-link" href="{{ url_for('admin_reservations') }}">{{ tr('nav.admin_reservations') }}</a>
+                    <a class="nav-link" href="{{ url_for('admin_settings') }}">{{ tr('nav.settings') }}</a>
                 {% endif %}
-                <a class="nav-link" href="{{ url_for('logout') }}">Odjava ({{ current_user.username }})</a>
+                <a class="nav-link" href="{{ url_for('logout') }}">{{ tr('nav.logout') }} ({{ current_user.username }})</a>
             {% else %}
-                <a class="nav-link" href="{{ url_for('login') }}">Prijava</a>
-                <a class="nav-link" href="{{ url_for('register') }}">Registracija</a>
+                <a class="nav-link" href="{{ url_for('login') }}">{{ tr('nav.login') }}</a>
+                <a class="nav-link" href="{{ url_for('register') }}">{{ tr('nav.register') }}</a>
             {% endif %}
+            <span class="navbar-text ms-lg-2">
+                <a class="text-light text-decoration-none {% if lang == 'hr' %}fw-bold{% endif %}" href="{{ url_for('set_language', language='hr') }}">HR</a>
+                |
+                <a class="text-light text-decoration-none {% if lang == 'en' %}fw-bold{% endif %}" href="{{ url_for('set_language', language='en') }}">EN</a>
+            </span>
         </div>
     </div>
 </nav>
