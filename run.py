@@ -6,11 +6,14 @@ from flask import flash, redirect, render_template, request, url_for
 
 from app import app, admin_required, current_user, login_required, DB_PATH, DATA_DIR
 from binary_store import add_record, records_for_user
+from crypto_store import decrypt_notes, encrypt_notes
+from json_store import list_notes
 from parallel_tasks import run_thread_demo
 import api_routes  # noqa: F401 - registrira REST rute i REST klijent
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
+EXPORT_DIR = Path(__file__).resolve().parent / "exports"
 
 
 @app.route("/admin/threads")
@@ -86,6 +89,38 @@ def binary_history():
 
     records = list(reversed(records_for_user(BINARY_HISTORY_PATH, user.id)))
     return render_template("binary_history.html", records=records)
+
+
+@app.route("/crypto", methods=["GET", "POST"])
+@login_required
+def crypto_demo():
+    user = current_user()
+    encrypted_path = None
+    decrypted_notes = None
+    output_path = EXPORT_DIR / f"notes_user_{user.id}.aes"
+
+    if request.method == "POST":
+        action = request.form.get("action")
+        try:
+            if action == "encrypt":
+                notes = list_notes(user.id)
+                encrypt_notes(notes, app.config["SECRET_KEY"], user.id, output_path)
+                encrypted_path = str(output_path.relative_to(Path(__file__).resolve().parent))
+                flash("Bilješke su uspješno šifrirane AES-GCM algoritmom.", "success")
+            elif action == "decrypt":
+                if not output_path.exists():
+                    flash("Najprije izradite šifriranu sigurnosnu kopiju.", "warning")
+                else:
+                    decrypted_notes = decrypt_notes(app.config["SECRET_KEY"], user.id, output_path)
+                    flash("Šifrirana datoteka je uspješno dešifrirana.", "success")
+        except Exception as exc:
+            flash(f"Kriptografska operacija nije uspjela: {exc}", "danger")
+
+    return render_template(
+        "crypto.html",
+        encrypted_path=encrypted_path,
+        decrypted_notes=decrypted_notes,
+    )
 
 
 if __name__ == "__main__":
