@@ -142,9 +142,9 @@ curl -H "Authorization: Bearer <API_TOKEN>" \
 
 API token se ne treba zapisivati u dokumentaciju niti spremati u Git.
 
-## 6. Demo korisnici
+## 6. Demo korisnici i standardni demo podaci
 
-Ako je potrebno vratiti osnovne razvojne podatke:
+Ako je potrebno vratiti samo osnovne razvojne podatke:
 
 ```bash
 docker compose exec parking python seed.py
@@ -160,7 +160,25 @@ admin    / admin123
 
 > `seed.py` briše postojeću razvojnu bazu. Koristiti ga samo kada je namjerno potrebno vratiti početno demo stanje.
 
-Za potpuniji demonstracijski skup podataka preporučuje se koristiti **Test → Demo podaci → Import** i učitati spremljeni JSON dataset.
+Za potpunu demonstraciju koristi se referentni skup podataka iz repozitorija:
+
+```text
+demo/parking-demo.json
+```
+
+Datoteka `demo/parking-demo.json` namijenjena je držanju u `main` grani kako bi svaki klon repozitorija imao isti pripremljeni demonstracijski skup. U njoj se ne spremaju password hashovi ni API tokeni.
+
+Učitavanje referentnog skupa:
+
+1. Prijaviti se kao `admin / admin123`.
+2. Otvoriti **Test → Demo podaci**.
+3. U odjeljku **Import** odabrati `demo/parking-demo.json`.
+4. Potvrditi import.
+5. Nakon importa ponovno se prijaviti po potrebi.
+
+Import zamjenjuje postojeće demonstracijske podatke sadržajem iz JSON datoteke, pa ga treba koristiti namjerno, posebno prije obrane ili testiranja.
+
+Kada se kasnije pripremi bolji demo skup, postojeća datoteka `demo/parking-demo.json` jednostavno se zamijeni novim exportom i ponovno commit-a u `main`.
 
 ## 7. Ažuriranje aplikacije
 
