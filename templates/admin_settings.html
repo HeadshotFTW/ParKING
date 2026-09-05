@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('settings.title') }} - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ tr('settings.title') }}</h1>
+<form method="post" class="card card-body">
+    <p class="text-muted">{{ tr('settings.note') }}</p>
+    <label class="form-label">{{ tr('settings.language') }}</label>
+    <select class="form-select mb-3" name="default_language">
+        <option value="hr" {% if app_settings.default_language == 'hr' %}selected{% endif %}>Hrvatski</option>
+        <option value="en" {% if app_settings.default_language == 'en' %}selected{% endif %}>English</option>
+    </select>
+
+    <label class="form-label">{{ tr('settings.items') }}</label>
+    <input class="form-control mb-3" type="number" min="1" max="50" name="items_per_page" value="{{ app_settings.items_per_page }}" required>
+
+    <button class="btn btn-primary">{{ tr('common.save') }}</button>
+</form>
+{% endblock %}
