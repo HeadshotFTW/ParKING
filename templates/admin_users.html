@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}Korisnici · ParKING{% endblock %}
+{% block title %}{% if lang == 'en' %}Users{% else %}Korisnici{% endif %} · ParKING{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h1>Korisnici</h1>
-        <p class="text-muted mb-0">Administratorski CRUD nad tablicom users.</p>
+        <h1>{% if lang == 'en' %}Users{% else %}Korisnici{% endif %}</h1>
+        <p class="text-muted mb-0">{% if lang == 'en' %}Administrator CRUD over the users table.{% else %}Administratorski CRUD nad tablicom users.{% endif %}</p>
     </div>
-    <a class="btn btn-success" href="{{ url_for('admin_user_new') }}">+ Dodaj korisnika</a>
+    <a class="btn btn-success" href="{{ url_for('admin_user_new') }}">+ {% if lang == 'en' %}Add user{% else %}Dodaj korisnika{% endif %}</a>
 </div>
 
 <div class="table-responsive">
@@ -14,9 +14,9 @@
     <thead>
         <tr>
             <th>ID</th>
-            <th>Korisničko ime</th>
-            <th>Uloga</th>
-            <th class="text-end">Akcije</th>
+            <th>{{ tr('common.username') }}</th>
+            <th>{% if lang == 'en' %}Role{% else %}Uloga{% endif %}</th>
+            <th class="text-end">{% if lang == 'en' %}Actions{% else %}Akcije{% endif %}</th>
         </tr>
     </thead>
     <tbody>
@@ -26,16 +26,16 @@
             <td>{{ user.username }}</td>
             <td>{{ user.role }}</td>
             <td class="text-end">
-                <a class="btn btn-sm btn-warning" href="{{ url_for('admin_user_edit', user_id=user.id) }}">Uredi</a>
+                <a class="btn btn-sm btn-warning" href="{{ url_for('admin_user_edit', user_id=user.id) }}">{{ tr('common.edit') }}</a>
                 {% if user.id != current_user.id %}
-                <form class="d-inline" method="post" action="{{ url_for('admin_user_delete', user_id=user.id) }}" onsubmit="return confirm('Obrisati korisnika?')">
-                    <button class="btn btn-sm btn-danger">Obriši</button>
+                <form class="d-inline" method="post" action="{{ url_for('admin_user_delete', user_id=user.id) }}" onsubmit="return confirm('{% if lang == 'en' %}Delete user?{% else %}Obrisati korisnika?{% endif %}')">
+                    <button class="btn btn-sm btn-danger">{{ tr('common.delete') }}</button>
                 </form>
                 {% endif %}
             </td>
         </tr>
         {% else %}
-        <tr><td colspan="4">Nema korisnika.</td></tr>
+        <tr><td colspan="4">{% if lang == 'en' %}There are no users.{% else %}Nema korisnika.{% endif %}</td></tr>
         {% endfor %}
     </tbody>
 </table>
