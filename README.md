@@ -41,6 +41,18 @@ Dodane su tri funkcionalnosti za kriterije projekta:
 - **INI postavke** — `config.ini` s postavkama `default_language` i `items_per_page`. Administrator ih mijenja kroz **Postavke**; postavka broja stavki stvarno određuje veličinu stranice popisa parkinga.
 - **JSON CRUD** — korisničke bilješke pohranjuju se kao niz zapisa u `data/parking_notes.json`. Podržano je čitanje, dodavanje, uređivanje i brisanje.
 
+## Faza 4
+
+Dodane su funkcionalnosti za BLOB i izvještaje:
+
+- slika parkinga sprema se izravno u SQLite tablicu `parking_spots` kao BLOB (`photo`) uz MIME tip (`photo_mime`)
+- vlasnik može pri dodavanju ili uređivanju parkinga učitati JPEG, PNG ili WebP sliku do 2 MB
+- slika se čita iz baze i prikazuje na detalju parkinga
+- svaka korisnikova rezervacija ima gumb **PDF** koji generira potvrdu rezervacije
+- PDF koristi povezane podatke iz `reservations`, `users` i `parking_spots` te prikazuje i izračunatu ukupnu cijenu
+
+Kod pokretanja postojeća razvojna SQLite baza automatski se nadogradi novim stupcima `photo` i `photo_mime`; nije potrebno brisati postojeće podatke.
+
 ## Struktura projekta
 
 ```text
@@ -137,6 +149,16 @@ Kreira i dva parkinga te jednu demo rezervaciju.
 4. Kao prijavljeni korisnik otvorite **Bilješke**.
 5. Dodajte nekoliko bilješki, zatim jednu uredite i jednu obrišite.
 6. U host direktoriju otvorite `data/parking_notes.json` i pokažite da se radi o nizu JSON zapisa s poljima `id`, `user_id`, `title` i `text`.
+
+## Brzi test Faze 4
+
+1. Prijavite se kao `vlasnik / parking123`.
+2. Uredite jedan parking i učitajte JPEG/PNG/WebP sliku manju od 2 MB.
+3. Otvorite detalj parkinga i provjerite prikaz slike.
+4. Po želji provjerite SQLite shemu: `parking_spots.photo` je BLOB polje.
+5. Prijavite se kao `gost / parking123`.
+6. Otvorite **Moje rezervacije** i kliknite **PDF**.
+7. U PDF-u pokažite broj rezervacije, korisnika, parking, lokaciju, vlasnika, termin, trajanje, cijenu po satu i ukupnu cijenu.
 
 ## Lokalno pokretanje bez Dockera
 
