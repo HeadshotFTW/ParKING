@@ -9,8 +9,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN mkdir -p /app/data /app/exports
+RUN mkdir -p /app/data /app/exports && chmod +x /app/start.sh
 
-EXPOSE 5000
+EXPOSE 5000 5001
 
-CMD ["python", "run.py"]
+CMD ["/app/start.sh"]
