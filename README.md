@@ -42,6 +42,8 @@ Dodana je demonstracija komunikacije između dva procesa:
 
 Dodani su vlastiti REST servis i klijent s Bearer token autentifikacijom i autorizacijom nad resursima `parkings` i `reservations`.
 
+REST servis je izdvojen u zasebnu Flask aplikaciju `api_app.py` na portu `5001`, dok glavna web aplikacija radi na portu `5000`. Obje aplikacije rade kao zasebni procesi unutar istog containera, a REST klijent iz glavne aplikacije komunicira s API servisom preko HTTP-a.
+
 ## Faza 8
 
 Dodana je datoteka prilagođenog binarnog formata `data/search_history.bin` za niz zapisa povijesti pretraga. Format ima vlastito `PKSR` zaglavlje, verziju, broj zapisa i binarno zapisane podatke.
@@ -68,13 +70,19 @@ Dodana je demonstracija SHA-256 sažimanja sa soli i paprom:
 - provjera namjerno prolazi kroz svih 256 mogućih vrijednosti papra i prikazuje broj pokušaja te pronađenu vrijednost
 - demo nije povezan s pohranom korisničkih lozinki
 
+## Faza 11
+
+Dodani su administratorski export i import demonstracijskih podataka pod **Test → Demo podaci**. Jedan JSON dataset može sadržavati korisnike, parkinge, rezervacije, JSON bilješke, BLOB fotografije i binarnu povijest pretraga. Password hash i postojeći API tokeni ne izvoze se. Dataset je namijenjen brzom vraćanju poznatog stanja prije demonstracije.
+
 ## Struktura projekta
 
 ```text
 ParKING/
 ├── app.py
 ├── run.py
-├── api_routes.py
+├── api_app.py
+├── start.sh
+├── demo_data.py
 ├── binary_store.py
 ├── crypto_store.py
 ├── hash_demo.py
@@ -88,6 +96,8 @@ ParKING/
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
+├── INSTALL_UBUNTU.md
+├── OBRANA.md
 ├── templates/
 ├── static/
 ├── data/
@@ -96,14 +106,30 @@ ParKING/
 
 ## Pokretanje pomoću Dockera
 
+Detaljne upute za čistu instalaciju na Ubuntu 26.04 nalaze se u `INSTALL_UBUNTU.md`.
+
+Za već pripremljeno računalo dovoljno je:
+
 ```bash
 docker compose up -d --build
 ```
 
-Aplikacija je dostupna na:
+Glavna aplikacija je dostupna na:
 
 ```text
 http://localhost:5000
+```
+
+REST API radi zasebno na:
+
+```text
+http://localhost:5001
+```
+
+Health provjera:
+
+```bash
+curl http://localhost:5001/api/health
 ```
 
 ## Ažuriranje nakon promjena na GitHubu
@@ -115,7 +141,7 @@ docker compose up -d --build
 
 ## Demo korisnici
 
-Ako treba ponovno kreirati razvojne podatke:
+Ako treba ponovno kreirati osnovne razvojne podatke:
 
 ```bash
 docker compose exec parking python seed.py
@@ -129,52 +155,31 @@ admin    / admin123
 
 > `seed.py` briše postojeće podatke baze i služi samo za razvoj i demonstraciju.
 
-## Brzi test Faze 5
+Za potpuno demonstracijsko stanje preporučuje se koristiti **Test → Demo podaci → Import** i učitati spremljeni JSON dataset.
 
-1. Prijavite se kao `admin / admin123`.
-2. Otvorite **Dretve**.
-3. Pokažite tri paralelna mrežna zadatka, nazive `parking-weather_*`, vremena izvođenja i `ThreadPoolExecutor(max_workers=3)`.
-4. Pokažite `threading.Lock` koji štiti zajednički zapisnik.
+## Brza provjera odvojenog REST servisa
 
-## Brzi test Faze 6
+```bash
+curl http://localhost:5001/api/health
+curl -i http://localhost:5001/api/parkings
+curl -i http://localhost:5000/api/parkings
+```
 
-1. Prijavite se kao `admin / admin123`.
-2. Otvorite **Procesi**.
-3. Kliknite **Provjeri rezervacije**.
-4. Pokažite da Flask proces A pokreće `reservation_worker.py` kao zaseban proces B i dobiva povratni kod `0` ako je sve ispravno.
-5. Kliknite **Simuliraj grešku procesa B**.
-6. Pokažite povratni kod `2`, sadržaj `stderr` i poruku koju proces A prikazuje korisniku.
-7. U `run.py` pokažite `subprocess.run(...)`, a u `reservation_worker.py` povratne vrijednosti `0`, `1` i `2`.
+Očekivano:
 
-## Brzi test Faze 9
+- port `5001` health vraća `status: ok`
+- `/api/parkings` na portu `5001` bez Bearer tokena vraća `401`
+- `/api/parkings` na portu `5000` vraća `404`, jer API nije dio glavne web aplikacije
 
-1. Prijavite se kao korisnik koji ima barem jednu bilješku.
-2. Otvorite **AES**.
-3. Kliknite **Šifriraj moje bilješke** i provjerite da nastane `exports/notes_user_<id>.aes`.
-4. Po želji pokrenite `xxd exports/notes_user_<id>.aes | head` i pokažite da sadržaj nije čitljivi JSON.
-5. Kliknite **Dešifriraj sigurnosnu kopiju** i pokažite da se izvorne bilješke ponovno prikažu.
-6. U `crypto_store.py` pokažite `AESGCM(...).encrypt(...)` i `AESGCM(...).decrypt(...)`.
+Autentificirani poziv koristi stvarni API token korisnika:
 
-## Brzi test Faze 10
+```bash
+curl -H "Authorization: Bearer <API_TOKEN>" http://localhost:5001/api/parkings
+```
 
-1. Prijavite se kao bilo koji korisnik.
-2. Otvorite **SHA-256**.
-3. Upišite proizvoljni tekst i kliknite **Izračunaj i provjeri**.
-4. Pokažite SHA-256 sažetak i promjenjivu sol.
-5. Naglasite da se sol ne sprema nego se izvodi iz `user_id` i korisničkog imena.
-6. Pokažite da je provjeren cijeli raspon papra `0-255`, odnosno ukupno 256 pokušaja.
-7. U `hash_demo.py` pokažite `hashlib.sha256(...)`, `derive_variable_salt(...)` i petlju kroz sve moguće vrijednosti papra.
+API token se ne zapisuje u dokumentaciju niti sprema u Git.
 
 ## Lokalno pokretanje bez Dockera
-
-### Windows
-
-```powershell
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python run.py
-```
 
 ### Linux
 
@@ -182,6 +187,23 @@ python run.py
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+chmod +x start.sh
+./start.sh
+```
+
+`start.sh` pokreće zasebni REST proces na portu `5001` i glavnu web aplikaciju na portu `5000`.
+
+### Windows
+
+Za lokalno pokretanje bez Dockera potrebno je u dva terminala pokrenuti:
+
+```powershell
+python api_app.py
+```
+
+te:
+
+```powershell
 python run.py
 ```
 
