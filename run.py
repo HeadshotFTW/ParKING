@@ -2,6 +2,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import requests
 from flask import flash, redirect, render_template, request, url_for
 
 from app import app, admin_required, current_language, current_user, login_required, DB_PATH, DATA_DIR
@@ -10,15 +11,57 @@ from crypto_store import decrypt_notes, encrypt_notes
 from hash_demo import create_demo_hash, verify_by_full_pepper_scan
 from json_store import list_notes
 from parallel_tasks import run_thread_demo
-import api_routes  # noqa: F401 - registrira REST rute i REST klijent
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
 EXPORT_DIR = Path(__file__).resolve().parent / "exports"
+REST_API_BASE_URL = "http://127.0.0.1:5001"
 
 
 def tech_text(hr, en):
     return en if current_language() == "en" else hr
+
+
+@app.route("/rest-client")
+@login_required
+def rest_client():
+    """REST client in the main app calling the separate API process on port 5001."""
+    user = current_user()
+    headers = {"Authorization": f"Bearer {user.api_token}"}
+    results = []
+
+    for label, endpoint in (
+        ("GET /api/parkings", "/api/parkings"),
+        ("GET /api/reservations", "/api/reservations"),
+    ):
+        try:
+            response = requests.get(
+                REST_API_BASE_URL + endpoint,
+                headers=headers,
+                timeout=5,
+            )
+            try:
+                body = response.json()
+            except ValueError:
+                body = {"raw": response.text[:500]}
+            results.append({
+                "label": label,
+                "status": response.status_code,
+                "body": body,
+            })
+        except requests.RequestException as exc:
+            results.append({
+                "label": label,
+                "status": "ERROR",
+                "body": {"error": str(exc)},
+            })
+
+    return render_template(
+        "rest_client.html",
+        results=results,
+        api_token=user.api_token,
+        api_base_url=REST_API_BASE_URL,
+    )
 
 
 @app.route("/admin/threads")
@@ -173,4 +216,4 @@ def hash_demo_page():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
+    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True, use_reloader=False)
