@@ -57,6 +57,17 @@ Dodano je simetrično šifriranje i dešifriranje korisničkih bilješki pomoću
 - ista stranica može dešifrirati datoteku i prikazati izvorne bilješke
 - ne šifriraju se korisničke lozinke
 
+## Faza 10
+
+Dodana je demonstracija SHA-256 sažimanja sa soli i paprom:
+
+- stranica **SHA-256** sažima proizvoljni tekst algoritmom SHA-256
+- koristi se promjenjiva 16-bajtna sol izvedena po pravilu iz `user_id` i korisničkog imena
+- sol se ne pohranjuje u bazu ili datoteku nego se svaki put ponovno izvodi istim pravilom
+- koristi se demonstracijski papar iz raspona `0-255` (zadano 137, moguće promijeniti varijablom `HASH_DEMO_PEPPER`)
+- provjera namjerno prolazi kroz svih 256 mogućih vrijednosti papra i prikazuje broj pokušaja te pronađenu vrijednost
+- demo nije povezan s pohranom korisničkih lozinki
+
 ## Struktura projekta
 
 ```text
@@ -66,6 +77,7 @@ ParKING/
 ├── api_routes.py
 ├── binary_store.py
 ├── crypto_store.py
+├── hash_demo.py
 ├── parallel_tasks.py
 ├── reservation_worker.py
 ├── models.py
@@ -142,6 +154,16 @@ admin    / admin123
 4. Po želji pokrenite `xxd exports/notes_user_<id>.aes | head` i pokažite da sadržaj nije čitljivi JSON.
 5. Kliknite **Dešifriraj sigurnosnu kopiju** i pokažite da se izvorne bilješke ponovno prikažu.
 6. U `crypto_store.py` pokažite `AESGCM(...).encrypt(...)` i `AESGCM(...).decrypt(...)`.
+
+## Brzi test Faze 10
+
+1. Prijavite se kao bilo koji korisnik.
+2. Otvorite **SHA-256**.
+3. Upišite proizvoljni tekst i kliknite **Izračunaj i provjeri**.
+4. Pokažite SHA-256 sažetak i promjenjivu sol.
+5. Naglasite da se sol ne sprema nego se izvodi iz `user_id` i korisničkog imena.
+6. Pokažite da je provjeren cijeli raspon papra `0-255`, odnosno ukupno 256 pokušaja.
+7. U `hash_demo.py` pokažite `hashlib.sha256(...)`, `derive_variable_salt(...)` i petlju kroz sve moguće vrijednosti papra.
 
 ## Lokalno pokretanje bez Dockera
 
