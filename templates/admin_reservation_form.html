@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{% if reservation %}Uredi rezervaciju{% else %}Dodaj rezervaciju{% endif %} · ParKING{% endblock %}
+{% block title %}{% if reservation %}{% if lang == 'en' %}Edit reservation{% else %}Uredi rezervaciju{% endif %}{% else %}{% if lang == 'en' %}Add reservation{% else %}Dodaj rezervaciju{% endif %}{% endif %} · ParKING{% endblock %}
 {% block content %}
 <div class="form-card">
-    <h2>{% if reservation %}Uredi rezervaciju{% else %}Dodaj rezervaciju{% endif %}</h2>
+    <h2>{% if reservation %}{% if lang == 'en' %}Edit reservation{% else %}Uredi rezervaciju{% endif %}{% else %}{% if lang == 'en' %}Add reservation{% else %}Dodaj rezervaciju{% endif %}{% endif %}</h2>
     <form method="post" class="mt-4">
         <div class="mb-3">
-            <label class="form-label">Korisnik</label>
+            <label class="form-label">{% if lang == 'en' %}User{% else %}Korisnik{% endif %}</label>
             <select class="form-select" name="user_id" required>
                 {% for user in users %}
                     <option value="{{ user.id }}" {% if reservation and reservation.user_id == user.id %}selected{% endif %}>{{ user.username }}</option>
@@ -21,22 +21,22 @@
             </select>
         </div>
         <div class="mb-3">
-            <label class="form-label">Početak</label>
+            <label class="form-label">{{ tr('common.start') }}</label>
             <input class="form-control" type="datetime-local" name="start_time" value="{{ reservation.start_time.strftime('%Y-%m-%dT%H:%M') if reservation else '' }}" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">Završetak</label>
+            <label class="form-label">{{ tr('common.end') }}</label>
             <input class="form-control" type="datetime-local" name="end_time" value="{{ reservation.end_time.strftime('%Y-%m-%dT%H:%M') if reservation else '' }}" required>
         </div>
         <div class="mb-3">
-            <label class="form-label">Status</label>
+            <label class="form-label">{{ tr('common.status') }}</label>
             <select class="form-select" name="status">
                 <option value="ACTIVE" {% if not reservation or reservation.status == 'ACTIVE' %}selected{% endif %}>ACTIVE</option>
                 <option value="CANCELLED" {% if reservation and reservation.status == 'CANCELLED' %}selected{% endif %}>CANCELLED</option>
             </select>
         </div>
-        <button class="btn btn-primary">Spremi</button>
-        <a class="btn btn-secondary" href="{{ url_for('admin_reservations') }}">Odustani</a>
+        <button class="btn btn-primary">{{ tr('common.save') }}</button>
+        <a class="btn btn-secondary" href="{{ url_for('admin_reservations') }}">{{ tr('common.cancel') }}</a>
     </form>
 </div>
 {% endblock %}
