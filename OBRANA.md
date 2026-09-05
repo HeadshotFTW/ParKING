@@ -26,6 +26,55 @@ admin    / admin123
 
 > `seed.py` briše postojeću razvojnu bazu. Pokretati ga samo ako je potrebno vratiti demo stanje.
 
+## Brza provjera odvojenog REST servisa
+
+ParKING u istom Docker containeru pokreće dvije zasebne Flask aplikacije kao dva odvojena procesa:
+
+```text
+run.py      → glavna web aplikacija → port 5000
+api_app.py  → REST API              → port 5001
+```
+
+Nakon pokretanja provjeriti logove:
+
+```bash
+docker compose logs --tail=50
+```
+
+U logovima se trebaju vidjeti dvije Flask aplikacije, jedna na portu `5000`, a druga na `5001`.
+
+Provjera REST health endpointa:
+
+```bash
+curl http://localhost:5001/api/health
+```
+
+Očekivani rezultat:
+
+```json
+{"port":5001,"service":"ParKING REST API","status":"ok"}
+```
+
+Provjera autentifikacije na REST aplikaciji:
+
+```bash
+curl -i http://localhost:5001/api/parkings
+```
+
+Očekuje se HTTP `401 UNAUTHORIZED` i poruka:
+
+```json
+{"error":"Nedostaje Bearer token."}
+```
+
+Provjera da REST više nije dio glavne web aplikacije:
+
+```bash
+curl -i http://localhost:5000/api/parkings
+```
+
+Očekuje se HTTP `404 NOT FOUND`. Time se jasno pokazuje da glavna aplikacija na portu `5000` nema REST rutu, nego REST servis radi kao zasebna aplikacija/proces na portu `5001`.
+
 ## Preporučeni redoslijed demonstracije
 
 ### 1. Osnovna aplikacija
@@ -93,20 +142,28 @@ U kodu pokazati `subprocess.run(...)` u `run.py` i izlazne kodove u `reservation
 
 ### 8. Test → REST
 
-Pokazati da ugrađeni REST klijent dobiva HTTP `200` za:
+Pokazati da ugrađeni REST klijent iz glavne aplikacije na portu `5000` preko HTTP-a poziva zasebnu REST aplikaciju na portu `5001` i dobiva HTTP `200` za:
 
 ```text
 GET /api/parkings
 GET /api/reservations
 ```
 
-Iz terminala pokazati autentifikaciju bez tokena:
+Za autentifikaciju bez tokena koristiti:
+
+```bash
+curl -i http://localhost:5001/api/parkings
+```
+
+Očekuje se HTTP `401`.
+
+Za dokaz da REST nije registriran u glavnoj aplikaciji:
 
 ```bash
 curl -i http://localhost:5000/api/parkings
 ```
 
-Očekuje se HTTP `401`.
+Očekuje se HTTP `404`.
 
 Za autorizaciju objasniti:
 
@@ -162,11 +219,12 @@ Za vlastiti REST servis računa se 4 boda jer nije posebno postavljen na IIS/Apa
 
 ```text
 models.py                 SQLAlchemy modeli
-app.py                    osnovne rute aplikacije
-run.py                    tehničke demonstracije i proces A
+app.py                    osnovne rute glavne web aplikacije
+run.py                    tehničke demonstracije, REST klijent i proces A
+api_app.py                zasebna REST Flask aplikacija na portu 5001
+start.sh                  pokretanje web i REST procesa u containeru
 parallel_tasks.py         ThreadPoolExecutor + Lock + Open-Meteo
 reservation_worker.py     proces B i izlazni kodovi
-api_routes.py             vlastiti REST servis i REST klijent
 binary_store.py           prilagođeni binarni format
 crypto_store.py           AES-GCM
 hash_demo.py              SHA-256, promjenjiva sol i papar
