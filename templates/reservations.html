@@ -24,9 +24,10 @@
             <td>{{ "%.1f" | format(reservation.duration_hours()) }} {{ tr('reservations.hours') }}</td>
             <td>{{ "%.2f €" | format(reservation.total_price()) }}</td>
             <td>{{ reservation.status }}</td>
-            <td>
+            <td class="text-nowrap">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('reservation_pdf', reservation_id=reservation.id) }}">PDF</a>
                 {% if reservation.status == 'ACTIVE' %}
-                <form method="post" action="{{ url_for('cancel_reservation', reservation_id=reservation.id) }}">
+                <form class="d-inline" method="post" action="{{ url_for('cancel_reservation', reservation_id=reservation.id) }}">
                     <button class="btn btn-sm btn-outline-danger">{{ tr('reservations.cancel') }}</button>
                 </form>
                 {% endif %}
