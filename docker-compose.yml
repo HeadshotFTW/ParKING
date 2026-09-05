@@ -4,6 +4,7 @@ services:
     container_name: parking
     ports:
       - "5000:5000"
+      - "5001:5001"
     environment:
       SECRET_KEY: ${SECRET_KEY:-parking-development-secret}
     volumes:
