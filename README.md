@@ -33,12 +33,23 @@ Administrator ima dodatne izbornike **Korisnici** i **Admin rezervacije**.
 
 Na popisu rezervacija prikazuju se i povezana lookup polja (`user.username`, `parking.name`) te izračunata ukupna cijena rezervacije.
 
+## Faza 3
+
+Dodane su tri funkcionalnosti za kriterije projekta:
+
+- **HR/EN sučelje** — jezik se mijenja tijekom rada aplikacije preko HR/EN poveznica; prevedeno je više od 5 stranica/formi.
+- **INI postavke** — `config.ini` s postavkama `default_language` i `items_per_page`. Administrator ih mijenja kroz **Postavke**; postavka broja stavki stvarno određuje veličinu stranice popisa parkinga.
+- **JSON CRUD** — korisničke bilješke pohranjuju se kao niz zapisa u `data/parking_notes.json`. Podržano je čitanje, dodavanje, uređivanje i brisanje.
+
 ## Struktura projekta
 
 ```text
 ParKING/
 ├── app.py
 ├── models.py
+├── json_store.py
+├── translations.py
+├── config.ini
 ├── seed.py
 ├── requirements.txt
 ├── Dockerfile
@@ -77,7 +88,7 @@ Za gašenje:
 docker compose down
 ```
 
-SQLite baza ostaje u lokalnom direktoriju `data/` i preživljava ponovno kreiranje containera.
+SQLite baza i JSON bilješke ostaju u lokalnom direktoriju `data/`. `config.ini` je također montiran u container pa administratorske promjene postavki ostaju sačuvane nakon ponovnog kreiranja containera.
 
 ## Ažuriranje nakon promjena na GitHubu
 
@@ -106,7 +117,7 @@ admin    / admin123
 
 Kreira i dva parkinga te jednu demo rezervaciju.
 
-> `seed.py` je namijenjen isključivo razvoju i demonstraciji jer briše postojeće podatke.
+> `seed.py` je namijenjen isključivo razvoju i demonstraciji jer briše postojeće podatke baze.
 
 ## Brzi test Faze 2
 
@@ -117,6 +128,15 @@ Kreira i dva parkinga te jednu demo rezervaciju.
 5. Na listi rezervacija pokažite korisničko ime i naziv parkinga kao lookup vrijednosti.
 6. Pokažite izračunatu ukupnu cijenu rezervacije.
 7. Na glavnom popisu parkinga pokažite filtriranje po lokaciji i sortiranje po cijeni/nazivu.
+
+## Brzi test Faze 3
+
+1. Kliknite **HR / EN** u gornjem izborniku i pokažite promjenu jezika na više stranica bez izlaska iz aplikacije.
+2. Kao administrator otvorite **Postavke**. Promijenite zadani jezik i `items_per_page`, spremite i pokažite sadržaj `config.ini`.
+3. Na popisu parkinga pokažite da `items_per_page` određuje broj stavki po stranici.
+4. Kao prijavljeni korisnik otvorite **Bilješke**.
+5. Dodajte nekoliko bilješki, zatim jednu uredite i jednu obrišite.
+6. U host direktoriju otvorite `data/parking_notes.json` i pokažite da se radi o nizu JSON zapisa s poljima `id`, `user_id`, `title` i `text`.
 
 ## Lokalno pokretanje bez Dockera
 
