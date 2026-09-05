@@ -39,6 +39,19 @@ def login_required(view_func):
     return wrapped
 
 
+def admin_required(view_func):
+    @wraps(view_func)
+    def wrapped(*args, **kwargs):
+        user = current_user()
+        if user is None:
+            flash("Za ovu radnju morate biti prijavljeni.", "warning")
+            return redirect(url_for("login", next=request.path))
+        if not user.is_admin():
+            abort(403)
+        return view_func(*args, **kwargs)
+    return wrapped
+
+
 @app.context_processor
 def inject_user():
     return {"current_user": current_user()}
@@ -292,6 +305,181 @@ def cancel_reservation(reservation_id):
     db.session.commit()
     flash("Rezervacija je otkazana.", "info")
     return redirect(url_for("my_reservations"))
+
+
+# --- Administracija: CRUD nad tablicom users ---
+
+@app.route("/admin/users")
+@admin_required
+def admin_users():
+    users = User.query.order_by(User.username.asc()).all()
+    return render_template("admin_users.html", users=users)
+
+
+@app.route("/admin/users/new", methods=["GET", "POST"])
+@admin_required
+def admin_user_new():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "USER").upper()
+
+        if len(username) < 3 or len(password) < 4:
+            flash("Korisničko ime mora imati barem 3, a lozinka barem 4 znaka.", "danger")
+            return render_template("admin_user_form.html", user=None)
+        if role not in {"USER", "ADMIN"}:
+            role = "USER"
+        if User.query.filter_by(username=username).first():
+            flash("Korisničko ime već postoji.", "danger")
+            return render_template("admin_user_form.html", user=None)
+
+        user = User(username=username, role=role)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+        flash("Korisnik je dodan.", "success")
+        return redirect(url_for("admin_users"))
+
+    return render_template("admin_user_form.html", user=None)
+
+
+@app.route("/admin/users/<int:user_id>/edit", methods=["GET", "POST"])
+@admin_required
+def admin_user_edit(user_id):
+    user = db.get_or_404(User, user_id)
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        role = request.form.get("role", "USER").upper()
+
+        duplicate = User.query.filter(User.username == username, User.id != user.id).first()
+        if len(username) < 3 or duplicate:
+            flash("Korisničko ime nije ispravno ili već postoji.", "danger")
+            return render_template("admin_user_form.html", user=user)
+        if role not in {"USER", "ADMIN"}:
+            role = "USER"
+
+        user.username = username
+        user.role = role
+        if password:
+            if len(password) < 4:
+                flash("Nova lozinka mora imati barem 4 znaka.", "danger")
+                return render_template("admin_user_form.html", user=user)
+            user.set_password(password)
+
+        db.session.commit()
+        flash("Korisnik je ažuriran.", "success")
+        return redirect(url_for("admin_users"))
+
+    return render_template("admin_user_form.html", user=user)
+
+
+@app.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+@admin_required
+def admin_user_delete(user_id):
+    user = db.get_or_404(User, user_id)
+    if user.id == current_user().id:
+        flash("Ne možete obrisati trenutno prijavljenog administratora.", "warning")
+        return redirect(url_for("admin_users"))
+
+    db.session.delete(user)
+    db.session.commit()
+    flash("Korisnik je obrisan.", "info")
+    return redirect(url_for("admin_users"))
+
+
+# --- Administracija: CRUD nad tablicom reservations ---
+
+@app.route("/admin/reservations")
+@admin_required
+def admin_reservations():
+    reservations = Reservation.query.order_by(Reservation.start_time.desc()).all()
+    return render_template("admin_reservations.html", reservations=reservations)
+
+
+@app.route("/admin/reservations/new", methods=["GET", "POST"])
+@admin_required
+def admin_reservation_new():
+    users = User.query.order_by(User.username.asc()).all()
+    parkings = ParkingSpot.query.order_by(ParkingSpot.name.asc()).all()
+
+    if request.method == "POST":
+        try:
+            user_id = int(request.form.get("user_id", ""))
+            parking_id = int(request.form.get("parking_id", ""))
+            start_time = datetime.fromisoformat(request.form.get("start_time", ""))
+            end_time = datetime.fromisoformat(request.form.get("end_time", ""))
+        except (ValueError, TypeError):
+            flash("Unesite ispravne podatke rezervacije.", "danger")
+            return render_template("admin_reservation_form.html", reservation=None, users=users, parkings=parkings)
+
+        status = request.form.get("status", "ACTIVE").upper()
+        if status not in {"ACTIVE", "CANCELLED"}:
+            status = "ACTIVE"
+        if end_time <= start_time:
+            flash("Završetak mora biti nakon početka.", "danger")
+            return render_template("admin_reservation_form.html", reservation=None, users=users, parkings=parkings)
+
+        reservation = Reservation(
+            user_id=user_id,
+            parking_id=parking_id,
+            start_time=start_time,
+            end_time=end_time,
+            status=status,
+        )
+        db.session.add(reservation)
+        db.session.commit()
+        flash("Rezervacija je dodana.", "success")
+        return redirect(url_for("admin_reservations"))
+
+    return render_template("admin_reservation_form.html", reservation=None, users=users, parkings=parkings)
+
+
+@app.route("/admin/reservations/<int:reservation_id>/edit", methods=["GET", "POST"])
+@admin_required
+def admin_reservation_edit(reservation_id):
+    reservation = db.get_or_404(Reservation, reservation_id)
+    users = User.query.order_by(User.username.asc()).all()
+    parkings = ParkingSpot.query.order_by(ParkingSpot.name.asc()).all()
+
+    if request.method == "POST":
+        try:
+            user_id = int(request.form.get("user_id", ""))
+            parking_id = int(request.form.get("parking_id", ""))
+            start_time = datetime.fromisoformat(request.form.get("start_time", ""))
+            end_time = datetime.fromisoformat(request.form.get("end_time", ""))
+        except (ValueError, TypeError):
+            flash("Unesite ispravne podatke rezervacije.", "danger")
+            return render_template("admin_reservation_form.html", reservation=reservation, users=users, parkings=parkings)
+
+        status = request.form.get("status", "ACTIVE").upper()
+        if status not in {"ACTIVE", "CANCELLED"}:
+            status = "ACTIVE"
+        if end_time <= start_time:
+            flash("Završetak mora biti nakon početka.", "danger")
+            return render_template("admin_reservation_form.html", reservation=reservation, users=users, parkings=parkings)
+
+        reservation.user_id = user_id
+        reservation.parking_id = parking_id
+        reservation.start_time = start_time
+        reservation.end_time = end_time
+        reservation.status = status
+        db.session.commit()
+        flash("Rezervacija je ažurirana.", "success")
+        return redirect(url_for("admin_reservations"))
+
+    return render_template("admin_reservation_form.html", reservation=reservation, users=users, parkings=parkings)
+
+
+@app.route("/admin/reservations/<int:reservation_id>/delete", methods=["POST"])
+@admin_required
+def admin_reservation_delete(reservation_id):
+    reservation = db.get_or_404(Reservation, reservation_id)
+    db.session.delete(reservation)
+    db.session.commit()
+    flash("Rezervacija je obrisana.", "info")
+    return redirect(url_for("admin_reservations"))
 
 
 @app.errorhandler(403)
