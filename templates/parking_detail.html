@@ -1,23 +1,19 @@
 {% extends "base.html" %}
-{% block title %}{{ parking.name }} · ParKING{% endblock %}
+{% block title %}{{ parking.name }} - ParKING{% endblock %}
 {% block content %}
-<div class="card shadow-sm">
+<div class="card">
     <div class="card-body">
-        <h1>{{ parking.name }}</h1>
-        <p class="text-muted">{{ parking.location }}</p>
-        <h4>{{ parking.display_price() }}</h4>
-        <p class="mt-4">{{ parking.description or "Bez opisa." }}</p>
-        <p><strong>Vlasnik:</strong> {{ parking.owner.username }}</p>
-
-        {% if current_user %}
-            {% if parking.owner_id == current_user.id %}
-                <a class="btn btn-warning" href="{{ url_for('parking_edit', parking_id=parking.id) }}">Uredi</a>
-            {% else %}
-                <a class="btn btn-primary" href="{{ url_for('reserve', parking_id=parking.id) }}">Rezerviraj</a>
-            {% endif %}
-        {% else %}
-            <a class="btn btn-primary" href="{{ url_for('login') }}">Prijavi se za rezervaciju</a>
+        <h1 class="h3">{{ parking.name }}</h1>
+        <dl class="row">
+            <dt class="col-sm-3">{{ tr('common.location') }}</dt><dd class="col-sm-9">{{ parking.location }}</dd>
+            <dt class="col-sm-3">{{ tr('common.price') }}</dt><dd class="col-sm-9">{{ "%.2f €" | format(parking.price_per_hour) }}</dd>
+            <dt class="col-sm-3">{{ tr('common.owner') }}</dt><dd class="col-sm-9">{{ parking.owner.username }}</dd>
+            <dt class="col-sm-3">{{ tr('common.description') }}</dt><dd class="col-sm-9">{{ parking.description or "-" }}</dd>
+        </dl>
+        {% if current_user and parking.owner_id != current_user.id %}
+            <a class="btn btn-primary" href="{{ url_for('reserve', parking_id=parking.id) }}">{{ tr('parking_detail.reserve') }}</a>
         {% endif %}
+        <a class="btn btn-outline-secondary" href="{{ url_for('parkings') }}">{{ tr('common.back') }}</a>
     </div>
 </div>
 {% endblock %}
