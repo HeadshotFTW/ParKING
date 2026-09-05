@@ -6,6 +6,7 @@ from flask import render_template, request
 
 from app import app, admin_required, DB_PATH
 from parallel_tasks import run_thread_demo
+import api_routes  # noqa: F401 - registrira REST rute i REST klijent
 
 
 @app.route("/admin/threads")
@@ -61,4 +62,4 @@ def admin_process():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True, threaded=True)
