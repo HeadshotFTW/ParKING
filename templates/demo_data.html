@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('demo.title') }} - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ tr('demo.title') }}</h1>
+<p class="text-muted">{{ tr('demo.description') }}</p>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5">{{ tr('demo.export_title') }}</h2>
+                <p>{{ tr('demo.export_text') }}</p>
+                <form method="post">
+                    <input type="hidden" name="action" value="export">
+                    <button class="btn btn-primary" type="submit">{{ tr('demo.export_button') }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100 border-danger">
+            <div class="card-body">
+                <h2 class="h5">{{ tr('demo.import_title') }}</h2>
+                <p>{{ tr('demo.import_text') }}</p>
+                <div class="alert alert-warning">{{ tr('demo.warning') }}</div>
+                <form method="post" enctype="multipart/form-data" onsubmit="return confirm('{{ tr('demo.confirm') }}')">
+                    <input type="hidden" name="action" value="import">
+                    <input class="form-control mb-3" type="file" name="dataset" accept="application/json,.json" required>
+                    <button class="btn btn-danger" type="submit">{{ tr('demo.import_button') }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <strong>{{ tr('demo.credentials_title') }}:</strong>
+    {{ tr('demo.credentials_text') }}
+    <code>USER → parking123</code>, <code>ADMIN → admin123</code>.
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h2 class="h5">{{ tr('demo.contents_title') }}</h2>
+        <p class="mb-0">{{ tr('demo.contents_text') }}</p>
+    </div>
+</div>
+{% endblock %}
