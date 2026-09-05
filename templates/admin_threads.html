@@ -1,24 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Dretve - ParKING{% endblock %}
+{% block title %}{{ tr('nav.threads') }} - ParKING{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Paralelni zadaci - Thread Pool</h1>
-<p class="text-muted">Tri neovisna HTTP zahtjeva prema Open-Meteo REST servisu izvršavaju se najprije sekvencijalno, a zatim paralelno u bazenu od tri dretve.</p>
+<h1 class="h3 mb-3">{{ tr('threads.title') }}</h1>
+<p class="text-muted">{{ tr('threads.description') }}</p>
 
 {% if error %}
 <div class="alert alert-danger">
-    REST poziv nije uspio: {{ error }}
+    {{ tr('threads.error') }}: {{ error }}
 </div>
 {% elif demo %}
 <div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card card-body"><strong>Sekvencijalno</strong><span class="fs-4">{{ "%.3f"|format(demo.sequential_time) }} s</span></div></div>
+    <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.sequential') }}</strong><span class="fs-4">{{ "%.3f"|format(demo.sequential_time) }} s</span></div></div>
     <div class="col-md-4"><div class="card card-body"><strong>Thread Pool</strong><span class="fs-4">{{ "%.3f"|format(demo.parallel_time) }} s</span></div></div>
-    <div class="col-md-4"><div class="card card-body"><strong>Ubrzanje</strong><span class="fs-4">{{ "%.2f"|format(demo.speedup) }}×</span></div></div>
+    <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.speedup') }}</strong><span class="fs-4">{{ "%.2f"|format(demo.speedup) }}×</span></div></div>
 </div>
 
-<h2 class="h5">Rezultati paralelnog izvršavanja</h2>
+<h2 class="h5">{{ tr('threads.results') }}</h2>
 <div class="table-responsive mb-4">
 <table class="table table-striped align-middle">
-    <thead><tr><th>Lokacija</th><th>Temperatura</th><th>Vjetar</th><th>Weather code</th><th>Dretva</th><th>Trajanje</th></tr></thead>
+    <thead><tr><th>{{ tr('common.location') }}</th><th>{{ tr('threads.temperature') }}</th><th>{{ tr('threads.wind') }}</th><th>Weather code</th><th>{{ tr('threads.thread') }}</th><th>{{ tr('threads.duration') }}</th></tr></thead>
     <tbody>
     {% for item in demo.parallel_results %}
     <tr>
@@ -35,9 +35,9 @@
 </div>
 
 <div class="alert alert-info">
-    <strong>Sinkronizacija:</strong> zajednički zapisnik zahtjeva zaštićen je objektom <code>threading.Lock</code>, tako da više dretvi ne mijenja zajedničku strukturu istodobno.
+    <strong>{{ tr('threads.sync') }}:</strong> {{ tr('threads.sync_text') }}
 </div>
 
-<a class="btn btn-primary" href="{{ url_for('admin_threads') }}">Ponovi test</a>
+<a class="btn btn-primary" href="{{ url_for('admin_threads') }}">{{ tr('threads.repeat') }}</a>
 {% endif %}
 {% endblock %}
