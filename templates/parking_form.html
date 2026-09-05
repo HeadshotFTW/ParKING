@@ -2,7 +2,7 @@
 {% block title %}{{ tr('parking_form.edit') if parking else tr('parking_form.new') }} - ParKING{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">{{ tr('parking_form.edit') if parking else tr('parking_form.new') }}</h1>
-<form method="post" class="card card-body">
+<form method="post" enctype="multipart/form-data" class="card card-body">
     <label class="form-label">{{ tr('parking_form.name') }}</label>
     <input class="form-control mb-3" name="name" value="{{ parking.name if parking else '' }}" required>
 
@@ -14,6 +14,19 @@
 
     <label class="form-label">{{ tr('common.description') }}</label>
     <textarea class="form-control mb-3" name="description" rows="4">{{ parking.description if parking else '' }}</textarea>
+
+    <label class="form-label">Slika parkinga (JPEG, PNG ili WebP, do 2 MB)</label>
+    <input class="form-control mb-3" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
+
+    {% if parking and parking.photo %}
+        <div class="mb-3">
+            <img src="{{ url_for('parking_image', parking_id=parking.id) }}" class="img-thumbnail" style="max-width: 320px" alt="Parking">
+            <div class="form-check mt-2">
+                <input class="form-check-input" type="checkbox" value="1" name="remove_photo" id="remove_photo">
+                <label class="form-check-label" for="remove_photo">Obriši postojeću sliku</label>
+            </div>
+        </div>
+    {% endif %}
 
     <div>
         <button class="btn btn-primary">{{ tr('common.save') }}</button>
