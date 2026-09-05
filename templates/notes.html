@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('notes.title') }} - ParKING{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h3 mb-0">{{ tr('notes.title') }}</h1>
+    <a class="btn btn-primary" href="{{ url_for('note_new') }}">{{ tr('notes.add') }}</a>
+</div>
+
+<div class="row g-3">
+{% for note in notes %}
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5">{{ note.title }}</h2>
+                <p class="mb-3">{{ note.text }}</p>
+                <div class="d-flex gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('note_edit', note_id=note.id) }}">{{ tr('common.edit') }}</a>
+                    <form method="post" action="{{ url_for('note_delete', note_id=note.id) }}">
+                        <button class="btn btn-sm btn-outline-danger">{{ tr('common.delete') }}</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <p>{{ tr('notes.none') }}</p>
+{% endfor %}
+</div>
+{% endblock %}
