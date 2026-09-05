@@ -53,11 +53,26 @@ Dodane su funkcionalnosti za BLOB i izvještaje:
 
 Kod pokretanja postojeća razvojna SQLite baza automatski se nadogradi novim stupcima `photo` i `photo_mime`; nije potrebno brisati postojeće podatke.
 
+## Faza 5
+
+Dodana je demonstracija dretvi, bazena dretvi i sinkronizacije:
+
+- administratorska stranica **Dretve** poziva Open-Meteo REST servis za Zagreb, Samobor i Veliku Goricu
+- ista tri mrežna zadatka izvršavaju se najprije sekvencijalno, a zatim paralelno
+- paralelna verzija koristi `ThreadPoolExecutor(max_workers=3)`
+- na stranici se prikazuju ukupno vrijeme sekvencijalnog i paralelnog izvođenja, faktor ubrzanja te naziv dretve koja je izvršila svaki zahtjev
+- zajednički zapisnik zahtjeva zaštićen je objektom `threading.Lock`
+- time se ujedno demonstrira HTTP/REST klijent prema udaljenom online servisu Open-Meteo
+
+Kod faze 5 nalazi se u `parallel_tasks.py`, a `run.py` registrira dodatnu Flask rutu prije pokretanja aplikacije.
+
 ## Struktura projekta
 
 ```text
 ParKING/
 ├── app.py
+├── run.py
+├── parallel_tasks.py
 ├── models.py
 ├── json_store.py
 ├── translations.py
@@ -160,6 +175,17 @@ Kreira i dva parkinga te jednu demo rezervaciju.
 6. Otvorite **Moje rezervacije** i kliknite **PDF**.
 7. U PDF-u pokažite broj rezervacije, korisnika, parking, lokaciju, vlasnika, termin, trajanje, cijenu po satu i ukupnu cijenu.
 
+## Brzi test Faze 5
+
+1. Prijavite se kao `admin / admin123`.
+2. Otvorite **Dretve**.
+3. Pričekajte da se izvrši šest REST poziva: tri sekvencijalna i tri paralelna.
+4. Pokažite da paralelni dio koristi tri različite dretve naziva `parking-weather_*`.
+5. Usporedite prikazano sekvencijalno i paralelno vrijeme te faktor ubrzanja.
+6. Pokažite u `parallel_tasks.py` korištenje `ThreadPoolExecutor(max_workers=3)`.
+7. Pokažite `threading.Lock` kojim se štiti zajednički `_request_log`.
+8. Naglasite da su zadaci I/O-bound mrežni pozivi, pa paralelno izvršavanje smanjuje ukupno čekanje u odnosu na sekvencijalno.
+
 ## Lokalno pokretanje bez Dockera
 
 ### Windows
@@ -168,7 +194,7 @@ Kreira i dva parkinga te jednu demo rezervaciju.
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-python app.py
+python run.py
 ```
 
 ### Linux
@@ -177,7 +203,7 @@ python app.py
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-python app.py
+python run.py
 ```
 
 ## Napomena o sigurnosti
