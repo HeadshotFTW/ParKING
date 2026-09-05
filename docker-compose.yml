@@ -9,4 +9,5 @@ services:
     volumes:
       - ./data:/app/data
       - ./exports:/app/exports
+      - ./config.ini:/app/config.ini
     restart: unless-stopped
