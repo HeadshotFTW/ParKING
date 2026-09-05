@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Moje rezervacije · ParKING{% endblock %}
+{% block content %}
+<h1 class="mb-4">Moje rezervacije</h1>
+
+{% for reservation in reservations %}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between">
+            <div>
+                <h5>{{ reservation.parking.name }}</h5>
+                <div>{{ reservation.parking.location }}</div>
+                <div class="mt-2">
+                    {{ reservation.start_time.strftime('%d.%m.%Y. %H:%M') }}
+                    →
+                    {{ reservation.end_time.strftime('%d.%m.%Y. %H:%M') }}
+                </div>
+                <div class="mt-2">
+                    <strong>Ukupno:</strong> {{ "%.2f"|format(reservation.total_price()) }} €
+                </div>
+                <div>
+                    <strong>Status:</strong> {{ reservation.status }}
+                </div>
+            </div>
+            {% if reservation.status == "ACTIVE" %}
+            <form method="post" action="{{ url_for('cancel_reservation', reservation_id=reservation.id) }}">
+                <button class="btn btn-outline-danger">Otkaži</button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<p>Nemate rezervacija.</p>
+{% endfor %}
+{% endblock %}
