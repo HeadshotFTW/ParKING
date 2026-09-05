@@ -3,6 +3,7 @@ TRANSLATIONS = {
         "nav.parkings": "Parkinzi", "nav.my_parkings": "Moji parkinzi", "nav.my_reservations": "Moje rezervacije",
         "nav.notes": "Bilješke", "nav.users": "Korisnici", "nav.admin_reservations": "Admin rezervacije",
         "nav.settings": "Postavke", "nav.login": "Prijava", "nav.register": "Registracija", "nav.logout": "Odjava",
+        "nav.test": "Test", "nav.binary": "Binarno", "nav.threads": "Dretve", "nav.processes": "Procesi",
         "common.username": "Korisničko ime", "common.password": "Lozinka", "common.save": "Spremi", "common.cancel": "Odustani",
         "common.edit": "Uredi", "common.delete": "Obriši", "common.back": "Natrag", "common.details": "Detalji",
         "common.location": "Lokacija", "common.price": "Cijena po satu", "common.description": "Opis", "common.owner": "Vlasnik",
@@ -21,6 +22,31 @@ TRANSLATIONS = {
         "note_form.new": "Nova bilješka", "note_form.edit": "Uredi bilješku", "note_form.title": "Naslov", "note_form.text": "Tekst",
         "settings.title": "INI postavke aplikacije", "settings.language": "Zadani jezik", "settings.items": "Broj parkinga po stranici",
         "settings.note": "Postavke se čitaju i zapisuju u config.ini.",
+
+        "threads.title": "Paralelni zadaci - Thread Pool", "threads.description": "Tri neovisna HTTP zahtjeva prema Open-Meteo REST servisu izvršavaju se najprije sekvencijalno, a zatim paralelno u bazenu od tri dretve.",
+        "threads.error": "REST poziv nije uspio", "threads.sequential": "Sekvencijalno", "threads.speedup": "Ubrzanje",
+        "threads.results": "Rezultati paralelnog izvršavanja", "threads.temperature": "Temperatura", "threads.wind": "Vjetar", "threads.thread": "Dretva", "threads.duration": "Trajanje",
+        "threads.sync": "Sinkronizacija", "threads.sync_text": "zajednički zapisnik zahtjeva zaštićen je objektom threading.Lock, tako da više dretvi ne mijenja zajedničku strukturu istodobno.", "threads.repeat": "Ponovi test",
+
+        "process.title": "Proces A → B", "process.description": "Flask aplikacija (proces A) pokreće zasebni Python worker (proces B) i provjerava njegov povratni kod.",
+        "process.check": "Provjeri rezervacije", "process.simulate": "Simuliraj grešku procesa B", "process.result": "Rezultat", "process.returncode": "Povratni kod", "process.meaning": "Značenje", "process.empty": "(prazno)",
+
+        "rest.title": "REST klijent i vlastiti REST servis", "rest.info": "Ova stranica kao REST klijent preko HTTP-a poziva vlastiti ParKING API koristeći Bearer token.", "rest.auth": "Autentifikacija", "rest.header": "HTTP zaglavlje", "rest.resources": "Resursi za obranu",
+
+        "binary.title": "Binarni zapisi pretraga", "binary.description": "Zapisi se spremaju u prilagođeni binarni format data/search_history.bin, ne u bazu ni JSON.",
+        "binary.max_price": "Maks. cijena €/h", "binary.save": "Spremi zapis", "binary.time": "Vrijeme (UTC)", "binary.none": "Još nema binarnih zapisa.",
+        "binary.format": "Format: zaglavlje PKSR + verzija + broj zapisa; svaki zapis sadrži user_id, Unix vrijeme, maksimalnu cijenu i UTF-8 lokaciju promjenjive duljine.",
+
+        "aes.title": "Simetrično šifriranje", "aes.description": "AES-GCM šifrira sigurnosnu kopiju vaših korisničkih bilješki.", "aes.encrypt": "1. Šifriranje",
+        "aes.encrypt_text": "Bilješke se pretvaraju u JSON i spremaju u šifriranu datoteku pomoću AES-GCM algoritma.", "aes.encrypt_button": "Šifriraj moje bilješke", "aes.saved": "Spremljeno",
+        "aes.decrypt": "2. Dešifriranje", "aes.decrypt_text": "Aplikacija čita istu datoteku, provjerava autentičnost AES-GCM oznake i prikazuje izvorne bilješke.", "aes.decrypt_button": "Dešifriraj sigurnosnu kopiju",
+        "aes.decrypted": "Dešifrirani sadržaj", "aes.no_notes": "Sigurnosna kopija ne sadrži bilješke.", "aes.defense": "Za obranu", "aes.defense_text": "šifriraju se korisničke bilješke, ne lozinke. AES-GCM koristi isti tajni ključ za šifriranje i dešifriranje te novi slučajni nonce za svaki izvoz.",
+
+        "hash.title": "SHA-256: sol i papar", "hash.description": "Demonstracija funkcije sažimanja SHA-256 s promjenjivom soli koja se izvodi po pravilu iz korisničkog ID-a i korisničkog imena, bez spremanja soli u bazu ili datoteku. Za papar se koristi vrijednost iz raspona 0-255, a provjera prolazi kroz svih 256 mogućnosti.",
+        "hash.input": "Tekst za sažimanje", "hash.calculate": "Izračunaj i provjeri", "hash.result": "Rezultat sažimanja", "hash.algorithm": "Algoritam", "hash.salt_rule": "Pravilo za sol", "hash.salt": "Sol", "hash.digest": "SHA-256 sažetak", "hash.pepper_range": "Raspon papra",
+        "hash.verify": "Provjera papra", "hash.valid": "sažetak je potvrđen. Pronađeni papar", "hash.invalid": "nije pronađena odgovarajuća vrijednost papra.", "hash.checked": "Provjereno je svih", "hash.values": "mogućih vrijednosti.",
+        "hash.note": "Ovo je demonstracijska funkcionalnost za kriterij projekta. Korisničke lozinke i dalje koriste Werkzeugov namjenski password hashing i nisu vezane uz ovaj demo.",
+
         "flash.login_required": "Za ovu radnju morate biti prijavljeni.", "flash.username_short": "Korisničko ime mora imati najmanje 3 znaka.",
         "flash.password_short": "Lozinka mora imati najmanje 4 znaka.", "flash.username_exists": "Korisničko ime već postoji.",
         "flash.register_ok": "Registracija je uspješna.", "flash.login_bad": "Neispravno korisničko ime ili lozinka.",
@@ -37,6 +63,7 @@ TRANSLATIONS = {
         "nav.parkings": "Parking", "nav.my_parkings": "My parking", "nav.my_reservations": "My reservations",
         "nav.notes": "Notes", "nav.users": "Users", "nav.admin_reservations": "Admin reservations",
         "nav.settings": "Settings", "nav.login": "Login", "nav.register": "Register", "nav.logout": "Logout",
+        "nav.test": "Test", "nav.binary": "Binary", "nav.threads": "Threads", "nav.processes": "Processes",
         "common.username": "Username", "common.password": "Password", "common.save": "Save", "common.cancel": "Cancel",
         "common.edit": "Edit", "common.delete": "Delete", "common.back": "Back", "common.details": "Details",
         "common.location": "Location", "common.price": "Price per hour", "common.description": "Description", "common.owner": "Owner",
@@ -55,6 +82,31 @@ TRANSLATIONS = {
         "note_form.new": "New note", "note_form.edit": "Edit note", "note_form.title": "Title", "note_form.text": "Text",
         "settings.title": "Application INI settings", "settings.language": "Default language", "settings.items": "Parking items per page",
         "settings.note": "Settings are read from and written to config.ini.",
+
+        "threads.title": "Parallel tasks - Thread Pool", "threads.description": "Three independent HTTP requests to the Open-Meteo REST service are executed first sequentially and then in parallel using a pool of three threads.",
+        "threads.error": "REST call failed", "threads.sequential": "Sequential", "threads.speedup": "Speedup",
+        "threads.results": "Parallel execution results", "threads.temperature": "Temperature", "threads.wind": "Wind", "threads.thread": "Thread", "threads.duration": "Duration",
+        "threads.sync": "Synchronization", "threads.sync_text": "the shared request log is protected by a threading.Lock object so multiple threads cannot modify the shared structure at the same time.", "threads.repeat": "Run test again",
+
+        "process.title": "Process A → B", "process.description": "The Flask application (process A) starts a separate Python worker (process B) and checks its return code.",
+        "process.check": "Check reservations", "process.simulate": "Simulate process B error", "process.result": "Result", "process.returncode": "Return code", "process.meaning": "Meaning", "process.empty": "(empty)",
+
+        "rest.title": "REST client and own REST service", "rest.info": "This page acts as a REST client and calls the ParKING API over HTTP using a Bearer token.", "rest.auth": "Authentication", "rest.header": "HTTP header", "rest.resources": "Resources for demonstration",
+
+        "binary.title": "Binary search records", "binary.description": "Records are stored in the custom binary format data/search_history.bin, not in the database or JSON.",
+        "binary.max_price": "Max. price €/h", "binary.save": "Save record", "binary.time": "Time (UTC)", "binary.none": "There are no binary records yet.",
+        "binary.format": "Format: PKSR header + version + record count; each record contains user_id, Unix time, maximum price and a variable-length UTF-8 location.",
+
+        "aes.title": "Symmetric encryption", "aes.description": "AES-GCM encrypts a backup of your user notes.", "aes.encrypt": "1. Encryption",
+        "aes.encrypt_text": "Notes are converted to JSON and stored in an encrypted file using AES-GCM.", "aes.encrypt_button": "Encrypt my notes", "aes.saved": "Saved",
+        "aes.decrypt": "2. Decryption", "aes.decrypt_text": "The application reads the same file, verifies the AES-GCM authentication tag and displays the original notes.", "aes.decrypt_button": "Decrypt backup",
+        "aes.decrypted": "Decrypted content", "aes.no_notes": "The backup contains no notes.", "aes.defense": "For demonstration", "aes.defense_text": "user notes are encrypted, not passwords. AES-GCM uses the same secret key for encryption and decryption and a new random nonce for every export.",
+
+        "hash.title": "SHA-256: salt and pepper", "hash.description": "Demonstration of SHA-256 hashing with a variable salt derived by rule from the user ID and username without storing the salt in the database or a file. A pepper value from 0-255 is used and verification checks all 256 possibilities.",
+        "hash.input": "Text to hash", "hash.calculate": "Calculate and verify", "hash.result": "Hash result", "hash.algorithm": "Algorithm", "hash.salt_rule": "Salt rule", "hash.salt": "Salt", "hash.digest": "SHA-256 digest", "hash.pepper_range": "Pepper range",
+        "hash.verify": "Pepper verification", "hash.valid": "the digest was verified. Found pepper", "hash.invalid": "no matching pepper value was found.", "hash.checked": "All", "hash.values": "possible values were checked.",
+        "hash.note": "This is a demonstration feature for the project criterion. User passwords still use Werkzeug's dedicated password hashing and are not connected to this demo.",
+
         "flash.login_required": "You must be logged in for this action.", "flash.username_short": "Username must be at least 3 characters long.",
         "flash.password_short": "Password must be at least 4 characters long.", "flash.username_exists": "Username already exists.",
         "flash.register_ok": "Registration successful.", "flash.login_bad": "Invalid username or password.",
