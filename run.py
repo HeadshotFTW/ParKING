@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import flash, redirect, render_template, request, url_for
 
-from app import app, admin_required, current_user, login_required, DB_PATH, DATA_DIR
+from app import app, admin_required, current_language, current_user, login_required, DB_PATH, DATA_DIR
 from binary_store import add_record, records_for_user
 from crypto_store import decrypt_notes, encrypt_notes
 from hash_demo import create_demo_hash, verify_by_full_pepper_scan
@@ -15,6 +15,10 @@ import api_routes  # noqa: F401 - registrira REST rute i REST klijent
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
 EXPORT_DIR = Path(__file__).resolve().parent / "exports"
+
+
+def tech_text(hr, en):
+    return en if current_language() == "en" else hr
 
 
 @app.route("/admin/threads")
@@ -47,23 +51,38 @@ def admin_process():
                 timeout=10,
                 check=False,
             )
-            messages = {
+            messages_hr = {
                 0: "Proces B uspješno je završio posao.",
                 1: "Proces B pronašao je problem u podacima.",
                 2: "Proces B završio je tehničkom greškom.",
             }
+            messages_en = {
+                0: "Process B completed successfully.",
+                1: "Process B found a data problem.",
+                2: "Process B ended with a technical error.",
+            }
+            messages = messages_en if current_language() == "en" else messages_hr
             result = {
                 "returncode": completed.returncode,
                 "stdout": completed.stdout.strip(),
                 "stderr": completed.stderr.strip(),
-                "message": messages.get(completed.returncode, "Proces B vratio je neočekivani kod."),
+                "message": messages.get(
+                    completed.returncode,
+                    tech_text("Proces B vratio je neočekivani kod.", "Process B returned an unexpected code."),
+                ),
             }
         except subprocess.TimeoutExpired:
             result = {
                 "returncode": -1,
                 "stdout": "",
-                "stderr": "Proces B nije završio unutar 10 sekundi.",
-                "message": "Proces A prekinuo je čekanje zbog isteka vremena.",
+                "stderr": tech_text(
+                    "Proces B nije završio unutar 10 sekundi.",
+                    "Process B did not finish within 10 seconds.",
+                ),
+                "message": tech_text(
+                    "Proces A prekinuo je čekanje zbog isteka vremena.",
+                    "Process A stopped waiting because the timeout expired.",
+                ),
             }
 
     return render_template("admin_process.html", result=result)
@@ -82,10 +101,10 @@ def binary_history():
             max_price = -1
 
         if not location or max_price < 0:
-            flash("Unesite ispravnu lokaciju i maksimalnu cijenu.", "danger")
+            flash(tech_text("Unesite ispravnu lokaciju i maksimalnu cijenu.", "Enter a valid location and maximum price."), "danger")
         else:
             add_record(BINARY_HISTORY_PATH, user.id, location, max_price)
-            flash("Zapis je spremljen u prilagođenu binarnu datoteku.", "success")
+            flash(tech_text("Zapis je spremljen u prilagođenu binarnu datoteku.", "The record was saved to the custom binary file."), "success")
             return redirect(url_for("binary_history"))
 
     records = list(reversed(records_for_user(BINARY_HISTORY_PATH, user.id)))
@@ -107,15 +126,16 @@ def crypto_demo():
                 notes = list_notes(user.id)
                 encrypt_notes(notes, app.config["SECRET_KEY"], user.id, output_path)
                 encrypted_path = str(output_path.relative_to(Path(__file__).resolve().parent))
-                flash("Bilješke su uspješno šifrirane AES-GCM algoritmom.", "success")
+                flash(tech_text("Bilješke su uspješno šifrirane AES-GCM algoritmom.", "Notes were successfully encrypted with AES-GCM."), "success")
             elif action == "decrypt":
                 if not output_path.exists():
-                    flash("Najprije izradite šifriranu sigurnosnu kopiju.", "warning")
+                    flash(tech_text("Najprije izradite šifriranu sigurnosnu kopiju.", "Create an encrypted backup first."), "warning")
                 else:
                     decrypted_notes = decrypt_notes(app.config["SECRET_KEY"], user.id, output_path)
-                    flash("Šifrirana datoteka je uspješno dešifrirana.", "success")
+                    flash(tech_text("Šifrirana datoteka je uspješno dešifrirana.", "The encrypted file was successfully decrypted."), "success")
         except Exception as exc:
-            flash(f"Kriptografska operacija nije uspjela: {exc}", "danger")
+            prefix = tech_text("Kriptografska operacija nije uspjela", "Cryptographic operation failed")
+            flash(f"{prefix}: {exc}", "danger")
 
     return render_template(
         "crypto.html",
@@ -134,7 +154,7 @@ def hash_demo_page():
 
     if request.method == "POST":
         if not input_text:
-            flash("Unesite tekst za sažimanje.", "danger")
+            flash(tech_text("Unesite tekst za sažimanje.", "Enter text to hash."), "danger")
         else:
             result = create_demo_hash(user.id, user.username, input_text)
             verification = verify_by_full_pepper_scan(
