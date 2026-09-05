@@ -1,18 +1,20 @@
 {% extends "base.html" %}
-{% block title %}{{ tr('demo.title') }} - ParKING{% endblock %}
+{% block title %}{{ 'Demo data' if lang == 'en' else 'Demo podaci' }} - ParKING{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">{{ tr('demo.title') }}</h1>
-<p class="text-muted">{{ tr('demo.description') }}</p>
+<h1 class="h3 mb-3">{{ 'Demo data' if lang == 'en' else 'Demo podaci' }}</h1>
+<p class="text-muted">
+    {% if lang == 'en' %}Export the current demonstration dataset or restore a previously exported dataset before a presentation.{% else %}Izvezite trenutačni demonstracijski skup podataka ili prije prezentacije vratite ranije izvezeni skup.{% endif %}
+</p>
 
 <div class="row g-4">
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h5">{{ tr('demo.export_title') }}</h2>
-                <p>{{ tr('demo.export_text') }}</p>
+                <h2 class="h5">{{ 'Export' if lang == 'en' else 'Izvoz' }}</h2>
+                <p>{% if lang == 'en' %}Downloads users, parking spaces, reservations, notes, BLOB photos and binary search history as one portable JSON file.{% else %}Preuzima korisnike, parkinge, rezervacije, bilješke, BLOB fotografije i binarnu povijest pretraga kao jednu prenosivu JSON datoteku.{% endif %}</p>
                 <form method="post">
                     <input type="hidden" name="action" value="export">
-                    <button class="btn btn-primary" type="submit">{{ tr('demo.export_button') }}</button>
+                    <button class="btn btn-primary" type="submit">{{ 'Export demo data' if lang == 'en' else 'Izvezi demo podatke' }}</button>
                 </form>
             </div>
         </div>
@@ -21,13 +23,15 @@
     <div class="col-lg-6">
         <div class="card h-100 border-danger">
             <div class="card-body">
-                <h2 class="h5">{{ tr('demo.import_title') }}</h2>
-                <p>{{ tr('demo.import_text') }}</p>
-                <div class="alert alert-warning">{{ tr('demo.warning') }}</div>
-                <form method="post" enctype="multipart/form-data" onsubmit="return confirm('{{ tr('demo.confirm') }}')">
+                <h2 class="h5">{{ 'Import' if lang == 'en' else 'Uvoz' }}</h2>
+                <p>{% if lang == 'en' %}Restores a ParKING demo JSON export and replaces the current demonstration data.{% else %}Vraća ParKING demo JSON export i zamjenjuje trenutačne demonstracijske podatke.{% endif %}</p>
+                <div class="alert alert-warning">
+                    {% if lang == 'en' %}Import is destructive: current users, parking spaces and reservations will be replaced.{% else %}Uvoz je destruktivan: trenutačni korisnici, parkinzi i rezervacije bit će zamijenjeni.{% endif %}
+                </div>
+                <form method="post" enctype="multipart/form-data" onsubmit="return confirm('{{ 'Replace the current demo data?' if lang == 'en' else 'Zamijeniti trenutačne demo podatke?' }}')">
                     <input type="hidden" name="action" value="import">
                     <input class="form-control mb-3" type="file" name="dataset" accept="application/json,.json" required>
-                    <button class="btn btn-danger" type="submit">{{ tr('demo.import_button') }}</button>
+                    <button class="btn btn-danger" type="submit">{{ 'Import demo data' if lang == 'en' else 'Uvezi demo podatke' }}</button>
                 </form>
             </div>
         </div>
@@ -35,15 +39,17 @@
 </div>
 
 <div class="alert alert-info mt-4">
-    <strong>{{ tr('demo.credentials_title') }}:</strong>
-    {{ tr('demo.credentials_text') }}
+    <strong>{{ 'Credentials after import' if lang == 'en' else 'Prijava nakon uvoza' }}:</strong>
+    {% if lang == 'en' %}Passwords and API tokens are not exported. Passwords are recreated for safe demonstration use:{% else %}Lozinke i API tokeni ne izvoze se. Lozinke se ponovno generiraju za sigurnu demonstracijsku uporabu:{% endif %}
     <code>USER → parking123</code>, <code>ADMIN → admin123</code>.
 </div>
 
 <div class="card mt-4">
     <div class="card-body">
-        <h2 class="h5">{{ tr('demo.contents_title') }}</h2>
-        <p class="mb-0">{{ tr('demo.contents_text') }}</p>
+        <h2 class="h5">{{ 'What is included?' if lang == 'en' else 'Što se izvozi?' }}</h2>
+        <p class="mb-0">
+            {% if lang == 'en' %}SQL data from users, parking_spots and reservations, JSON notes, parking photos stored as BLOBs encoded with Base64, and the custom binary search-history file. Password hashes and API tokens are intentionally excluded so the export can be stored in Git without publishing credentials.{% else %}SQL podaci iz tablica users, parking_spots i reservations, JSON bilješke, fotografije parkinga spremljene kao BLOB i kodirane Base64 formatom te prilagođena binarna datoteka povijesti pretraga. Sažeci lozinki i API tokeni namjerno su izostavljeni kako bi se export mogao spremiti na Git bez objave vjerodajnica.{% endif %}
+        </p>
     </div>
 </div>
 {% endblock %}
