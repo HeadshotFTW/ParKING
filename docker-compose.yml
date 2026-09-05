@@ -1,0 +1,12 @@
+services:
+  parking:
+    build: .
+    container_name: parking
+    ports:
+      - "5000:5000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-parking-development-secret}
+    volumes:
+      - ./data:/app/data
+      - ./exports:/app/exports
+    restart: unless-stopped
