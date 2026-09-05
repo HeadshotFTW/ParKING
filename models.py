@@ -44,6 +44,8 @@ class ParkingSpot(db.Model):
     location = db.Column(db.String(200), nullable=False)
     price_per_hour = db.Column(db.Float, nullable=False)
     description = db.Column(db.Text, nullable=True)
+    photo = db.Column(db.LargeBinary, nullable=True)
+    photo_mime = db.Column(db.String(100), nullable=True)
 
     owner = db.relationship("User", back_populates="parkings", foreign_keys=[owner_id])
     reservations = db.relationship(
