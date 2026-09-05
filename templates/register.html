@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Registracija · ParKING{% endblock %}
+{% block content %}
+<div class="form-card">
+    <h2 class="mb-3">Registracija</h2>
+    <form method="post">
+        <div class="mb-3">
+            <label class="form-label">Korisničko ime</label>
+            <input class="form-control" name="username" minlength="3" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Lozinka</label>
+            <input class="form-control" type="password" name="password" minlength="4" required>
+        </div>
+        <button class="btn btn-primary">Kreiraj račun</button>
+    </form>
+</div>
+{% endblock %}
