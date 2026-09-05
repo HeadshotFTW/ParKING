@@ -6,7 +6,7 @@ Projekt je namjerno zadržan malim i preglednim kako bi svaka implementirana fun
 
 ## Faza 1
 
-Trenutačna verzija podržava:
+Osnovna verzija podržava:
 
 - registraciju korisnika
 - prijavu i odjavu
@@ -20,6 +20,18 @@ Trenutačna verzija podržava:
 - automatski izračun cijene rezervacije
 - SQLite bazu podataka
 - Docker pokretanje na Windows 11 i Linuxu
+
+## Faza 2
+
+Dodana je administratorska funkcionalnost za jasno demonstriranje CRUD operacija nad tri tablice baze:
+
+- `users` — pregled, dodavanje, uređivanje i brisanje korisnika
+- `parking_spots` — pregled, dodavanje, uređivanje i brisanje parkinga
+- `reservations` — pregled, dodavanje, uređivanje i brisanje rezervacija
+
+Administrator ima dodatne izbornike **Korisnici** i **Admin rezervacije**.
+
+Na popisu rezervacija prikazuju se i povezana lookup polja (`user.username`, `parking.name`) te izračunata ukupna cijena rezervacije.
 
 ## Struktura projekta
 
@@ -67,6 +79,15 @@ docker compose down
 
 SQLite baza ostaje u lokalnom direktoriju `data/` i preživljava ponovno kreiranje containera.
 
+## Ažuriranje nakon promjena na GitHubu
+
+Ako je projekt već kloniran lokalno:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
 ## Demo podaci
 
 Nakon što je container pokrenut, demo podatke možete kreirati naredbom:
@@ -87,6 +108,16 @@ Kreira i dva parkinga te jednu demo rezervaciju.
 
 > `seed.py` je namijenjen isključivo razvoju i demonstraciji jer briše postojeće podatke.
 
+## Brzi test Faze 2
+
+1. Pokrenite `seed.py`.
+2. Prijavite se kao `admin / admin123`.
+3. Otvorite **Korisnici** i demonstrirajte dodavanje, uređivanje i brisanje korisnika.
+4. Otvorite **Admin rezervacije** i demonstrirajte dodavanje, uređivanje i brisanje rezervacije.
+5. Na listi rezervacija pokažite korisničko ime i naziv parkinga kao lookup vrijednosti.
+6. Pokažite izračunatu ukupnu cijenu rezervacije.
+7. Na glavnom popisu parkinga pokažite filtriranje po lokaciji i sortiranje po cijeni/nazivu.
+
 ## Lokalno pokretanje bez Dockera
 
 ### Windows
@@ -106,15 +137,6 @@ source .venv/bin/activate
 pip install -r requirements.txt
 python app.py
 ```
-
-## Brzi test
-
-1. Prijavite se kao `vlasnik` i provjerite njegove parkinge.
-2. Odjavite se i prijavite kao `gost`.
-3. Rezervirajte parking.
-4. Otvorite `Moje rezervacije`.
-5. Pokušajte napraviti drugu rezervaciju koja se vremenski preklapa s postojećom.
-6. Aplikacija treba odbiti preklapajuću rezervaciju.
 
 ## Napomena o sigurnosti
 
