@@ -3,8 +3,8 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h1 class="h3 mb-1">Simetrično šifriranje</h1>
-        <p class="text-muted mb-0">AES-GCM šifrira sigurnosnu kopiju vaših korisničkih bilješki.</p>
+        <h1 class="h3 mb-1">{{ tr('aes.title') }}</h1>
+        <p class="text-muted mb-0">{{ tr('aes.description') }}</p>
     </div>
 </div>
 
@@ -12,15 +12,15 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h5">1. Šifriranje</h2>
-                <p>Bilješke se pretvaraju u JSON i spremaju u šifriranu datoteku pomoću AES-GCM algoritma.</p>
+                <h2 class="h5">{{ tr('aes.encrypt') }}</h2>
+                <p>{{ tr('aes.encrypt_text') }}</p>
                 <form method="post">
                     <input type="hidden" name="action" value="encrypt">
-                    <button class="btn btn-primary" type="submit">Šifriraj moje bilješke</button>
+                    <button class="btn btn-primary" type="submit">{{ tr('aes.encrypt_button') }}</button>
                 </form>
                 {% if encrypted_path %}
                     <div class="alert alert-success mt-3 mb-0">
-                        Spremljeno: <code>{{ encrypted_path }}</code>
+                        {{ tr('aes.saved') }}: <code>{{ encrypted_path }}</code>
                     </div>
                 {% endif %}
             </div>
@@ -30,11 +30,11 @@
     <div class="col-lg-6">
         <div class="card h-100">
             <div class="card-body">
-                <h2 class="h5">2. Dešifriranje</h2>
-                <p>Aplikacija čita istu datoteku, provjerava autentičnost AES-GCM oznake i prikazuje izvorne bilješke.</p>
+                <h2 class="h5">{{ tr('aes.decrypt') }}</h2>
+                <p>{{ tr('aes.decrypt_text') }}</p>
                 <form method="post">
                     <input type="hidden" name="action" value="decrypt">
-                    <button class="btn btn-outline-primary" type="submit">Dešifriraj sigurnosnu kopiju</button>
+                    <button class="btn btn-outline-primary" type="submit">{{ tr('aes.decrypt_button') }}</button>
                 </form>
             </div>
         </div>
@@ -44,11 +44,11 @@
 {% if decrypted_notes is not none %}
 <div class="card mt-4">
     <div class="card-body">
-        <h2 class="h5">Dešifrirani sadržaj</h2>
+        <h2 class="h5">{{ tr('aes.decrypted') }}</h2>
         {% if decrypted_notes %}
             <div class="table-responsive">
                 <table class="table table-sm align-middle mb-0">
-                    <thead><tr><th>ID</th><th>Naslov</th><th>Tekst</th></tr></thead>
+                    <thead><tr><th>ID</th><th>{{ tr('note_form.title') }}</th><th>{{ tr('note_form.text') }}</th></tr></thead>
                     <tbody>
                     {% for note in decrypted_notes %}
                         <tr>
@@ -61,13 +61,13 @@
                 </table>
             </div>
         {% else %}
-            <p class="text-muted mb-0">Sigurnosna kopija ne sadrži bilješke.</p>
+            <p class="text-muted mb-0">{{ tr('aes.no_notes') }}</p>
         {% endif %}
     </div>
 </div>
 {% endif %}
 
 <div class="alert alert-secondary mt-4">
-    <strong>Za obranu:</strong> šifriraju se korisničke bilješke, ne lozinke. AES-GCM koristi isti tajni ključ za šifriranje i dešifriranje te novi slučajni nonce za svaki izvoz.
+    <strong>{{ tr('aes.defense') }}:</strong> {{ tr('aes.defense_text') }}
 </div>
 {% endblock %}
