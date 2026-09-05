@@ -2,11 +2,15 @@ import subprocess
 import sys
 from pathlib import Path
 
-from flask import render_template, request
+from flask import flash, redirect, render_template, request, url_for
 
-from app import app, admin_required, DB_PATH
+from app import app, admin_required, current_user, login_required, DB_PATH, DATA_DIR
+from binary_store import add_record, records_for_user
 from parallel_tasks import run_thread_demo
 import api_routes  # noqa: F401 - registrira REST rute i REST klijent
+
+
+BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
 
 
 @app.route("/admin/threads")
@@ -59,6 +63,29 @@ def admin_process():
             }
 
     return render_template("admin_process.html", result=result)
+
+
+@app.route("/binary-history", methods=["GET", "POST"])
+@login_required
+def binary_history():
+    user = current_user()
+
+    if request.method == "POST":
+        location = request.form.get("location", "").strip()
+        try:
+            max_price = float(request.form.get("max_price", ""))
+        except ValueError:
+            max_price = -1
+
+        if not location or max_price < 0:
+            flash("Unesite ispravnu lokaciju i maksimalnu cijenu.", "danger")
+        else:
+            add_record(BINARY_HISTORY_PATH, user.id, location, max_price)
+            flash("Zapis je spremljen u prilagođenu binarnu datoteku.", "success")
+            return redirect(url_for("binary_history"))
+
+    records = list(reversed(records_for_user(BINARY_HISTORY_PATH, user.id)))
+    return render_template("binary_history.html", records=records)
 
 
 if __name__ == "__main__":
