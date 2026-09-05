@@ -1,36 +1,41 @@
 {% extends "base.html" %}
-{% block title %}Moje rezervacije · ParKING{% endblock %}
+{% block title %}{{ tr('reservations.title') }} - ParKING{% endblock %}
 {% block content %}
-<h1 class="mb-4">Moje rezervacije</h1>
-
-{% for reservation in reservations %}
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="d-flex justify-content-between">
-            <div>
-                <h5>{{ reservation.parking.name }}</h5>
-                <div>{{ reservation.parking.location }}</div>
-                <div class="mt-2">
-                    {{ reservation.start_time.strftime('%d.%m.%Y. %H:%M') }}
-                    →
-                    {{ reservation.end_time.strftime('%d.%m.%Y. %H:%M') }}
-                </div>
-                <div class="mt-2">
-                    <strong>Ukupno:</strong> {{ "%.2f"|format(reservation.total_price()) }} €
-                </div>
-                <div>
-                    <strong>Status:</strong> {{ reservation.status }}
-                </div>
-            </div>
-            {% if reservation.status == "ACTIVE" %}
-            <form method="post" action="{{ url_for('cancel_reservation', reservation_id=reservation.id) }}">
-                <button class="btn btn-outline-danger">Otkaži</button>
-            </form>
-            {% endif %}
-        </div>
-    </div>
+<h1 class="h3 mb-3">{{ tr('reservations.title') }}</h1>
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>Parking</th>
+            <th>{{ tr('common.start') }}</th>
+            <th>{{ tr('common.end') }}</th>
+            <th>{{ tr('reservations.duration') }}</th>
+            <th>{{ tr('common.total') }}</th>
+            <th>{{ tr('common.status') }}</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for reservation in reservations %}
+        <tr>
+            <td>{{ reservation.parking.name }}</td>
+            <td>{{ reservation.start_time.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ reservation.end_time.strftime('%d.%m.%Y %H:%M') }}</td>
+            <td>{{ "%.1f" | format(reservation.duration_hours()) }} {{ tr('reservations.hours') }}</td>
+            <td>{{ "%.2f €" | format(reservation.total_price()) }}</td>
+            <td>{{ reservation.status }}</td>
+            <td>
+                {% if reservation.status == 'ACTIVE' %}
+                <form method="post" action="{{ url_for('cancel_reservation', reservation_id=reservation.id) }}">
+                    <button class="btn btn-sm btn-outline-danger">{{ tr('reservations.cancel') }}</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="7">{{ tr('reservations.none') }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
 </div>
-{% else %}
-<p>Nemate rezervacija.</p>
-{% endfor %}
 {% endblock %}
