@@ -19,6 +19,7 @@
                 <a class="nav-link" href="{{ url_for('notes') }}">{{ tr('nav.notes') }}</a>
                 <a class="nav-link" href="{{ url_for('rest_client') }}">REST</a>
                 <a class="nav-link" href="{{ url_for('binary_history') }}">Binarno</a>
+                <a class="nav-link" href="{{ url_for('crypto_demo') }}">AES</a>
                 {% if current_user.is_admin() %}
                     <a class="nav-link" href="{{ url_for('admin_users') }}">{{ tr('nav.users') }}</a>
                     <a class="nav-link" href="{{ url_for('admin_reservations') }}">{{ tr('nav.admin_reservations') }}</a>
