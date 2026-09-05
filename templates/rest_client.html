@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}REST - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">REST klijent i vlastiti REST servis</h1>
+
+<div class="alert alert-info">
+    Ova stranica kao REST klijent preko HTTP-a poziva vlastiti ParKING API koristeći Bearer token.
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5">Autentifikacija</h2>
+        <p class="mb-1">HTTP zaglavlje:</p>
+        <code>Authorization: Bearer {{ api_token }}</code>
+    </div>
+</div>
+
+{% for result in results %}
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+        <strong>{{ result.label }}</strong>
+        <span class="badge text-bg-{% if result.status == 200 %}success{% else %}secondary{% endif %}">{{ result.status }}</span>
+    </div>
+    <div class="card-body">
+        <pre class="mb-0" style="white-space: pre-wrap">{{ result.body | tojson(indent=2) }}</pre>
+    </div>
+</div>
+{% endfor %}
+
+<div class="card mt-4">
+    <div class="card-body">
+        <h2 class="h5">Resursi za obranu</h2>
+        <ul class="mb-0">
+            <li><code>GET/POST /api/parkings</code></li>
+            <li><code>GET/PUT/DELETE /api/parkings/&lt;id&gt;</code></li>
+            <li><code>GET/POST /api/reservations</code></li>
+            <li><code>GET/DELETE /api/reservations/&lt;id&gt;</code></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}
