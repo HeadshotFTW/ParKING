@@ -24,22 +24,34 @@ Po potrebi provjeriti instalirane distribucije:
 wsl -l -v
 ```
 
-## 2. Instalacija Docker Desktopa
+## 2. Instalacija Docker Desktopa pomoću wingeta
 
-Instalirati Docker Desktop for Windows.
+Na Windows 11 najjednostavnije je instalirati Docker Desktop iz PowerShella pomoću `winget`:
 
-Tijekom instalacije koristiti WSL 2 backend. Nakon pokretanja Docker Desktopa pričekati da Docker Engine bude spreman.
+```powershell
+winget install -e --id Docker.DockerDesktop
+```
 
-Provjera u PowerShellu ili Git Bashu:
+Nakon instalacije pokrenuti **Docker Desktop** i pričekati da Docker Engine bude spreman. Docker Desktop treba koristiti WSL 2 backend.
+
+Provjera:
 
 ```powershell
 docker --version
 docker compose version
 ```
 
-## 3. Git i SSH pristup GitHubu
+Ako `winget` nije dostupan, Docker Desktop se može instalirati i klasičnim instalacijskim paketom za Windows.
 
-Ako Git nije instaliran, instalirati Git for Windows.
+## 3. Instalacija Gita i SSH pristup GitHubu
+
+Ako Git nije instaliran, može se instalirati pomoću `winget`:
+
+```powershell
+winget install -e --id Git.Git
+```
+
+Nakon instalacije po potrebi ponovno otvoriti PowerShell ili Git Bash.
 
 Ako računalo još nema SSH ključ:
 
@@ -224,7 +236,27 @@ Potpuni rebuild:
 docker compose up -d --build
 ```
 
-## 10. Napomena za Windows
+## 10. Brzi postupak na čistom Windows 11 računalu
+
+U PowerShellu kao administrator:
+
+```powershell
+wsl --install
+winget install -e --id Git.Git
+winget install -e --id Docker.DockerDesktop
+```
+
+Nakon eventualnog restarta i pokretanja Docker Desktopa:
+
+```bash
+git clone git@github.com:HeadshotFTW/ParKING.git
+cd ParKING
+docker compose up -d --build
+docker compose ps
+curl http://localhost:5001/api/health
+```
+
+## 11. Napomena za Windows
 
 Za ovaj projekt nije potrebno ručno instalirati `docker-compose-v2` kao na Ubuntu sustavu. Docker Desktop već uključuje naredbu:
 
