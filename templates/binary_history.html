@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Binarni zapisi - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Binarni zapisi pretraga</h1>
+<p class="text-muted">Zapisi se spremaju u prilagođeni binarni format <code>data/search_history.bin</code>, ne u bazu ni JSON.</p>
+
+<form method="post" class="card card-body mb-4">
+    <div class="row g-3">
+        <div class="col-md-7">
+            <label class="form-label">Lokacija</label>
+            <input class="form-control" name="location" required placeholder="npr. Samobor">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Maks. cijena €/h</label>
+            <input class="form-control" type="number" min="0" step="0.01" name="max_price" required value="3.00">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button class="btn btn-primary w-100">Spremi zapis</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead><tr><th>Vrijeme (UTC)</th><th>Lokacija</th><th>Maks. cijena</th></tr></thead>
+    <tbody>
+    {% for record in records %}
+        <tr>
+            <td>{{ record.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+            <td>{{ record.location }}</td>
+            <td>{{ '%.2f € / h'|format(record.max_price) }}</td>
+        </tr>
+    {% else %}
+        <tr><td colspan="3">Još nema binarnih zapisa.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+
+<div class="alert alert-secondary mt-3">
+    Format: zaglavlje <code>PKSR</code> + verzija + broj zapisa; svaki zapis sadrži <code>user_id</code>, Unix vrijeme, maksimalnu cijenu i UTF-8 lokaciju promjenjive duljine.
+</div>
+{% endblock %}
