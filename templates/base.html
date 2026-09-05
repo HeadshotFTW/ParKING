@@ -31,6 +31,7 @@
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_threads') }}">{{ tr('nav.threads') }}</a></li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_process') }}">{{ tr('nav.processes') }}</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_demo_data') }}">{{ 'Demo data' if lang == 'en' else 'Demo podaci' }}</a></li>
                         {% endif %}
                     </ul>
                 </div>
