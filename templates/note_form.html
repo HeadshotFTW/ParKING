@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ tr('note_form.edit') if note else tr('note_form.new') }} - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ tr('note_form.edit') if note else tr('note_form.new') }}</h1>
+<form method="post" class="card card-body">
+    <label class="form-label">{{ tr('note_form.title') }}</label>
+    <input class="form-control mb-3" name="title" value="{{ note.title if note else '' }}" required>
+    <label class="form-label">{{ tr('note_form.text') }}</label>
+    <textarea class="form-control mb-3" name="text" rows="5">{{ note.text if note else '' }}</textarea>
+    <div>
+        <button class="btn btn-primary">{{ tr('common.save') }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('notes') }}">{{ tr('common.cancel') }}</a>
+    </div>
+</form>
+{% endblock %}
