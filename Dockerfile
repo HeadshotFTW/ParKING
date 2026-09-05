@@ -13,4 +13,4 @@ RUN mkdir -p /app/data /app/exports
 
 EXPOSE 5000
 
-CMD ["python", "app.py"]
+CMD ["python", "run.py"]
