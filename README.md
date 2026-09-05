@@ -98,6 +98,8 @@ ParKING/
 ├── docker-compose.yml
 ├── INSTALL_UBUNTU.md
 ├── OBRANA.md
+├── demo/
+│   └── parking-demo.json
 ├── templates/
 ├── static/
 ├── data/
@@ -155,7 +157,7 @@ admin    / admin123
 
 > `seed.py` briše postojeće podatke baze i služi samo za razvoj i demonstraciju.
 
-Za potpuno demonstracijsko stanje preporučuje se koristiti **Test → Demo podaci → Import** i učitati spremljeni JSON dataset.
+Za potpuno demonstracijsko stanje preporučuje se koristiti **Test → Demo podaci → Import** i učitati `demo/parking-demo.json`.
 
 ## Brza provjera odvojenog REST servisa
 
