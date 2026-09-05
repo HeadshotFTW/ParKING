@@ -38,12 +38,34 @@ Dodana je demonstracija komunikacije između dva procesa:
 - administratorska stranica **Procesi** prikazuje povratni kod, `stdout`, `stderr` i odgovarajuću poruku korisniku
 - dostupan je i gumb za kontroliranu simulaciju tehničke greške kako bi se na obrani jasno demonstrirala obrada nenultog povratnog koda
 
+## Faza 7
+
+Dodani su vlastiti REST servis i klijent s Bearer token autentifikacijom i autorizacijom nad resursima `parkings` i `reservations`.
+
+## Faza 8
+
+Dodana je datoteka prilagođenog binarnog formata `data/search_history.bin` za niz zapisa povijesti pretraga. Format ima vlastito `PKSR` zaglavlje, verziju, broj zapisa i binarno zapisane podatke.
+
+## Faza 9
+
+Dodano je simetrično šifriranje i dešifriranje korisničkih bilješki pomoću AES-GCM algoritma:
+
+- stranica **AES** izrađuje šifriranu sigurnosnu kopiju bilješki
+- sadržaj se sprema u `exports/notes_user_<id>.aes`
+- za svaki izvoz generira se novi slučajni 12-bajtni nonce
+- AES ključ se izvodi iz aplikacijske tajne i ID-a korisnika
+- ista stranica može dešifrirati datoteku i prikazati izvorne bilješke
+- ne šifriraju se korisničke lozinke
+
 ## Struktura projekta
 
 ```text
 ParKING/
 ├── app.py
 ├── run.py
+├── api_routes.py
+├── binary_store.py
+├── crypto_store.py
 ├── parallel_tasks.py
 ├── reservation_worker.py
 ├── models.py
@@ -111,6 +133,15 @@ admin    / admin123
 5. Kliknite **Simuliraj grešku procesa B**.
 6. Pokažite povratni kod `2`, sadržaj `stderr` i poruku koju proces A prikazuje korisniku.
 7. U `run.py` pokažite `subprocess.run(...)`, a u `reservation_worker.py` povratne vrijednosti `0`, `1` i `2`.
+
+## Brzi test Faze 9
+
+1. Prijavite se kao korisnik koji ima barem jednu bilješku.
+2. Otvorite **AES**.
+3. Kliknite **Šifriraj moje bilješke** i provjerite da nastane `exports/notes_user_<id>.aes`.
+4. Po želji pokrenite `xxd exports/notes_user_<id>.aes | head` i pokažite da sadržaj nije čitljivi JSON.
+5. Kliknite **Dešifriraj sigurnosnu kopiju** i pokažite da se izvorne bilješke ponovno prikažu.
+6. U `crypto_store.py` pokažite `AESGCM(...).encrypt(...)` i `AESGCM(...).decrypt(...)`.
 
 ## Lokalno pokretanje bez Dockera
 
