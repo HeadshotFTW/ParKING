@@ -1,28 +1,23 @@
 {% extends "base.html" %}
-{% block title %}{% if parking %}Uredi parking{% else %}Dodaj parking{% endif %} · ParKING{% endblock %}
+{% block title %}{{ tr('parking_form.edit') if parking else tr('parking_form.new') }} - ParKING{% endblock %}
 {% block content %}
-<div class="form-card">
-    <h2>{% if parking %}Uredi parking{% else %}Dodaj parking{% endif %}</h2>
+<h1 class="h3 mb-3">{{ tr('parking_form.edit') if parking else tr('parking_form.new') }}</h1>
+<form method="post" class="card card-body">
+    <label class="form-label">{{ tr('parking_form.name') }}</label>
+    <input class="form-control mb-3" name="name" value="{{ parking.name if parking else '' }}" required>
 
-    <form method="post" class="mt-4">
-        <div class="mb-3">
-            <label class="form-label">Naziv</label>
-            <input class="form-control" name="name" value="{{ parking.name if parking else '' }}" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Lokacija</label>
-            <input class="form-control" name="location" value="{{ parking.location if parking else '' }}" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Cijena po satu (€)</label>
-            <input class="form-control" type="number" min="0" step="0.01" name="price_per_hour" value="{{ parking.price_per_hour if parking else '' }}" required>
-        </div>
-        <div class="mb-3">
-            <label class="form-label">Opis</label>
-            <textarea class="form-control" rows="4" name="description">{{ parking.description if parking else '' }}</textarea>
-        </div>
-        <button class="btn btn-primary">Spremi</button>
-        <a class="btn btn-secondary" href="{{ url_for('my_parkings') }}">Odustani</a>
-    </form>
-</div>
+    <label class="form-label">{{ tr('common.location') }}</label>
+    <input class="form-control mb-3" name="location" value="{{ parking.location if parking else '' }}" required>
+
+    <label class="form-label">{{ tr('common.price') }}</label>
+    <input class="form-control mb-3" type="number" min="0" step="0.01" name="price_per_hour" value="{{ parking.price_per_hour if parking else '' }}" required>
+
+    <label class="form-label">{{ tr('common.description') }}</label>
+    <textarea class="form-control mb-3" name="description" rows="4">{{ parking.description if parking else '' }}</textarea>
+
+    <div>
+        <button class="btn btn-primary">{{ tr('common.save') }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('my_parkings') }}">{{ tr('common.cancel') }}</a>
+    </div>
+</form>
 {% endblock %}
