@@ -1,14 +1,14 @@
 {% extends "base.html" %}
-{% block title %}Proces A → B - ParKING{% endblock %}
+{% block title %}{{ tr('process.title') }} - ParKING{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Proces A → B</h1>
-<p class="text-muted">Flask aplikacija (proces A) pokreće zasebni Python worker (proces B) i provjerava njegov povratni kod.</p>
+<h1 class="h3 mb-3">{{ tr('process.title') }}</h1>
+<p class="text-muted">{{ tr('process.description') }}</p>
 
 <div class="card mb-4">
     <div class="card-body">
         <form method="post" class="d-flex gap-2 flex-wrap">
-            <button class="btn btn-primary" name="mode" value="check">Provjeri rezervacije</button>
-            <button class="btn btn-outline-danger" name="mode" value="error">Simuliraj grešku procesa B</button>
+            <button class="btn btn-primary" name="mode" value="check">{{ tr('process.check') }}</button>
+            <button class="btn btn-outline-danger" name="mode" value="error">{{ tr('process.simulate') }}</button>
         </form>
     </div>
 </div>
@@ -16,17 +16,17 @@
 {% if result %}
 <div class="card">
     <div class="card-body">
-        <h2 class="h5">Rezultat</h2>
+        <h2 class="h5">{{ tr('process.result') }}</h2>
         <dl class="row">
             <dt class="col-sm-3">Proces A</dt><dd class="col-sm-9">Flask / run.py</dd>
             <dt class="col-sm-3">Proces B</dt><dd class="col-sm-9">reservation_worker.py</dd>
-            <dt class="col-sm-3">Povratni kod</dt><dd class="col-sm-9"><strong>{{ result.returncode }}</strong></dd>
-            <dt class="col-sm-3">Značenje</dt><dd class="col-sm-9">{{ result.message }}</dd>
+            <dt class="col-sm-3">{{ tr('process.returncode') }}</dt><dd class="col-sm-9"><strong>{{ result.returncode }}</strong></dd>
+            <dt class="col-sm-3">{{ tr('process.meaning') }}</dt><dd class="col-sm-9">{{ result.message }}</dd>
         </dl>
         <h3 class="h6">stdout</h3>
-        <pre class="bg-light border rounded p-3">{{ result.stdout or '(prazno)' }}</pre>
+        <pre class="bg-light border rounded p-3">{{ result.stdout or tr('process.empty') }}</pre>
         <h3 class="h6">stderr</h3>
-        <pre class="bg-light border rounded p-3">{{ result.stderr or '(prazno)' }}</pre>
+        <pre class="bg-light border rounded p-3">{{ result.stderr or tr('process.empty') }}</pre>
     </div>
 </div>
 {% endif %}
