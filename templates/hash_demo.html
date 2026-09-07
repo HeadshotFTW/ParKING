@@ -4,7 +4,11 @@
 <h1 class="h3 mb-3">{{ tr('hash.title') }}</h1>
 
 <p class="text-muted">
-    {{ tr('hash.description') }}
+    {% if lang == 'en' %}
+        SHA-256 hashing with a variable salt derived from the user ID and username without storing the salt in the database or a file. A pepper value from 0-255 is used and verification checks all 256 possibilities.
+    {% else %}
+        SHA-256 sažimanje s promjenjivom soli izvedenom iz korisničkog ID-a i korisničkog imena, bez spremanja soli u bazu ili datoteku. Za papar se koristi vrijednost iz raspona 0-255, a provjera prolazi kroz svih 256 mogućnosti.
+    {% endif %}
 </p>
 
 <form method="post" class="card card-body mb-4">
