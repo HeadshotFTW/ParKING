@@ -1,6 +1,6 @@
 # ParKING
 
-ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirnih mjesta. Glavne funkcionalnosti povezane su u jedan stvarni korisnički tok: korisnik traži parking za određeni termin, provjerava dostupnost, rezervira ga, prati rezervacije i koristi dodatne funkcije poput PDF potvrde, SHA-256 provjere integriteta, povijesti pretraga i šifriranih sigurnosnih kopija bilješki.
+ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirnih mjesta. Glavne funkcionalnosti povezane su u jedan stvarni korisnički tok: korisnik traži parking za određeni termin, provjerava dostupnost, vidi trenutačne vremenske podatke za lokaciju, rezervira parking, prati rezervacije i koristi dodatne funkcije poput PDF potvrde, SHA-256 provjere integriteta, povijesti pretraga i šifriranih sigurnosnih kopija bilješki.
 
 ## Glavne funkcionalnosti
 
@@ -21,7 +21,8 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - AES-GCM sigurnosna kopija bilješki integrirana u stranicu **Bilješke**
 - SHA-256 kontrolni otisak integriteta rezervacije
 - provjera konzistentnosti rezervacija pomoću zasebnog procesa B
-- ThreadPoolExecutor + `threading.Lock` + udaljeni Open-Meteo REST servis
+- Open-Meteo vremenski podaci prikazani uz stvarne parkinge
+- ThreadPoolExecutor + `threading.Lock` za paralelni dohvat vremenskih podataka
 - vlastiti REST API s Bearer autentifikacijom i autorizacijom
 
 ## Dostupnost parkinga prema terminu
@@ -43,6 +44,24 @@ postojeći završetak > traženi početak
 ```
 
 `CANCELLED` rezervacije ne blokiraju dostupnost. Odabrani termin prenosi se kroz **Detalji → Rezerviraj**, pa ga korisnik ne mora ponovno unositi.
+
+## Vremenski podaci uz parkinge
+
+Open-Meteo više nije vezan samo uz tehničku stranicu za dretve. Na karticama pod **Dostupni parkinzi** i na stranici **Detalji parkinga** prikazuju se trenutačna temperatura i brzina vjetra za podržani grad parkinga.
+
+Trenutačno se tekstualna lokacija parkinga povezuje s jednom od podržanih Open-Meteo lokacija:
+
+```text
+Zagreb
+Samobor
+Velika Gorica
+```
+
+Ako je na istoj stranici prikazano više različitih podržanih gradova, `parking_availability.py` poziva `fetch_weather_for_parking_locations()` iz `parallel_tasks.py`, a vremenski zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu dijeli isti dohvaćeni rezultat, pa se isti grad ne dohvaća više puta za jednu stranicu.
+
+`fetch_weather()` nakon završetka zahtjeva zapisuje podatke u zajednički `_request_log`. Taj zajednički resurs zaštićen je s `threading.Lock`, pa više dretvi ne mijenja zapisnik istodobno. Ako Open-Meteo privremeno nije dostupan, popis i detalji parkinga i dalje se prikazuju bez vremenskog podatka.
+
+Administratorska stranica **Test → Dretve** ostaje kao detaljan prikaz iste mrežne funkcionalnosti: prikazuje sekvencijalno i paralelno vrijeme, nazive radnih dretvi i faktor ubrzanja za Zagreb, Samobor i Veliku Goricu.
 
 ## Povijest pretraga i vlastiti binarni format
 
@@ -100,10 +119,6 @@ Worker provjerava neispravne vremenske intervale i preklapanja `ACTIVE` rezervac
 ```
 
 Glavna aplikacija čita `returncode`, `stdout` i `stderr` te rezultat prikazuje izravno iznad tablice rezervacija. Zasebna stranica **Procesi** više se ne koristi.
-
-## Dretve i udaljeni REST
-
-Administratorska stranica **Test → Dretve** pokreće tri Open-Meteo HTTP zahtjeva za Zagreb, Samobor i Veliku Goricu. Uspoređuje sekvencijalno i paralelno izvršavanje pomoću `ThreadPoolExecutor(max_workers=3)` te koristi `threading.Lock` za zaštitu zajedničkog zapisnika.
 
 ## Vlastiti REST servis
 
@@ -190,7 +205,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju, pa ga treba pokretati samo kada se namjerno želi resetirati stanje.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Oba početna parkinga nalaze se u Zagrebu, pa se nakon pokretanja Open-Meteo podatak odmah vidi uz njihove kartice i detalje.
 
 ## Ažuriranje nakon promjena
 
