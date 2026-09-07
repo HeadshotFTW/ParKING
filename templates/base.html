@@ -13,7 +13,7 @@
     <div class="container">
         <a class="navbar-brand fw-bold" href="{{ url_for('parkings') }}">ParKING</a>
         <div class="navbar-nav ms-auto align-items-lg-center">
-            <a class="nav-link" href="{{ url_for('parkings') }}">{{ tr('nav.parkings') }}</a>
+            <a class="nav-link" href="{{ url_for('parkings') }}">{{ 'Parking' if lang == 'en' else 'Parkingsi' }}</a>
             {% if current_user %}
                 <a class="nav-link" href="{{ url_for('my_parkings') }}">{{ tr('nav.my_parkings') }}</a>
                 <a class="nav-link" href="{{ url_for('my_reservations') }}">{{ tr('nav.my_reservations') }}</a>
