@@ -133,6 +133,20 @@ Očekivani odgovor:
 {"port":5001,"service":"ParKING REST API","status":"ok"}
 ```
 
+### Napomena o CRLF/LF završecima redaka
+
+Windows tekstualne datoteke često koriste CRLF završetke redaka, dok Linux shell skripte očekuju LF. Ako `start.sh` dobije CRLF završetke, shebang linija može postati neispravna i container se može stalno restartati uz grešku poput `no such file or directory`.
+
+Projekt zato u `Dockerfile` tijekom builda normalizira `start.sh` prije pokretanja:
+
+```dockerfile
+RUN mkdir -p /app/data /app/exports \
+    && sed -i 's/\r$//' /app/start.sh \
+    && chmod +x /app/start.sh
+```
+
+Zbog toga se projekt može graditi i iz Windows checkouta bez ručnog pretvaranja `start.sh` u LF format.
+
 ## 6. Provjera razdvojenog REST servisa
 
 REST API bez Bearer tokena mora odbiti zahtjev:
