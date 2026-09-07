@@ -14,11 +14,11 @@
         </div>
         <div class="col-lg-3">
             <label class="form-label">{{ 'Available from' if lang == 'en' else 'Dostupno od' }}</label>
-            <input class="form-control" type="datetime-local" name="start_time" value="{{ start_time }}" required>
+            <input class="form-control datetime-24h" type="text" name="start_time" value="{{ start_time }}" required>
         </div>
         <div class="col-lg-3">
             <label class="form-label">{{ 'Available until' if lang == 'en' else 'Dostupno do' }}</label>
-            <input class="form-control" type="datetime-local" name="end_time" value="{{ end_time }}" required>
+            <input class="form-control datetime-24h" type="text" name="end_time" value="{{ end_time }}" required>
         </div>
         <div class="col-lg-2">
             <label class="form-label">{{ tr('parkings.sort') }}</label>
