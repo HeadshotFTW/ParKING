@@ -5,6 +5,7 @@ from flask import redirect, render_template, request, url_for
 from app import DATA_DIR, current_language, current_user, load_settings
 from binary_store import add_record
 from models import db, ParkingSpot, Reservation
+from parallel_tasks import fetch_weather_for_parking_locations, weather_location_for_parking
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
@@ -147,9 +148,25 @@ def parkings_with_availability():
 
     items = query.offset((page - 1) * per_page).limit(per_page).all()
 
+    # Vremenski podaci dohvaćaju se samo za jedinstvene gradove parkinga na
+    # trenutačnoj stranici. Ako je prikazano više gradova, pozivi se izvršavaju
+    # paralelno kroz ThreadPoolExecutor iz parallel_tasks.py.
+    weather_by_city = fetch_weather_for_parking_locations(
+        [item.location for item in items]
+    )
+    parking_weather = {}
+    for item in items:
+        weather_location = weather_location_for_parking(item.location)
+        if weather_location is None:
+            continue
+        weather = weather_by_city.get(weather_location["name"])
+        if weather and not weather.get("error"):
+            parking_weather[item.id] = weather
+
     return render_template(
         "parkings.html",
         parkings=items,
+        parking_weather=parking_weather,
         location=location,
         sort=sort,
         start_time=start_time_raw,
