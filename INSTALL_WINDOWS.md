@@ -1,73 +1,49 @@
 # ParKING — instalacija na Windows 11
 
-Ove upute opisuju najjednostavniji način instalacije i pokretanja ParKING aplikacije na Windows 11 pomoću Docker Desktopa i WSL2.
+Ove upute opisuju instalaciju i pokretanje ParKING aplikacije na Windows 11 pomoću Docker Desktopa i WSL2.
 
 ## 1. Uključivanje WSL2
 
-Otvoriti PowerShell kao administrator i pokrenuti:
+Otvoriti PowerShell kao administrator:
 
 ```powershell
 wsl --install
 ```
 
-Ako sustav zatraži restart, ponovno pokrenuti računalo.
-
-Provjera WSL-a:
+Ako sustav zatraži restart, ponovno pokrenuti računalo. Provjera:
 
 ```powershell
 wsl --status
-```
-
-Po potrebi provjeriti instalirane distribucije:
-
-```powershell
 wsl -l -v
 ```
 
-## 2. Instalacija Docker Desktopa pomoću wingeta
-
-Na Windows 11 najjednostavnije je instalirati Docker Desktop iz PowerShella pomoću `winget`:
+## 2. Instalacija Docker Desktopa
 
 ```powershell
 winget install -e --id Docker.DockerDesktop
 ```
 
-Nakon instalacije pokrenuti **Docker Desktop** i pričekati da Docker Engine bude spreman. Docker Desktop treba koristiti WSL 2 backend.
-
-Provjera:
+Pokrenuti Docker Desktop i pričekati da Docker Engine bude spreman. Provjera:
 
 ```powershell
 docker --version
 docker compose version
 ```
 
-Ako `winget` nije dostupan, Docker Desktop se može instalirati i klasičnim instalacijskim paketom za Windows.
-
 ## 3. Instalacija Gita i SSH pristup GitHubu
-
-Ako Git nije instaliran, može se instalirati pomoću `winget`:
 
 ```powershell
 winget install -e --id Git.Git
 ```
 
-Nakon instalacije po potrebi ponovno otvoriti PowerShell ili Git Bash.
-
 Ako računalo još nema SSH ključ:
 
 ```bash
 ssh-keygen -t ed25519 -C "<vas-email>"
-```
-
-Prikaz javnog ključa u Git Bashu:
-
-```bash
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Javni ključ dodati u GitHub račun pod **Settings → SSH and GPG keys → New SSH key**.
-
-Provjera SSH pristupa:
+Javni ključ dodati u GitHub pod **Settings → SSH and GPG keys → New SSH key**, zatim provjeriti:
 
 ```bash
 ssh -T git@github.com
@@ -75,36 +51,29 @@ ssh -T git@github.com
 
 ## 4. Kloniranje repozitorija
 
-U Git Bashu ili PowerShellu:
-
-```bash
+```powershell
 git clone git@github.com:HeadshotFTW/ParKING.git
 cd ParKING
 ```
 
 Ako je repozitorij već kloniran:
 
-```bash
-git pull
+```powershell
+git pull --ff-only origin main
+```
+
+Ako povlačenje blokira lokalna izmjena datoteke koju namjerno želite odbaciti, npr. `Dockerfile`:
+
+```powershell
+git restore Dockerfile
+git pull --ff-only origin main
 ```
 
 ## 5. Build i pokretanje
 
-Pokrenuti iz korijena repozitorija:
-
-```bash
+```powershell
 docker compose up -d --build
-```
-
-Provjera containera:
-
-```bash
 docker compose ps
-```
-
-Provjera logova:
-
-```bash
 docker compose logs --tail=50
 ```
 
@@ -123,8 +92,8 @@ http://localhost:5000
 
 REST health provjera:
 
-```bash
-curl http://localhost:5001/api/health
+```powershell
+curl.exe http://localhost:5001/api/health
 ```
 
 Očekivani odgovor:
@@ -133,11 +102,9 @@ Očekivani odgovor:
 {"port":5001,"service":"ParKING REST API","status":"ok"}
 ```
 
-### Napomena o CRLF/LF završecima redaka
+### CRLF/LF završeci redaka
 
-Windows tekstualne datoteke često koriste CRLF završetke redaka, dok Linux shell skripte očekuju LF. Ako `start.sh` dobije CRLF završetke, shebang linija može postati neispravna i container se može stalno restartati uz grešku poput `no such file or directory`.
-
-Projekt zato u `Dockerfile` tijekom builda normalizira `start.sh` prije pokretanja:
+Windows tekstualne datoteke često koriste CRLF, dok Linux shell skripte očekuju LF. Projekt zato u `Dockerfile` tijekom builda normalizira `start.sh`:
 
 ```dockerfile
 RUN mkdir -p /app/data /app/exports \
@@ -145,51 +112,33 @@ RUN mkdir -p /app/data /app/exports \
     && chmod +x /app/start.sh
 ```
 
-Zbog toga se projekt može graditi i iz Windows checkouta bez ručnog pretvaranja `start.sh` u LF format.
+Zbog toga se projekt može graditi i iz Windows checkouta bez ručnog pretvaranja `start.sh`.
 
 ## 6. Provjera razdvojenog REST servisa
 
-REST API bez Bearer tokena mora odbiti zahtjev:
+Bez autentifikacije REST ruta na portu 5001 mora vratiti HTTP 401:
 
-```bash
-curl -i http://localhost:5001/api/parkings
+```powershell
+curl.exe -i http://localhost:5001/api/parkings
 ```
 
-Očekuje se:
+Ista ruta na glavnoj web aplikaciji mora vratiti HTTP 404:
 
-```text
-HTTP/1.1 401 UNAUTHORIZED
+```powershell
+curl.exe -i http://localhost:5000/api/parkings
 ```
 
-Glavna web aplikacija na portu 5000 nema `/api/parkings` rutu:
+Time se potvrđuje da REST servis nije registriran u web aplikaciji na portu 5000.
 
-```bash
-curl -i http://localhost:5000/api/parkings
-```
+## 7. Demo korisnici i početno stanje
 
-Očekuje se:
+Početno stanje kreira se naredbom:
 
-```text
-HTTP/1.1 404 NOT FOUND
-```
-
-Za autentificirani REST poziv koristiti API token stvarnog korisnika:
-
-```bash
-curl -H "Authorization: Bearer <API_TOKEN>" http://localhost:5001/api/parkings
-```
-
-API token ne zapisivati u dokumentaciju niti spremati u Git.
-
-## 7. Demo korisnici i demo podaci
-
-Početno demonstracijsko stanje kreira se naredbom:
-
-```bash
+```powershell
 docker compose exec parking python seed.py
 ```
 
-Nakon izvršavanja dostupni su korisnici:
+Demo korisnici:
 
 ```text
 vlasnik / parking123
@@ -197,46 +146,54 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Pokretati ga samo kada je namjerno potrebno resetirati demo stanje.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Posebna stranica za uvoz/izvoz demo podataka više se ne koristi.
 
-## 8. Ažuriranje aplikacije
+## 8. Provjera glavnog korisničkog toka
 
-```bash
-git pull
+Prijaviti se kao `gost / parking123` i otvoriti **Dostupni parkinzi**.
+
+Provjeriti da:
+
+1. postoje kriteriji lokacije, **Dostupno od**, **Dostupno do** i sortiranja,
+2. vrijeme se bira u 24-satnom formatu, npr. `08.09.2026. 08:00` do `08.09.2026. 21:00`,
+3. prikazuju se samo parking mjesta bez preklapajuće `ACTIVE` rezervacije,
+4. `CANCELLED` rezervacije ne blokiraju dostupnost,
+5. odabrani termin prelazi kroz **Detalji → Rezerviraj** i ostaje unaprijed popunjen,
+6. nakon rezervacije na **Moje rezervacije** postoje PDF potvrda i SHA-256 provjera integriteta.
+
+24-satni unos koristi Flatpickr iz jsDelivr CDN-a. Bootstrap se također učitava s CDN-a, a stranica **Dretve** koristi Open-Meteo, pa je za potpuno sučelje i mrežne funkcionalnosti preporučena internetska veza.
+
+## 9. Ažuriranje aplikacije
+
+```powershell
+git pull --ff-only origin main
 docker compose up -d --build
 ```
 
-Nakon ažuriranja provjeriti:
+Nakon ažuriranja:
 
-```bash
+```powershell
 docker compose ps
 docker compose logs --tail=50
-curl http://localhost:5001/api/health
+curl.exe http://localhost:5001/api/health
 ```
 
-## 9. Zaustavljanje i ponovno pokretanje
+## 10. Zaustavljanje i ponovno pokretanje
 
-Zaustavljanje:
-
-```bash
+```powershell
 docker compose down
-```
-
-Ponovno pokretanje bez rebuilda:
-
-```bash
 docker compose up -d
 ```
 
 Potpuni rebuild:
 
-```bash
+```powershell
 docker compose up -d --build
 ```
 
-## 10. Brzi postupak na čistom Windows 11 računalu
+Direktoriji `./data` i `./exports` vezani su na host računalo i ne brišu se naredbom `docker compose down`.
 
-U PowerShellu kao administrator:
+## 11. Brzi postupak na čistom Windows 11 računalu
 
 ```powershell
 wsl --install
@@ -244,23 +201,17 @@ winget install -e --id Git.Git
 winget install -e --id Docker.DockerDesktop
 ```
 
-Nakon eventualnog restarta i pokretanja Docker Desktopa:
+Nakon restarta i pokretanja Docker Desktopa:
 
-```bash
+```powershell
 git clone git@github.com:HeadshotFTW/ParKING.git
 cd ParKING
 docker compose up -d --build
 docker compose exec parking python seed.py
 docker compose ps
-curl http://localhost:5001/api/health
+curl.exe http://localhost:5001/api/health
 ```
 
-## 11. Napomena za Windows
+## 12. Napomena za Windows
 
-Za ovaj projekt nije potrebno ručno instalirati `docker-compose-v2` kao na Ubuntu sustavu. Docker Desktop već uključuje naredbu:
-
-```bash
-docker compose
-```
-
-Ako se naredba `docker` ne izvršava, prvo provjeriti je li Docker Desktop pokrenut i je li Docker Engine spreman.
+Docker Desktop već uključuje `docker compose`, pa nije potrebno zasebno instalirati `docker-compose-v2`. Ako se Docker CLI koristi iz Ubuntu WSL distribucije, u Docker Desktopu po potrebi uključiti **Settings → Resources → WSL Integration** za tu distribuciju.
