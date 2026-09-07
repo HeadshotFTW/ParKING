@@ -26,7 +26,6 @@
                         <li><a class="dropdown-item" href="{{ url_for('rest_client') }}">REST</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('binary_history') }}">{{ tr('nav.binary') }}</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('crypto_demo') }}">AES</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('hash_demo_page') }}">SHA-256</a></li>
                         {% if current_user.is_admin() %}
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('admin_threads') }}">{{ tr('nav.threads') }}</a></li>
