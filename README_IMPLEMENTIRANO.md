@@ -64,13 +64,13 @@ ReportLab generira PDF potvrdu rezervacije s podacima iz tablica `reservations`,
 
 ## 11. Paralelno izvršavanje dretvama — 5 bodova
 
-Open-Meteo dohvat sada se koristi i u glavnom toku aplikacije. Na stranici **Dostupni parkinzi** vremenski podaci za različite gradove prikazanih parkinga dohvaćaju se paralelno pomoću `ThreadPoolExecutor`. Podržane lokacije su Zagreb, Samobor i Velika Gorica, a više parkinga u istom gradu koristi isti rezultat jednog HTTP poziva.
+Open-Meteo dohvat koristi se i u glavnom toku aplikacije. Na stranici **Dostupni parkinzi** grad se automatski izdvaja iz lokacije parkinga; za gradove koji nisu unaprijed poznati koordinate se dohvaćaju preko Open-Meteo Geocoding API-ja uz `countryCode=HR`. Tako se vremenski podaci mogu prikazati za bilo koji hrvatski grad koji servis prepoznaje, primjerice Zadar ili Split.
 
-Administratorska stranica **Test → Dretve** zadržana je kao detaljan pregled iste implementacije i koristi `ThreadPoolExecutor(max_workers=3)` za sva tri grada. Prikazuje nazive radnih dretvi, sekvencijalno i paralelno vrijeme te faktor ubrzanja.
+Ako je prikazano više različitih gradova, vremenski podaci dohvaćaju se paralelno pomoću `ThreadPoolExecutor`, a više parkinga u istom gradu koristi isti rezultat jednog HTTP poziva. Administratorska stranica **Test → Dretve** zadržana je kao detaljan pregled i koristi `ThreadPoolExecutor(max_workers=3)` za Zagreb, Samobor i Veliku Goricu te prikazuje nazive radnih dretvi, sekvencijalno i paralelno vrijeme i faktor ubrzanja.
 
 ## 13. Sinkronizacija dretvi — 2 boda
 
-`fetch_weather()` nakon svakog Open-Meteo poziva zapisuje rezultat u zajednički `_request_log`. Taj zapis je kritična sekcija i zaštićen je pomoću `threading.Lock`, tako da više dretvi ne mijenja zajednički zapisnik istodobno. Isti Lock koristi se i kod resetiranja zapisnika i izrade njegove kopije.
+`fetch_weather()` nakon svakog Open-Meteo poziva zapisuje rezultat u zajednički `_request_log`. Taj zapis je kritična sekcija i zaštićen je pomoću `threading.Lock`, tako da više dretvi ne mijenja zajednički zapisnik istodobno. Isti Lock koristi se i kod resetiranja zapisnika, izrade njegove kopije i zaštite cachea geokodiranih lokacija.
 
 ## 14. Komunikacija između procesa — 4 boda
 
@@ -88,9 +88,9 @@ Proces A čita `returncode`, `stdout` i `stderr` te rezultat prikazuje izravno i
 
 ## 20. Udaljeni REST servis — 3 boda
 
-Aplikacija HTTP zahtjevima dohvaća trenutačne vremenske podatke s udaljenog Open-Meteo REST servisa. Podaci nisu samo tehnički prikaz: temperatura i brzina vjetra prikazuju se uz stvarne parkinge na **Dostupni parkinzi** i na **Detalji parkinga** za podržane gradove. Isti REST pozivi koriste se i u paralelnoj implementaciji dretvi.
+Aplikacija HTTP zahtjevima koristi Open-Meteo Geocoding API za pretvaranje naziva hrvatskog grada u koordinate te Open-Meteo Forecast API za dohvat trenutačne temperature, brzine vjetra i vremenskog koda. Podaci se prikazuju uz stvarne parkinge na **Dostupni parkinzi** i **Detalji parkinga**.
 
-Ako je Open-Meteo privremeno nedostupan, parking stranice ostaju funkcionalne i samo izostavljaju vremenski podatak.
+Ako je Open-Meteo privremeno nedostupan ili grad nije prepoznat, parking stranice ostaju funkcionalne i samo izostavljaju vremenski podatak.
 
 ## 21. Vlastiti REST servis i klijent — 4 boda
 
