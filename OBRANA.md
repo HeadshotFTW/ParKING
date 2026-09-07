@@ -19,7 +19,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeću razvojnu bazu, zato ga koristiti samo kada se namjerno želi resetirati stanje.
+`seed.py` briše postojeću razvojnu bazu, zato ga koristiti samo kada se namjerno želi resetirati stanje. Seed sada kreira četiri parkinga u tri različita grada: Zagreb, Zadar i Split.
 
 ## 1. Dostupni parkinzi, vrijeme, rezervacija i povijest pretraga
 
@@ -31,7 +31,7 @@ Prijava kao `gost`.
 4. Pokrenuti pretragu.
 5. Objasniti da se parking skriva samo ako ima preklapajuću `ACTIVE` rezervaciju.
 6. Pokazati da kartice parkinga prikazuju trenutačnu temperaturu i vjetar iz Open-Meteo servisa.
-7. Po želji dodati parking u drugom hrvatskom gradu, npr. `Zadar, Obala kneza Branimira 10`, i pokazati da se grad automatski geokodira te se vremenski podatak također prikazuje.
+7. Pokazati da parkingi u Zagrebu, Zadru i Splitu dobivaju vremenske podatke prema stvarnoj lokaciji.
 8. Sortirati rezultate.
 9. Otvoriti **Povijest pretraga** i pokazati da je stvarna pretraga automatski spremljena u `data/search_history.bin`.
 10. Kliknuti **Ponovi**.
@@ -125,17 +125,22 @@ Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `
 
 Najprije podsjetiti da se Open-Meteo već koristi u stvarnom korisničkom toku na **Dostupni parkinzi** i **Detalji parkinga**.
 
-Zatim kao administrator otvoriti **Test → Dretve** i pokazati detalje iste implementacije:
+Zatim kao administrator otvoriti **Test → Dretve**. Stranica više nema statički zadane Zagreb/Samobor/Velika Gorica zadatke. `run.py` čita lokacije stvarnih parkinga iz baze, a `parallel_tasks.py` iz njih izdvaja jedinstvene gradove. Nakon seeda stranica bi trebala prikazati:
 
-- tri Open-Meteo HTTP poziva za Zagreb, Samobor i Veliku Goricu
-- `ThreadPoolExecutor(max_workers=3)`
+```text
+Zagreb, Zadar, Split
+```
+
+Pokazati:
+
+- gradove pronađene iz stvarnih parkinga
+- da se isti gradovi dohvaćaju najprije sekvencijalno pa paralelno
+- `ThreadPoolExecutor` s najviše tri radne dretve
 - sekvencijalno i paralelno vrijeme
 - faktor ubrzanja
-- nazive dretvi
-- zajednički `_request_log`
-- `threading.Lock`
+- nazive dretvi uz rezultate
 
-Kritična sekcija je dio `fetch_weather()` koji upisuje u zajednički `_request_log`:
+Tekstualni blok **Sinkronizacija** namjerno je uklonjen sa stranice. Sinkronizacija i dalje postoji u kodu. Kritična sekcija je dio `fetch_weather()` koji upisuje u zajednički `_request_log`:
 
 ```python
 with _request_log_lock:
@@ -214,7 +219,7 @@ Očekivano:
 ```text
 models.py                    SQLAlchemy modeli
 app.py                       osnovni CRUD i web rute
-run.py                       REST klijent, AES backup, procesna provjera, SHA-256 ruta
+run.py                       REST klijent, AES backup, procesna provjera, SHA-256 ruta, gradovi za thread test
 parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
 binary_store.py              PKSR binarni format
 crypto_store.py              AES-GCM
