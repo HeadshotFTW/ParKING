@@ -79,19 +79,21 @@ Očekuje se HTTP `404 NOT FOUND`. Time se jasno pokazuje da glavna aplikacija na
 
 ## Preporučeni redoslijed demonstracije
 
-### 1. Osnovna aplikacija i dostupnost parkinga
+### 1. Osnovna aplikacija, dostupnost parkinga i povijest pretraga
 
 1. Prijava kao `gost`.
 2. Otvoriti **Dostupni parkinzi**.
-3. Zadati lokaciju te termin **Dostupno od / Dostupno do**.
+3. Zadati lokaciju, termin **Dostupno od / Dostupno do** i po želji maksimalnu cijenu po satu.
 4. Pokazati da se vrijeme unosi u 24-satnom obliku, npr. `08.09.2026. 08:00` do `08.09.2026. 21:00`.
-5. Pokrenuti pretragu i objasniti da se prikazuju samo parkirna mjesta bez preklapajuće `ACTIVE` rezervacije.
+5. Pokrenuti pretragu i objasniti da se prikazuju samo parkirna mjesta bez preklapajuće `ACTIVE` rezervacije i unutar zadane maksimalne cijene.
 6. Po mogućnosti pokazati isti parking u dva termina: u zauzetom terminu ga nema, a neposredno prije ili nakon rezervacije ponovno je vidljiv.
 7. Sortirati rezultate po cijeni ili nazivu.
-8. Kliknuti **Detalji** i zatim **Rezerviraj**; pokazati da je odabrani termin već prenesen u formu rezervacije.
-9. Spremiti rezervaciju.
-10. Otvoriti **Moje rezervacije**, pokazati trajanje i izračunatu ukupnu cijenu.
-11. Preuzeti PDF potvrdu rezervacije.
+8. Otvoriti **Povijest pretraga** i pokazati da je upravo napravljena stvarna pretraga automatski spremljena u `data/search_history.bin`.
+9. Kliknuti **Ponovi** na spremljenoj pretrazi i pokazati da se kriteriji vraćaju na stranicu dostupnih parkinga.
+10. Kliknuti **Detalji** i zatim **Rezerviraj**; pokazati da je odabrani termin već prenesen u formu rezervacije.
+11. Spremiti rezervaciju.
+12. Otvoriti **Moje rezervacije**, pokazati trajanje i izračunatu ukupnu cijenu.
+13. Preuzeti PDF potvrdu rezervacije.
 
 Pravilo preklapanja koje koristi pretraga dostupnosti i spremanje rezervacije:
 
@@ -103,11 +105,11 @@ postojeći završetak > traženi početak
 
 `CANCELLED` rezervacije ne blokiraju parking.
 
-Pokazuje: forme/dijalozi i prijenos podataka među njima, SQLite, povezane tablice, filtriranje po lokaciji i vremenskom kriteriju, sortiranje, izračunato polje, lookup relacije i PDF master-detail izvještaj.
+Pokazuje: forme/dijalozi i prijenos podataka među njima, SQLite, povezane tablice, filtriranje po lokaciji, cijeni i vremenskom kriteriju, sortiranje, izračunato polje, lookup relacije, stvarno korištenje prilagođenog binarnog formata i PDF master-detail izvještaj.
 
 ### 2. HR / EN
 
-Prebaciti aplikaciju s HR na EN i otvoriti nekoliko stranica, uključujući **Dostupni parkinzi** i tehničke stranice iz izbornika **Test**.
+Prebaciti aplikaciju s HR na EN i otvoriti nekoliko stranica, uključujući **Dostupni parkinzi**, **Povijest pretraga** i tehničke stranice iz izbornika **Test**.
 
 Pokazuje: promjena jezika tijekom rada i više od pet prevedenih stranica. Flatpickr ostaje u 24-satnom formatu; hrvatski prikaz koristi `dd.mm.YYYY. HH:mm`, a engleski `YYYY-mm-dd HH:mm`.
 
@@ -188,17 +190,20 @@ Za autorizaciju objasniti:
 - samo vlasnik parkinga ili admin može mijenjati parking,
 - admin ima širi pristup rezervacijama.
 
-### 9. Test → Binarno
+### 9. Povijest pretraga — prilagođeni binarni format
 
-Dodati nekoliko zapisa pretrage, zatim pokazati da se ponovno čitaju iz `data/search_history.bin`.
+Ova funkcionalnost više nije pod **Test → Binarno**. Koristi se u stvarnom korisničkom toku.
 
-Dokaz formata:
+1. Kao prijavljeni korisnik napraviti dvije različite pretrage na **Dostupni parkinzi**.
+2. Otvoriti **Povijest pretraga** i pokazati oba zapisa.
+3. Kliknuti **Ponovi** i pokazati ponovno učitane kriterije.
+4. U terminalu pokazati binarni sadržaj:
 
 ```bash
 xxd data/search_history.bin | head
 ```
 
-Na početku mora biti zaglavlje `PKSR`, a datoteka mora sadržavati više binarnih zapisa.
+Na početku mora biti zaglavlje `PKSR`. Aktualna verzija 2 sadrži `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu i UTF-8 polja promjenjive duljine za lokaciju, početak, završetak i sortiranje. `binary_store.py` može čitati i staru verziju 1 te je pri sljedećem zapisu migrira u verziju 2.
 
 ### 10. Test → AES
 
@@ -240,19 +245,20 @@ Za vlastiti REST servis računa se 4 boda jer nije posebno postavljen na IIS/Apa
 ```text
 models.py                 SQLAlchemy modeli
 app.py                    osnovne rute glavne web aplikacije
-run.py                    tehničke funkcionalnosti i instalacija dostupnosti u /parkings
-parking_availability.py   filtriranje parkinga prema vremenskom intervalu
+run.py                    tehničke funkcionalnosti i prikaz povijesti pretraga
+parking_availability.py   dostupnost, cijena i automatski zapis stvarne pretrage
 api_app.py                zasebna REST Flask aplikacija na portu 5001
 start.sh                  pokretanje web i REST procesa u containeru
 parallel_tasks.py         ThreadPoolExecutor + Lock + Open-Meteo
 reservation_worker.py     proces B i izlazni kodovi
-binary_store.py           prilagođeni binarni format
+binary_store.py           PKSR binarni format v2 + čitanje/migracija v1
 crypto_store.py           AES-GCM
 hash_demo.py              SHA-256 integritet rezervacije, sol i papar
 json_store.py             JSON CRUD
 config.ini                INI postavke
 templates/base.html       Bootstrap + Flatpickr 24-satni picker
-templates/parkings.html   forma lokacije i vremenske dostupnosti
+templates/parkings.html   lokacija, termin, maksimalna cijena i sortiranje
+templates/binary_history.html  povijest stvarnih pretraga i akcija Ponovi
 seed.py                   reset i početni demo podaci
 ```
 
