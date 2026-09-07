@@ -1,6 +1,6 @@
 # ParKING — instalacija na Ubuntu 26.04
 
-Ove upute opisuju najjednostavniji način instalacije i pokretanja ParKING aplikacije pomoću Dockera i Docker Composea.
+Ove upute opisuju instalaciju i pokretanje ParKING aplikacije pomoću Dockera i Docker Composea.
 
 ## 1. Kreiranje SSH ključa za GitHub
 
@@ -8,17 +8,12 @@ Ako računalo još nema SSH ključ:
 
 ```bash
 ssh-keygen -t ed25519 -C "<vas-email>"
-```
-
-Prikaz javnog ključa:
-
-```bash
 cat ~/.ssh/id_ed25519.pub
 ```
 
-Javni ključ dodati u GitHub račun pod **Settings → SSH and GPG keys → New SSH key**.
+Javni ključ dodati u GitHub pod **Settings → SSH and GPG keys → New SSH key**.
 
-Provjera GitHub SSH pristupa:
+Provjera:
 
 ```bash
 ssh -T git@github.com
@@ -29,11 +24,6 @@ ssh -T git@github.com
 ```bash
 sudo apt update
 sudo apt install -y docker.io docker-compose-v2
-```
-
-Pokrenuti Docker i uključiti automatsko pokretanje nakon restarta sustava:
-
-```bash
 sudo systemctl enable --now docker
 ```
 
@@ -51,7 +41,7 @@ sudo usermod -aG docker "$USER"
 newgrp docker
 ```
 
-Provjera članstva u grupi:
+Provjera članstva:
 
 ```bash
 groups
@@ -64,21 +54,17 @@ git clone git@github.com:HeadshotFTW/ParKING.git
 cd ParKING
 ```
 
+Ako je repozitorij već kloniran:
+
+```bash
+git pull --ff-only origin main
+```
+
 ## 4. Build i pokretanje
 
 ```bash
 docker compose up -d --build
-```
-
-Provjera containera:
-
-```bash
 docker compose ps
-```
-
-Provjera logova:
-
-```bash
 docker compose logs --tail=50
 ```
 
@@ -109,42 +95,23 @@ Očekivani odgovor:
 
 ## 5. Provjera razdvojenog REST servisa
 
-REST API bez Bearer tokena mora odbiti zahtjev:
+Bez autentifikacije REST ruta na portu 5001 mora vratiti HTTP 401:
 
 ```bash
 curl -i http://localhost:5001/api/parkings
 ```
 
-Očekuje se:
-
-```text
-HTTP/1.1 401 UNAUTHORIZED
-```
-
-Glavna web aplikacija na portu 5000 nema `/api/parkings` rutu:
+Ista ruta na glavnoj aplikaciji mora vratiti HTTP 404:
 
 ```bash
 curl -i http://localhost:5000/api/parkings
 ```
 
-Očekuje se:
+Time se potvrđuje da REST servis nije registriran u web aplikaciji na portu 5000.
 
-```text
-HTTP/1.1 404 NOT FOUND
-```
+## 6. Demo korisnici i početno stanje
 
-Za autentificirani REST poziv koristiti API token stvarnog korisnika:
-
-```bash
-curl -H "Authorization: Bearer <API_TOKEN>" \
-  http://localhost:5001/api/parkings
-```
-
-API token se ne treba zapisivati u dokumentaciju niti spremati u Git.
-
-## 6. Demo korisnici i demo podaci
-
-Početno demonstracijsko stanje kreira se naredbom:
+Početno stanje kreira se naredbom:
 
 ```bash
 docker compose exec parking python seed.py
@@ -158,16 +125,31 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Pokretati ga samo kada je namjerno potrebno resetirati demo stanje.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Posebna stranica za uvoz/izvoz demo podataka više se ne koristi.
 
-## 7. Ažuriranje aplikacije
+## 7. Provjera glavnog korisničkog toka
+
+Prijaviti se kao `gost / parking123` i otvoriti **Dostupni parkinzi**.
+
+Provjeriti da:
+
+1. postoje kriteriji lokacije, **Dostupno od**, **Dostupno do** i sortiranja,
+2. vrijeme se bira u 24-satnom formatu, npr. `08.09.2026. 08:00` do `08.09.2026. 21:00`,
+3. pretraga prikazuje samo parking mjesta bez preklapajuće `ACTIVE` rezervacije,
+4. `CANCELLED` rezervacije ne blokiraju dostupnost,
+5. odabrani termin prelazi kroz **Detalji → Rezerviraj** i ostaje unaprijed popunjen,
+6. nakon rezervacije na **Moje rezervacije** postoje PDF potvrda i SHA-256 provjera integriteta.
+
+24-satni unos koristi Flatpickr iz jsDelivr CDN-a. Bootstrap se također učitava s CDN-a, a stranica **Dretve** koristi udaljeni Open-Meteo servis, pa je za potpuno sučelje i mrežne funkcionalnosti preporučena internetska veza.
+
+## 8. Ažuriranje aplikacije
 
 ```bash
-git pull
+git pull --ff-only origin main
 docker compose up -d --build
 ```
 
-Nakon ažuriranja provjeriti:
+Nakon ažuriranja:
 
 ```bash
 docker compose ps
@@ -175,17 +157,10 @@ docker compose logs --tail=50
 curl http://localhost:5001/api/health
 ```
 
-## 8. Zaustavljanje i ponovno pokretanje
-
-Zaustavljanje:
+## 9. Zaustavljanje i ponovno pokretanje
 
 ```bash
 docker compose down
-```
-
-Ponovno pokretanje:
-
-```bash
 docker compose up -d
 ```
 
@@ -194,3 +169,5 @@ Potpuni rebuild:
 ```bash
 docker compose up -d --build
 ```
+
+Direktoriji `./data` i `./exports` vezani su na host računalo i ne brišu se naredbom `docker compose down`.
