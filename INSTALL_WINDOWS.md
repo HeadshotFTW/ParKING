@@ -183,7 +183,13 @@ API token ne zapisivati u dokumentaciju niti spremati u Git.
 
 ## 7. Demo korisnici i demo podaci
 
-Osnovni demo korisnici:
+Početno demonstracijsko stanje kreira se naredbom:
+
+```bash
+docker compose exec parking python seed.py
+```
+
+Nakon izvršavanja dostupni su korisnici:
 
 ```text
 vlasnik / parking123
@@ -191,29 +197,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-Ako treba vratiti osnovne razvojne podatke:
-
-```bash
-docker compose exec parking python seed.py
-```
-
-> `seed.py` briše postojeću razvojnu bazu. Koristiti ga samo kada je namjerno potrebno vratiti početno demo stanje.
-
-Za potpuno demonstracijsko stanje preporučuje se koristiti referentni dataset:
-
-```text
-demo/parking-demo.json
-```
-
-Postupak:
-
-1. otvoriti `http://localhost:5000`
-2. prijaviti se kao `admin / admin123`
-3. otvoriti **Test → Demo podaci**
-4. odabrati **Import**
-5. učitati `demo/parking-demo.json`
-
-Import zamjenjuje postojeće korisnike, parkinge i rezervacije demonstracijskim podacima.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Pokretati ga samo kada je namjerno potrebno resetirati demo stanje.
 
 ## 8. Ažuriranje aplikacije
 
@@ -266,6 +250,7 @@ Nakon eventualnog restarta i pokretanja Docker Desktopa:
 git clone git@github.com:HeadshotFTW/ParKING.git
 cd ParKING
 docker compose up -d --build
+docker compose exec parking python seed.py
 docker compose ps
 curl http://localhost:5001/api/health
 ```
