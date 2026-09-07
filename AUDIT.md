@@ -18,7 +18,7 @@ Konzervativna procjena: **70 bodova**.
 | 8 | Sort / filter / calculated / lookup | 5 | sigurno | Lokacija, maksimalna cijena, vremenska dostupnost, sortiranje, ukupna cijena i ORM relacije. |
 | 9 | BLOB | 3 | sigurno | Fotografija parkinga u BLOB polju. |
 | 10 | PDF / master-detail | 5 | sigurno | PDF potvrda rezervacije iz tri povezane tablice. |
-| 11 | Dretve / thread pool | 5 | sigurno | Open-Meteo se dohvaća paralelno za različite gradove prikazanih parkinga; **Test → Dretve** dodatno pokazuje `ThreadPoolExecutor(max_workers=3)`. |
+| 11 | Dretve / thread pool | 5 | sigurno | Open-Meteo se dohvaća paralelno za gradove stvarnih parkinga; **Test → Dretve** koristi jedinstvene gradove iz baze i najviše tri radne dretve. Seed osigurava Zagreb, Zadar i Split. |
 | 12 | Sigurno UI ažuriranje iz dretve | 0 | ne računamo | Web izvedba ne pokriva desktop kriterij dovoljno jasno. |
 | 13 | Sinkronizacija | 2 | sigurno | `threading.Lock` štiti kritičnu sekciju koja mijenja zajednički `_request_log` i kratke pristupe geocode cacheu. |
 | 14 | Proces A → B | 4 | sigurno | **Admin rezervacije → Provjeri rezervacije** pokreće `reservation_worker.py` preko `subprocess.run`. |
@@ -98,9 +98,11 @@ SHA-256 ostaje integriran u **Moje rezervacije** kao provjera integriteta stvarn
 
 ### Open-Meteo + dretve + kritična sekcija
 
-Open-Meteo je integriran u **Dostupni parkinzi** i **Detalji parkinga**. Aplikacija iz lokacije parkinga izdvaja naziv grada. Zagreb, Samobor i Velika Gorica imaju unaprijed poznate koordinate, dok se ostali hrvatski gradovi dinamički geokodiraju preko Open-Meteo Geocoding API-ja uz `countryCode=HR`. Zbog toga parking u lokaciji poput `Zadar, Obala kneza Branimira 10` također dobiva vremenski podatak.
+Open-Meteo je integriran u **Dostupni parkinzi** i **Detalji parkinga**. Aplikacija iz lokacije parkinga izdvaja naziv grada. Zagreb, Samobor i Velika Gorica imaju unaprijed poznate koordinate, dok se ostali hrvatski gradovi dinamički geokodiraju preko Open-Meteo Geocoding API-ja uz `countryCode=HR`.
 
 Na popisu parkinga `parking_availability.py` grupira prikazane parkinge po gradu i poziva `fetch_weather_for_parking_locations()`. Ako je prikazano više različitih gradova, HTTP zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu koristi jedan rezultat.
+
+**Test → Dretve** više nema zaseban popis od tri preset grada. `run.py` dohvaća lokacije iz stvarnih `parking_spots` zapisa, `parallel_tasks.py` izdvaja jedinstvene gradove, a zatim isti skup izvršava sekvencijalno i paralelno. Seed sada sadrži parkinge u Zagrebu, Zadru i Splitu kako bi test nakon resetiranja imao najmanje tri neovisna zadatka.
 
 `parallel_tasks.py` nakon svakog HTTP poziva upisuje rezultat u zajednički `_request_log`. Kritična sekcija je:
 
@@ -109,7 +111,7 @@ with _request_log_lock:
     _request_log.append(...)
 ```
 
-`threading.Lock` osigurava da samo jedna dretva mijenja zajednički zapisnik u jednom trenutku. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika te za kratke pristupe cacheu geokodiranih gradova. **Test → Dretve** ostaje koristan za prikaz sekvencijalnog/paralelnog vremena, naziva dretvi i ubrzanja.
+`threading.Lock` osigurava da samo jedna dretva mijenja zajednički zapisnik u jednom trenutku. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika te za kratke pristupe cacheu geokodiranih gradova. Vidljivi tekst **Sinkronizacija** uklonjen je sa stranice Test → Dretve; kriterij sinkronizacije dokazuje se u kodu.
 
 Ako udaljeni servis ne odgovara ili grad nije prepoznat, parking stranice i dalje se učitavaju, samo bez vremenskog podatka.
 
@@ -164,8 +166,8 @@ gost     / parking123
 admin    / admin123
 ```
 
-Početna dva parkinga su u Zagrebu, pa se Open-Meteo podatak vidi odmah nakon seeda ako udaljeni servis radi. Za provjeru dinamičkog geokodiranja može se ručno dodati parking u Zadru ili Splitu.
+Seed kreira četiri parkinga u Zagrebu, Zadru i Splitu. Time se odmah mogu pokazati dinamičko geokodiranje i najmanje tri thread-pool zadatka.
 
 ## Zaključak
 
-Projekt ostaje na konzervativno procijenjenih **70 bodova**. Kriteriji 6, 11, 13, 14, 20, 23 i 25 sada su bolje povezani sa stvarnim funkcionalnostima ParKING aplikacije umjesto s izdvojenim demonstracijskim ekranima.
+Projekt ostaje na konzervativno procijenjenih **70 bodova**. Kriteriji 6, 11, 13, 14, 20, 23 i 25 povezani su sa stvarnim funkcionalnostima ParKING aplikacije umjesto s izdvojenim demonstracijskim ekranima.
