@@ -26,7 +26,24 @@ def sha256_with_salt_and_pepper(text, salt, pepper):
     return hashlib.sha256(payload).hexdigest()
 
 
-def create_demo_hash(user_id, username, text):
+def reservation_integrity_text(reservation):
+    """Create a stable textual representation of the reservation state."""
+    return "|".join([
+        f"reservation_id={reservation.id}",
+        f"user_id={reservation.user_id}",
+        f"username={reservation.user.username}",
+        f"parking_id={reservation.parking_id}",
+        f"parking_name={reservation.parking.name}",
+        f"location={reservation.parking.location}",
+        f"start={reservation.start_time.isoformat(timespec='minutes')}",
+        f"end={reservation.end_time.isoformat(timespec='minutes')}",
+        f"status={reservation.status}",
+        f"price_per_hour={reservation.parking.price_per_hour:.2f}",
+        f"total_price={reservation.total_price():.2f}",
+    ])
+
+
+def create_integrity_hash(user_id, username, text):
     salt = derive_variable_salt(user_id, username)
     pepper = configured_pepper()
     digest = sha256_with_salt_and_pepper(text, salt, pepper)
@@ -43,11 +60,10 @@ def verify_by_full_pepper_scan(user_id, username, text, expected_digest):
     matches = []
     attempts = 0
 
-    # Namjerno prolazimo cijeli dopušteni raspon papra radi demonstracije kriterija.
     for pepper in range(PEPPER_MIN, PEPPER_MAX + 1):
         attempts += 1
         candidate = sha256_with_salt_and_pepper(text, salt, pepper)
-        if hmac.compare_digest(candidate, expected_digest):
+        if hmac.compare_digest(candidate, expected_digest.lower()):
             matches.append(pepper)
 
     return {
