@@ -5,7 +5,11 @@ from flask import redirect, render_template, request, url_for
 from app import DATA_DIR, current_language, current_user, load_settings
 from binary_store import add_record
 from models import db, ParkingSpot, Reservation
-from parallel_tasks import fetch_weather_for_parking_locations, weather_location_for_parking
+from parallel_tasks import (
+    fetch_weather_for_parking,
+    fetch_weather_for_parking_locations,
+    weather_location_for_parking,
+)
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
@@ -180,6 +184,17 @@ def parkings_with_availability():
     )
 
 
+def parking_detail_with_weather(parking_id):
+    parking = db.get_or_404(ParkingSpot, parking_id)
+    try:
+        weather = fetch_weather_for_parking(parking.location)
+    except Exception:
+        # Parking detalji moraju ostati dostupni i ako Open-Meteo privremeno ne radi.
+        weather = None
+    return render_template("parking_detail.html", parking=parking, weather=weather)
+
+
 def install_parking_availability(app):
-    """Replace the existing /parkings endpoint view while keeping its URL and endpoint name."""
+    """Install availability and weather views while preserving existing endpoints."""
     app.view_functions["parkings"] = parkings_with_availability
+    app.view_functions["parking_detail"] = parking_detail_with_weather
