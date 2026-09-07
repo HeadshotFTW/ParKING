@@ -18,16 +18,16 @@ Konzervativna procjena: **70 bodova**.
 | 8 | Sort / filter / calculated / lookup | 5 | sigurno | Lokacija, maksimalna cijena, vremenska dostupnost, sortiranje, ukupna cijena i ORM relacije. |
 | 9 | BLOB | 3 | sigurno | Fotografija parkinga u BLOB polju. |
 | 10 | PDF / master-detail | 5 | sigurno | PDF potvrda rezervacije iz tri povezane tablice. |
-| 11 | Dretve / thread pool | 5 | sigurno | Open-Meteo se dohvaća paralelno za različite gradove prikazanih parkinga; **Test → Dretve** dodatno pokazuje `ThreadPoolExecutor(max_workers=3)` i sva tri grada. |
+| 11 | Dretve / thread pool | 5 | sigurno | Open-Meteo se dohvaća paralelno za različite gradove prikazanih parkinga; **Test → Dretve** dodatno pokazuje `ThreadPoolExecutor(max_workers=3)`. |
 | 12 | Sigurno UI ažuriranje iz dretve | 0 | ne računamo | Web izvedba ne pokriva desktop kriterij dovoljno jasno. |
-| 13 | Sinkronizacija | 2 | sigurno | `threading.Lock` štiti kritičnu sekciju koja mijenja zajednički `_request_log`. |
+| 13 | Sinkronizacija | 2 | sigurno | `threading.Lock` štiti kritičnu sekciju koja mijenja zajednički `_request_log` i kratke pristupe geocode cacheu. |
 | 14 | Proces A → B | 4 | sigurno | **Admin rezervacije → Provjeri rezervacije** pokreće `reservation_worker.py` preko `subprocess.run`. |
 | 15 | TCP | 0 | nije implementirano | — |
 | 16 | UDP | 0 | nije implementirano | — |
 | 17 | HTTP downloader | 0 | nije implementirano | — |
 | 18 | Udaljeni SOAP | 0 | nije implementirano | — |
 | 19 | Vlastiti SOAP | 0 | nije implementirano | — |
-| 20 | Udaljeni REST | 3 | sigurno | Open-Meteo podaci prikazuju se uz stvarne parkinge i koriste se u dretvenom dohvaćanju. |
+| 20 | Udaljeni REST | 3 | sigurno | Open-Meteo Geocoding + Forecast API; podaci se prikazuju uz stvarne parkinge. |
 | 21 | Vlastiti REST servis + klijent | 4 | vrlo vjerojatno | Web app 5000, zasebni REST app/proces 5001, dva resursa. |
 | 22 | REST auth/authz | 4 | vjerojatno | Bearer token, 401 bez tokena, 403 za nedopuštene akcije. |
 | 23 | AES-GCM | 2 | sigurno | **Bilješke** imaju stvarnu šifriranu sigurnosnu kopiju u `PKAE` datoteci. |
@@ -98,9 +98,9 @@ SHA-256 ostaje integriran u **Moje rezervacije** kao provjera integriteta stvarn
 
 ### Open-Meteo + dretve + kritična sekcija
 
-Open-Meteo više nije vidljiv samo na **Test → Dretve**. Za parkinge čija lokacija sadrži Zagreb, Samobor ili Veliku Goricu aplikacija na **Dostupni parkinzi** i **Detalji parkinga** prikazuje trenutačnu temperaturu i brzinu vjetra.
+Open-Meteo je integriran u **Dostupni parkinzi** i **Detalji parkinga**. Aplikacija iz lokacije parkinga izdvaja naziv grada. Zagreb, Samobor i Velika Gorica imaju unaprijed poznate koordinate, dok se ostali hrvatski gradovi dinamički geokodiraju preko Open-Meteo Geocoding API-ja uz `countryCode=HR`. Zbog toga parking u lokaciji poput `Zadar, Obala kneza Branimira 10` također dobiva vremenski podatak.
 
-Na popisu parkinga `parking_availability.py` grupira prikazane parkinge po podržanom gradu i poziva `fetch_weather_for_parking_locations()`. Ako je prikazano više različitih gradova, HTTP zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu koristi jedan rezultat.
+Na popisu parkinga `parking_availability.py` grupira prikazane parkinge po gradu i poziva `fetch_weather_for_parking_locations()`. Ako je prikazano više različitih gradova, HTTP zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu koristi jedan rezultat.
 
 `parallel_tasks.py` nakon svakog HTTP poziva upisuje rezultat u zajednički `_request_log`. Kritična sekcija je:
 
@@ -109,9 +109,9 @@ with _request_log_lock:
     _request_log.append(...)
 ```
 
-`threading.Lock` osigurava da samo jedna dretva mijenja zajednički zapisnik u jednom trenutku. Lock se koristi i pri resetiranju i kopiranju zapisnika. **Test → Dretve** ostaje koristan za prikaz sekvencijalnog/paralelnog vremena, naziva dretvi i ubrzanja.
+`threading.Lock` osigurava da samo jedna dretva mijenja zajednički zapisnik u jednom trenutku. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika te za kratke pristupe cacheu geokodiranih gradova. **Test → Dretve** ostaje koristan za prikaz sekvencijalnog/paralelnog vremena, naziva dretvi i ubrzanja.
 
-Ako udaljeni servis ne odgovara, parking stranice i dalje se učitavaju, samo bez vremenskog podatka.
+Ako udaljeni servis ne odgovara ili grad nije prepoznat, parking stranice i dalje se učitavaju, samo bez vremenskog podatka.
 
 ## Dostupnost parkinga
 
@@ -164,7 +164,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-Početna dva parkinga su u Zagrebu, pa se Open-Meteo podatak vidi odmah nakon seeda ako udaljeni servis radi.
+Početna dva parkinga su u Zagrebu, pa se Open-Meteo podatak vidi odmah nakon seeda ako udaljeni servis radi. Za provjeru dinamičkog geokodiranja može se ručno dodati parking u Zadru ili Splitu.
 
 ## Zaključak
 
