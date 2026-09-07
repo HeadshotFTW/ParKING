@@ -26,6 +26,7 @@
             <td>{{ reservation.status }}</td>
             <td class="text-nowrap">
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('reservation_pdf', reservation_id=reservation.id) }}">PDF</a>
+                <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('hash_demo_page', reservation_id=reservation.id) }}">SHA-256</a>
                 {% if reservation.status == 'ACTIVE' %}
                 <form class="d-inline" method="post" action="{{ url_for('cancel_reservation', reservation_id=reservation.id) }}">
                     <button class="btn btn-sm btn-outline-danger">{{ tr('reservations.cancel') }}</button>
