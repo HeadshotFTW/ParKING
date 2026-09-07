@@ -30,15 +30,16 @@ Prijava kao `gost`.
 3. Pokazati 24-satni unos vremena.
 4. Pokrenuti pretragu.
 5. Objasniti da se parking skriva samo ako ima preklapajuću `ACTIVE` rezervaciju.
-6. Pokazati da kartice parkinga za podržane gradove prikazuju trenutačnu temperaturu i vjetar iz Open-Meteo servisa.
-7. Sortirati rezultate.
-8. Otvoriti **Povijest pretraga** i pokazati da je stvarna pretraga automatski spremljena u `data/search_history.bin`.
-9. Kliknuti **Ponovi**.
-10. Otvoriti parking preko **Detalji** i pokazati da se vremenski podatak prikazuje i na detaljima.
-11. Kliknuti **Rezerviraj** i pokazati da je termin već prenesen.
-12. Spremiti rezervaciju.
-13. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
-14. Preuzeti PDF potvrdu.
+6. Pokazati da kartice parkinga prikazuju trenutačnu temperaturu i vjetar iz Open-Meteo servisa.
+7. Po želji dodati parking u drugom hrvatskom gradu, npr. `Zadar, Obala kneza Branimira 10`, i pokazati da se grad automatski geokodira te se vremenski podatak također prikazuje.
+8. Sortirati rezultate.
+9. Otvoriti **Povijest pretraga** i pokazati da je stvarna pretraga automatski spremljena u `data/search_history.bin`.
+10. Kliknuti **Ponovi**.
+11. Otvoriti parking preko **Detalji** i pokazati da se vremenski podatak prikazuje i na detaljima.
+12. Kliknuti **Rezerviraj** i pokazati da je termin već prenesen.
+13. Spremiti rezervaciju.
+14. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
+15. Preuzeti PDF potvrdu.
 
 Pravilo preklapanja:
 
@@ -50,7 +51,7 @@ postojeći završetak > traženi početak
 
 `CANCELLED` rezervacije ne blokiraju parking.
 
-Open-Meteo se prema tekstu lokacije povezuje s podržanim gradovima Zagreb, Samobor i Velika Gorica. Ako je na istoj stranici više različitih gradova, vremenski zahtjevi dohvaćaju se paralelno. Više parkinga u istom gradu dijeli jedan rezultat.
+Za vremenske podatke aplikacija iz tekstualne lokacije izdvaja grad. Zagreb, Samobor i Velika Gorica imaju unaprijed poznate koordinate, a ostali hrvatski gradovi, primjerice Zadar ili Split, automatski se pretvaraju u koordinate preko Open-Meteo Geocoding API-ja (`countryCode=HR`). Ako je na istoj stranici više različitih gradova, vremenski zahtjevi dohvaćaju se paralelno. Više parkinga u istom gradu dijeli jedan rezultat.
 
 ### Dokaz vlastitog binarnog formata
 
@@ -141,7 +142,7 @@ with _request_log_lock:
     _request_log.append(...)
 ```
 
-Lock osigurava da samo jedna dretva u tom trenutku mijenja zajednički zapisnik. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika.
+Lock osigurava da samo jedna dretva u tom trenutku mijenja zajednički zapisnik. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika te za kratke pristupe cacheu geokodiranih gradova.
 
 Time se pokrivaju dretve, sinkronizacija i udaljeni REST servis, a vremenski podaci imaju stvarnu funkciju u ParKING aplikaciji.
 
@@ -218,7 +219,7 @@ parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
 binary_store.py              PKSR binarni format
 crypto_store.py              AES-GCM
 hash_demo.py                 SHA-256 integritet, sol i papar
-parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
+parallel_tasks.py            Open-Meteo geokodiranje + ThreadPoolExecutor + Lock
 reservation_worker.py        zasebni proces B
 api_app.py                   vlastiti REST servis na 5001
 json_store.py                JSON CRUD
