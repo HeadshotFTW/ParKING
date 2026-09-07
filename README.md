@@ -1,103 +1,40 @@
 # ParKING
 
-ParKING je web aplikacija razvijena u Python Flask frameworku koja korisnicima omogućuje oglašavanje i rezervaciju privatnih parkirnih mjesta.
+ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirnih mjesta. Glavne funkcionalnosti povezane su u jedan stvarni korisnički tok: korisnik traži parking za određeni termin, provjerava dostupnost, rezervira ga, prati rezervacije i koristi dodatne funkcije poput PDF potvrde, SHA-256 provjere integriteta, povijesti pretraga i šifriranih sigurnosnih kopija bilješki.
 
-Projekt je zadržan malim i preglednim, ali su glavne funkcionalnosti međusobno povezane tako da aplikacija prati stvarni tok rezervacije parkinga: korisnik traži parking za određeni termin, provjerava dostupnost, rezervira ga, prati svoje rezervacije i po potrebi preuzima PDF potvrdu ili provjerava integritet podataka rezervacije.
+## Glavne funkcionalnosti
 
-## Faza 1
+- registracija, prijava i odjava korisnika
+- CRUD nad parkirnim mjestima
+- rezervacije s provjerom preklapanja termina
+- pretraga dostupnih parkinga po lokaciji, vremenu i maksimalnoj cijeni
+- sortiranje po cijeni i nazivu
+- 24-satni unos datuma i vremena pomoću Flatpickra
+- SQLite + SQLAlchemy
+- administratorski CRUD nad korisnicima i rezervacijama
+- HR/EN sučelje
+- INI postavke u `config.ini`
+- JSON CRUD korisničkih bilješki
+- BLOB fotografije parkinga u bazi
+- PDF potvrda rezervacije
+- stvarna binarna povijest pretraga u vlastitom `PKSR` formatu
+- AES-GCM sigurnosna kopija bilješki integrirana u stranicu **Bilješke**
+- SHA-256 kontrolni otisak integriteta rezervacije
+- provjera konzistentnosti rezervacija pomoću zasebnog procesa B
+- ThreadPoolExecutor + `threading.Lock` + udaljeni Open-Meteo REST servis
+- vlastiti REST API s Bearer autentifikacijom i autorizacijom
 
-Osnovna verzija podržava registraciju korisnika, prijavu i odjavu, pregled parkinga, filtriranje i sortiranje, CRUD nad parking mjestima, rezervacije, provjeru preklapanja termina, izračun cijene i SQLite bazu.
+## Dostupnost parkinga prema terminu
 
-## Faza 2
-
-Dodana je administratorska funkcionalnost za CRUD operacije nad tri tablice baze: `users`, `parking_spots` i `reservations`.
-
-## Faza 3
-
-Dodani su HR/EN sučelje, INI postavke (`config.ini`) te JSON CRUD za korisničke bilješke u `data/parking_notes.json`.
-
-## Faza 4
-
-Dodani su BLOB spremanje slike parkinga u SQLite i PDF potvrda rezervacije s master-detail podacima iz `reservations`, `users` i `parking_spots`.
-
-## Faza 5
-
-Dodano je paralelno izvršavanje tri mrežna REST zadatka pomoću `ThreadPoolExecutor(max_workers=3)`, usporedba sekvencijalnog i paralelnog vremena te zaštita zajedničkog zapisnika pomoću `threading.Lock`. Koristi se udaljeni Open-Meteo REST servis.
-
-## Faza 6
-
-Dodana je komunikacija između dva procesa:
-
-- proces A je Flask aplikacija (`run.py`)
-- proces A pokreće proces B pomoću `subprocess.run`
-- proces B je zasebna skripta `reservation_worker.py`
-- worker provjerava konzistentnost rezervacija u SQLite bazi
-- povratni kod `0` znači uspješnu provjeru
-- povratni kod `1` znači da su pronađeni problemi u rezervacijama
-- povratni kod `2` znači tehničku grešku
-- administratorska stranica **Procesi** prikazuje povratni kod, `stdout`, `stderr` i odgovarajuću poruku korisniku
-- dostupan je i gumb za kontroliranu simulaciju tehničke greške
-
-## Faza 7
-
-Dodani su vlastiti REST servis i klijent s Bearer token autentifikacijom i autorizacijom nad resursima `parkings` i `reservations`.
-
-REST servis je izdvojen u zasebnu Flask aplikaciju `api_app.py` na portu `5001`, dok glavna web aplikacija radi na portu `5000`. Obje aplikacije rade kao zasebni procesi unutar istog containera, a REST klijent iz glavne aplikacije komunicira s API servisom preko HTTP-a.
-
-## Faza 8
-
-Povijest stvarnih pretraga parkinga sprema se u prilagođenu binarnu datoteku `data/search_history.bin`.
-
-Kada prijavljeni korisnik na stranici **Dostupni parkinzi** pokrene valjanu pretragu, kriteriji se automatski spremaju u binarni zapis. Posebna stranica **Povijest pretraga** prikazuje korisnikove prethodne pretrage i omogućuje njihovo ponavljanje; više nema ručnog unosa testnih binarnih zapisa.
-
-Aktualni format je verzija 2 i sadrži:
-
-- zaglavlje `PKSR`
-- verziju formata
-- broj zapisa
-- `user_id`
-- Unix vrijeme zapisa
-- opcionalnu maksimalnu cijenu
-- UTF-8 polja promjenjive duljine za lokaciju, početak termina, završetak termina i sortiranje
-
-`binary_store.py` i dalje može čitati postojeće zapise verzije 1. Pri sljedećem stvarnom zapisu stari sadržaj se automatski prepisuje u verziju 2.
-
-## Faza 9
-
-Dodano je simetrično šifriranje i dešifriranje korisničkih bilješki pomoću AES-GCM algoritma:
-
-- stranica **AES** izrađuje šifriranu sigurnosnu kopiju bilješki
-- sadržaj se sprema u `exports/notes_user_<id>.aes`
-- za svaki izvoz generira se novi slučajni 12-bajtni nonce
-- AES ključ se izvodi iz aplikacijske tajne i ID-a korisnika
-- ista stranica može dešifrirati datoteku i prikazati izvorne bilješke
-- korisničke lozinke nisu reverzibilno šifrirane
-
-## Faza 10
-
-SHA-256 je povezan s rezervacijama kao provjera integriteta podataka:
-
-- u **Moje rezervacije** svaka rezervacija ima akciju **SHA-256**
-- kontrolni otisak nastaje iz stvarnih podataka rezervacije: korisnika, parkinga, lokacije, termina, statusa, cijene po satu i ukupne cijene
-- promjena bilo kojeg od tih podataka mijenja kontrolni otisak
-- koristi se promjenjiva 16-bajtna sol izvedena po pravilu iz `user_id` i korisničkog imena
-- sol se ne pohranjuje u bazu ili datoteku nego se svaki put ponovno izvodi istim pravilom
-- koristi se papar iz raspona `0-255` (zadano 137, moguće promijeniti varijablom `HASH_DEMO_PEPPER`)
-- provjera prolazi kroz svih 256 mogućih vrijednosti papra i potvrđuje odgovara li zadani kontrolni otisak trenutačnim podacima rezervacije
-
-## Faza 11
-
-Pretraga parkinga proširena je stvarnom provjerom dostupnosti u vremenskom intervalu.
-
-Na stranici **Dostupni parkinzi** korisnik unosi:
+Na stranici **Dostupni parkinzi** korisnik zadaje:
 
 - lokaciju
-- početak željenog termina
-- završetak željenog termina
+- početak termina
+- završetak termina
 - opcionalnu maksimalnu cijenu po satu
-- način sortiranja
+- sortiranje
 
-Aplikacija prikazuje samo parkirna mjesta koja zadovoljavaju kriterije cijene/lokacije i nemaju `ACTIVE` rezervaciju koja se preklapa s traženim intervalom. Otkazane (`CANCELLED`) rezervacije ne blokiraju dostupnost. Provjera koristi isto pravilo preklapanja kao i spremanje nove rezervacije:
+Parking se prikazuje ako nema `ACTIVE` rezervaciju koja se preklapa s traženim intervalom. Koristi se pravilo:
 
 ```text
 postojeći početak < traženi završetak
@@ -105,9 +42,86 @@ AND
 postojeći završetak > traženi početak
 ```
 
-Odabrani termin i ostali kriteriji prenose se s popisa parkinga na detalje parkinga i dalje na formu za rezervaciju, pa korisnik ne mora ponovno unositi datum i vrijeme.
+`CANCELLED` rezervacije ne blokiraju dostupnost. Odabrani termin prenosi se kroz **Detalji → Rezerviraj**, pa ga korisnik ne mora ponovno unositi.
 
-Unos datuma i vremena koristi Flatpickr u 24-satnom formatu. Hrvatsko sučelje prikazuje npr. `08.09.2026. 21:00`, a backend i dalje prima ISO vrijednost oblika `2026-09-08T21:00`. Isti 24-satni unos koristi se na pretrazi dostupnosti, korisničkoj rezervaciji i administratorskoj formi rezervacije.
+## Povijest pretraga i vlastiti binarni format
+
+Svaka valjana pretraga prijavljenog korisnika automatski se sprema u:
+
+```text
+data/search_history.bin
+```
+
+Stranica **Povijest pretraga** prikazuje stvarne prethodne pretrage korisnika i omogućuje akciju **Ponovi**.
+
+Aktualni binarni format je `PKSR` verzija 2. Sprema `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak, završetak i sortiranje. `binary_store.py` može čitati i stariju verziju 1 te je pri sljedećem zapisu migrira u verziju 2.
+
+## Bilješke i AES-GCM sigurnosna kopija
+
+Korisničke bilješke spremaju se kao JSON u:
+
+```text
+data/parking_notes.json
+```
+
+Na istoj stranici **Bilješke** nalaze se akcije:
+
+- **Izradi šifriranu kopiju**
+- **Otvori šifriranu kopiju**
+
+AES-GCM sigurnosna kopija sprema se u:
+
+```text
+exports/notes_user_<id>.aes
+```
+
+Datoteka koristi vlastito `PKAE` zaglavlje i novi slučajni nonce za svaki izvoz. Nakon dešifriranja aplikacija prikazuje sadržaj sigurnosne kopije uz postojeće bilješke. Korisničke lozinke nisu reverzibilno šifrirane.
+
+## SHA-256 integritet rezervacije
+
+Na stranici **Moje rezervacije** svaka rezervacija ima akciju **SHA-256**. Kontrolni otisak računa se iz stvarnih podataka rezervacije: ID-a, korisnika, parkinga, lokacije, termina, statusa, cijene po satu i ukupne cijene.
+
+Koristi se promjenjiva sol koja se deterministički izvodi iz `user_id` i korisničkog imena, ne sprema se u bazu ili datoteku, te papar iz raspona `0-255`. Provjera prolazi kroz svih 256 mogućih vrijednosti papra.
+
+## Provjera konzistentnosti rezervacija kao zaseban proces
+
+Na stranici **Admin rezervacije** administrator ima gumb **Provjeri rezervacije**. Glavna Flask aplikacija, kao proces A, pomoću `subprocess.run` pokreće zasebni proces B:
+
+```text
+reservation_worker.py
+```
+
+Worker provjerava neispravne vremenske intervale i preklapanja `ACTIVE` rezervacija u SQLite bazi. Vraća:
+
+```text
+0 = sve je ispravno
+1 = pronađeni su problemi u podacima
+2 = tehnička greška
+```
+
+Glavna aplikacija čita `returncode`, `stdout` i `stderr` te rezultat prikazuje izravno iznad tablice rezervacija. Zasebna stranica **Procesi** više se ne koristi.
+
+## Dretve i udaljeni REST
+
+Administratorska stranica **Test → Dretve** pokreće tri Open-Meteo HTTP zahtjeva za Zagreb, Samobor i Veliku Goricu. Uspoređuje sekvencijalno i paralelno izvršavanje pomoću `ThreadPoolExecutor(max_workers=3)` te koristi `threading.Lock` za zaštitu zajedničkog zapisnika.
+
+## Vlastiti REST servis
+
+Glavna web aplikacija radi na portu `5000`, a vlastiti REST servis kao zasebna Flask aplikacija/proces na portu `5001`.
+
+```text
+run.py      → web aplikacija → 5000
+api_app.py  → REST API       → 5001
+```
+
+API izlaže resurse:
+
+```text
+/api/parkings
+/api/reservations
+```
+
+Koristi Bearer token autentifikaciju i autorizaciju po korisniku i ulozi.
 
 ## Struktura projekta
 
@@ -131,11 +145,11 @@ ParKING/
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
+├── README_IMPLEMENTIRANO.md
 ├── INSTALL_UBUNTU.md
 ├── INSTALL_WINDOWS.md
 ├── OBRANA.md
 ├── AUDIT.md
-├── README_IMPLEMENTIRANO.md
 ├── templates/
 ├── static/
 ├── data/
@@ -144,56 +158,31 @@ ParKING/
 
 ## Pokretanje pomoću Dockera
 
-Detaljne upute za čistu instalaciju na Ubuntu 26.04 nalaze se u `INSTALL_UBUNTU.md`, a za Windows 11 u `INSTALL_WINDOWS.md`.
-
-Za već pripremljeno računalo dovoljno je:
-
 ```bash
 docker compose up -d --build
 ```
 
-Glavna aplikacija je dostupna na:
+Glavna aplikacija:
 
 ```text
 http://localhost:5000
 ```
 
-REST API radi zasebno na:
-
-```text
-http://localhost:5001
-```
-
-Health provjera:
+REST health:
 
 ```bash
 curl http://localhost:5001/api/health
 ```
 
-## Osnovni korisnički tok
+## Demo stanje
 
-Nakon prijave otvoriti **Dostupni parkinzi**, odabrati početak i završetak željenog termina u 24-satnom formatu, po želji zadati lokaciju i maksimalnu cijenu te pokrenuti pretragu. Prikazuju se samo parking mjesta dostupna tijekom cijelog zadanog intervala. Termin se zatim prenosi kroz **Detalji → Rezerviraj**.
-
-Svaka valjana pretraga prijavljenog korisnika automatski se zapisuje u `data/search_history.bin`. Stranica **Povijest pretraga** prikazuje te stvarne pretrage i nudi akciju **Ponovi** koja vraća spremljene kriterije na stranicu dostupnih parkinga.
-
-Nakon rezervacije korisnik na stranici **Moje rezervacije** može vidjeti trajanje, ukupnu cijenu i status rezervacije, preuzeti PDF potvrdu te otvoriti SHA-256 provjeru integriteta rezervacije.
-
-## Ažuriranje nakon promjena na GitHubu
-
-```bash
-git pull
-docker compose up -d --build
-```
-
-## Demo korisnici i podaci
-
-Početno demonstracijsko stanje kreira se naredbom:
+Početno stanje kreira se naredbom:
 
 ```bash
 docker compose exec parking python seed.py
 ```
 
-Nakon izvršavanja dostupni su korisnici:
+Demo korisnici:
 
 ```text
 vlasnik / parking123
@@ -201,7 +190,14 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeće podatke baze i ponovno kreira početno demo stanje, zato ga treba pokretati samo kada je namjerno potrebno resetirati demonstracijske podatke.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju, pa ga treba pokretati samo kada se namjerno želi resetirati stanje.
+
+## Ažuriranje nakon promjena
+
+```bash
+git pull --ff-only origin main
+docker compose up -d --build
+```
 
 ## Brza provjera odvojenog REST servisa
 
@@ -213,46 +209,18 @@ curl -i http://localhost:5000/api/parkings
 
 Očekivano:
 
-- port `5001` health vraća `status: ok`
-- `/api/parkings` na portu `5001` bez Bearer tokena vraća `401`
-- `/api/parkings` na portu `5000` vraća `404`, jer API nije dio glavne web aplikacije
+- health na `5001` vraća `200`
+- `/api/parkings` na `5001` bez tokena vraća `401`
+- `/api/parkings` na `5000` vraća `404`
 
-Autentificirani poziv koristi stvarni API token korisnika:
+Autentificirani poziv:
 
 ```bash
 curl -H "Authorization: Bearer <API_TOKEN>" http://localhost:5001/api/parkings
 ```
 
-API token se ne zapisuje u dokumentaciju niti sprema u Git.
-
-## Lokalno pokretanje bez Dockera
-
-### Linux
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-chmod +x start.sh
-./start.sh
-```
-
-`start.sh` pokreće zasebni REST proces na portu `5001` i glavnu web aplikaciju na portu `5000`.
-
-### Windows
-
-Za lokalno pokretanje bez Dockera potrebno je u dva terminala pokrenuti:
-
-```powershell
-python api_app.py
-```
-
-te:
-
-```powershell
-python run.py
-```
+API token ne zapisivati u dokumentaciju niti spremati u Git.
 
 ## Napomena o sigurnosti
 
-Razvojna vrijednost `SECRET_KEY` može se promijeniti varijablom okruženja `SECRET_KEY`. Za javno/produkcijsko postavljanje potrebno je koristiti snažnu tajnu vrijednost i ne spremati je u Git.
+Razvojna vrijednost `SECRET_KEY` može se promijeniti varijablom okruženja `SECRET_KEY`. Za javno ili produkcijsko postavljanje potrebno je koristiti snažnu tajnu vrijednost i ne spremati je u Git.
