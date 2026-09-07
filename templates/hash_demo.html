@@ -1,44 +1,102 @@
 {% extends "base.html" %}
 {% block title %}SHA-256 - ParKING{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">{{ tr('hash.title') }}</h1>
-
-<p class="text-muted">
+<h1 class="h3 mb-2">
+    {{ 'SHA-256 integritet rezervacije' if lang == 'hr' else 'SHA-256 reservation integrity' }}
+</h1>
+<p class="text-muted mb-4">
     {% if lang == 'en' %}
-        SHA-256 hashing with a variable salt derived from the user ID and username without storing the salt in the database or a file. A pepper value from 0-255 is used and verification checks all 256 possibilities.
+        ParKING creates a SHA-256 fingerprint from the reservation data. The fingerprint can be compared with the value printed on the PDF confirmation to detect whether the reservation data has changed.
     {% else %}
-        SHA-256 sažimanje s promjenjivom soli izvedenom iz korisničkog ID-a i korisničkog imena, bez spremanja soli u bazu ili datoteku. Za papar se koristi vrijednost iz raspona 0-255, a provjera prolazi kroz svih 256 mogućnosti.
+        ParKING izrađuje SHA-256 kontrolni otisak iz podataka rezervacije. Otisak se može usporediti s vrijednošću na PDF potvrdi kako bi se provjerilo jesu li se podaci rezervacije promijenili.
     {% endif %}
 </p>
 
-<form method="post" class="card card-body mb-4">
-    <label class="form-label" for="text">{{ tr('hash.input') }}</label>
-    <input class="form-control mb-3" id="text" name="text" value="{{ input_text }}" required>
-    <button class="btn btn-primary" type="submit">{{ tr('hash.calculate') }}</button>
+{% if reservations %}
+<form method="get" class="card card-body mb-4">
+    <label class="form-label" for="reservation_id">
+        {{ 'Rezervacija' if lang == 'hr' else 'Reservation' }}
+    </label>
+    <div class="row g-2">
+        <div class="col-md-9">
+            <select class="form-select" id="reservation_id" name="reservation_id">
+                {% for item in reservations %}
+                    <option value="{{ item.id }}" {% if reservation and item.id == reservation.id %}selected{% endif %}>
+                        #{{ item.id }} — {{ item.parking.name }} — {{ item.start_time.strftime('%d.%m.%Y %H:%M') }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button class="btn btn-outline-primary w-100" type="submit">
+                {{ 'Prikaži' if lang == 'hr' else 'Show' }}
+            </button>
+        </div>
+    </div>
 </form>
 
-{% if result %}
+{% if reservation and result %}
 <div class="card mb-4">
     <div class="card-body">
-        <h2 class="h5">{{ tr('hash.result') }}</h2>
+        <h2 class="h5">{{ 'Podaci rezervacije' if lang == 'hr' else 'Reservation data' }}</h2>
+        <dl class="row mb-0">
+            <dt class="col-sm-3">ID</dt><dd class="col-sm-9">{{ reservation.id }}</dd>
+            <dt class="col-sm-3">Parking</dt><dd class="col-sm-9">{{ reservation.parking.name }} — {{ reservation.parking.location }}</dd>
+            <dt class="col-sm-3">{{ tr('common.start') }}</dt><dd class="col-sm-9">{{ reservation.start_time.strftime('%d.%m.%Y %H:%M') }}</dd>
+            <dt class="col-sm-3">{{ tr('common.end') }}</dt><dd class="col-sm-9">{{ reservation.end_time.strftime('%d.%m.%Y %H:%M') }}</dd>
+            <dt class="col-sm-3">{{ tr('common.status') }}</dt><dd class="col-sm-9">{{ reservation.status }}</dd>
+            <dt class="col-sm-3">{{ tr('common.total') }}</dt><dd class="col-sm-9">{{ '%.2f €'|format(reservation.total_price()) }}</dd>
+        </dl>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <h2 class="h5">{{ 'Kontrolni otisak' if lang == 'hr' else 'Integrity fingerprint' }}</h2>
         <dl class="row mb-0">
             <dt class="col-sm-3">{{ tr('hash.algorithm') }}</dt><dd class="col-sm-9">{{ result.algorithm }}</dd>
+            <dt class="col-sm-3">{{ tr('hash.digest') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.digest }}</code></dd>
             <dt class="col-sm-3">{{ tr('hash.salt_rule') }}</dt><dd class="col-sm-9"><code>SHA256("ParKING-SHA256-salt:&lt;user_id&gt;:&lt;username&gt;")[0:16]</code></dd>
             <dt class="col-sm-3">{{ tr('hash.salt') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.salt_hex }}</code></dd>
-            <dt class="col-sm-3">{{ tr('hash.digest') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.digest }}</code></dd>
             <dt class="col-sm-3">{{ tr('hash.pepper_range') }}</dt><dd class="col-sm-9">{{ result.pepper_range }}</dd>
         </dl>
     </div>
 </div>
 
+<form method="post" class="card card-body mb-4">
+    <input type="hidden" name="reservation_id" value="{{ reservation.id }}">
+    <label class="form-label" for="expected_digest">
+        {{ 'SHA-256 sažetak za provjeru' if lang == 'hr' else 'SHA-256 digest to verify' }}
+    </label>
+    <input class="form-control font-monospace mb-2" id="expected_digest" name="expected_digest" value="{{ expected_digest }}" maxlength="64" required>
+    <div class="form-text mb-3">
+        {% if lang == 'en' %}
+            Use the fingerprint from the PDF confirmation. If the reservation data has changed, the verification will fail.
+        {% else %}
+            Upotrijebite kontrolni otisak s PDF potvrde. Ako su se podaci rezervacije promijenili, provjera neće uspjeti.
+        {% endif %}
+    </div>
+    <button class="btn btn-primary" type="submit">
+        {{ 'Provjeri integritet' if lang == 'hr' else 'Verify integrity' }}
+    </button>
+</form>
+
+{% if verification is not none %}
 <div class="alert {% if verification.valid %}alert-success{% else %}alert-danger{% endif %}">
     <strong>{{ tr('hash.verify') }}:</strong>
     {% if verification.valid %}
+        {{ 'podaci rezervacije odgovaraju kontrolnom otisku.' if lang == 'hr' else 'the reservation data matches the fingerprint.' }}
         {{ tr('hash.valid') }}: <strong>{{ verification.matches|join(', ') }}</strong>.
     {% else %}
-        {{ tr('hash.invalid') }}
+        {{ 'podaci rezervacije ne odgovaraju zadanom kontrolnom otisku.' if lang == 'hr' else 'the reservation data does not match the supplied fingerprint.' }}
     {% endif %}
     {{ tr('hash.checked') }} <strong>{{ verification.attempts }}</strong> {{ tr('hash.values') }}
+</div>
+{% endif %}
+{% endif %}
+{% else %}
+<div class="alert alert-info">
+    {{ 'Najprije napravite rezervaciju kako biste mogli provjeriti njezin SHA-256 integritet.' if lang == 'hr' else 'Create a reservation first to verify its SHA-256 integrity.' }}
 </div>
 {% endif %}
 {% endblock %}
