@@ -10,25 +10,9 @@ docker compose up -d --build
 docker compose ps
 ```
 
-### Učitavanje standardnog demo skupa
+### Priprema demo podataka
 
-Za obranu se preporučuje koristiti referentni skup podataka iz repozitorija:
-
-```text
-demo/parking-demo.json
-```
-
-Postupak:
-
-1. Prijaviti se kao `admin / admin123`.
-2. Otvoriti **Test → Demo podaci**.
-3. U odjeljku **Import** odabrati `demo/parking-demo.json`.
-4. Potvrditi import.
-5. Provjeriti da su učitani očekivani korisnici, parkinzi, rezervacije, bilješke, fotografije i binarna povijest.
-
-Referentni JSON ne sadrži password hashove ni API tokene. Nakon importa aplikacija korisnicima postavlja demonstracijske lozinke prema ulozi.
-
-Ako referentni dataset još nije finaliziran, može se privremeno koristiti `seed.py`:
+Prije obrane bazu je najjednostavnije vratiti na poznato početno stanje pomoću `seed.py`:
 
 ```bash
 docker compose exec parking python seed.py
@@ -42,7 +26,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-> `seed.py` briše postojeću razvojnu bazu. Pokretati ga samo ako je potrebno vratiti osnovno demo stanje. Za samu obranu prednost ima `demo/parking-demo.json`, jer može sadržavati potpuniji i unaprijed provjeren demonstracijski skup.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Pokretati ga samo kada je namjerno potrebno resetirati demo stanje.
 
 ## Brza provjera odvojenog REST servisa
 
@@ -248,7 +232,7 @@ crypto_store.py           AES-GCM
 hash_demo.py              SHA-256, promjenjiva sol i papar
 json_store.py             JSON CRUD
 config.ini                INI postavke
-demo/parking-demo.json    referentni skup podataka za obranu
+seed.py                   reset i početni demo podaci
 ```
 
 ## Pravilo za samu obranu
