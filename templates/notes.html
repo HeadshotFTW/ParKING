@@ -2,9 +2,81 @@
 {% block title %}{{ tr('notes.title') }} - ParKING{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h3 mb-0">{{ tr('notes.title') }}</h1>
+    <div>
+        <h1 class="h3 mb-1">{{ tr('notes.title') }}</h1>
+        <p class="text-muted mb-0">
+            {% if lang == 'en' %}
+                Manage your notes and create an encrypted AES-GCM backup when needed.
+            {% else %}
+                Upravljajte bilješkama i po potrebi izradite šifriranu AES-GCM sigurnosnu kopiju.
+            {% endif %}
+        </p>
+    </div>
     <a class="btn btn-primary" href="{{ url_for('note_new') }}">{{ tr('notes.add') }}</a>
 </div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+            <div>
+                <h2 class="h5 mb-1">{% if lang == 'en' %}Encrypted backup{% else %}Šifrirana sigurnosna kopija{% endif %}</h2>
+                <p class="text-muted mb-0">
+                    {% if lang == 'en' %}
+                        The backup contains your current notes and is protected with AES-GCM.
+                    {% else %}
+                        Sigurnosna kopija sadrži vaše trenutačne bilješke i zaštićena je AES-GCM algoritmom.
+                    {% endif %}
+                </p>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <form method="post" action="{{ url_for('notes_backup') }}">
+                    <input type="hidden" name="action" value="encrypt">
+                    <button class="btn btn-outline-primary" type="submit">
+                        {% if lang == 'en' %}Create encrypted backup{% else %}Izradi šifriranu kopiju{% endif %}
+                    </button>
+                </form>
+                <form method="post" action="{{ url_for('notes_backup') }}">
+                    <input type="hidden" name="action" value="decrypt">
+                    <button class="btn btn-outline-secondary" type="submit">
+                        {% if lang == 'en' %}Open encrypted backup{% else %}Otvori šifriranu kopiju{% endif %}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if decrypted_backup is defined %}
+<div class="card mb-4 border-success">
+    <div class="card-body">
+        <h2 class="h5">{% if lang == 'en' %}Decrypted backup preview{% else %}Pregled dešifrirane sigurnosne kopije{% endif %}</h2>
+        {% if decrypted_backup %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>{{ tr('note_form.title') }}</th>
+                            <th>{{ tr('note_form.text') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for note in decrypted_backup %}
+                        <tr>
+                            <td>{{ note.id }}</td>
+                            <td>{{ note.title }}</td>
+                            <td>{{ note.text }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="text-muted mb-0">{% if lang == 'en' %}The backup contains no notes.{% else %}Sigurnosna kopija ne sadrži bilješke.{% endif %}</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 <div class="row g-3">
 {% for note in notes %}
