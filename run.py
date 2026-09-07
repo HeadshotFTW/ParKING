@@ -8,8 +8,9 @@ from flask import flash, redirect, render_template, request, url_for
 from app import app, admin_required, current_language, current_user, login_required, DB_PATH, DATA_DIR
 from binary_store import add_record, records_for_user
 from crypto_store import decrypt_notes, encrypt_notes
-from hash_demo import create_demo_hash, verify_by_full_pepper_scan
+from hash_demo import create_integrity_hash, reservation_integrity_text, verify_by_full_pepper_scan
 from json_store import list_notes
+from models import Reservation
 from parallel_tasks import run_thread_demo
 
 
@@ -124,7 +125,8 @@ def admin_process():
                 ),
                 "message": tech_text(
                     "Proces A prekinuo je čekanje zbog isteka vremena.",
-                    "Process A stopped waiting because the timeout expired."),
+                    "Process A stopped waiting because the timeout expired.",
+                ),
             }
 
     return render_template("admin_process.html", result=result)
@@ -190,25 +192,56 @@ def crypto_demo():
 @login_required
 def hash_demo_page():
     user = current_user()
-    input_text = request.form.get("text", "ParKING demo") if request.method == "POST" else "ParKING demo"
+    reservations = Reservation.query.filter_by(user_id=user.id).order_by(
+        Reservation.start_time.desc()
+    ).all()
+
+    selected_id = request.values.get("reservation_id", type=int)
+    reservation = None
+    if selected_id is not None:
+        reservation = Reservation.query.filter_by(id=selected_id, user_id=user.id).first()
+    elif reservations:
+        reservation = reservations[0]
+
     result = None
     verification = None
+    integrity_text = None
+    expected_digest = ""
 
-    if request.method == "POST":
-        if not input_text:
-            flash(tech_text("Unesite tekst za sažimanje.", "Enter text to hash."), "danger")
-        else:
-            result = create_demo_hash(user.id, user.username, input_text)
-            verification = verify_by_full_pepper_scan(
-                user.id,
-                user.username,
-                input_text,
-                result["digest"],
-            )
+    if reservation is not None:
+        integrity_text = reservation_integrity_text(reservation)
+        result = create_integrity_hash(user.id, user.username, integrity_text)
+        expected_digest = request.form.get("expected_digest", "").strip() if request.method == "POST" else result["digest"]
+
+        if request.method == "POST":
+            try:
+                valid_format = len(expected_digest) == 64
+                int(expected_digest, 16)
+            except ValueError:
+                valid_format = False
+
+            if not valid_format:
+                flash(
+                    tech_text(
+                        "Kontrolni SHA-256 sažetak mora sadržavati 64 heksadekadska znaka.",
+                        "The SHA-256 verification digest must contain 64 hexadecimal characters.",
+                    ),
+                    "danger",
+                )
+            else:
+                verification = verify_by_full_pepper_scan(
+                    user.id,
+                    user.username,
+                    integrity_text,
+                    expected_digest,
+                )
 
     return render_template(
         "hash_demo.html",
-        input_text=input_text,
+        reservations=reservations,
+        reservation=reservation,
+        integrity_text=integrity_text,
+        expected_digest=expected_digest,
         result=result,
         verification=verification,
     )
