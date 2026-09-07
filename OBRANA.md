@@ -21,7 +21,7 @@ admin    / admin123
 
 `seed.py` briše postojeću razvojnu bazu, zato ga koristiti samo kada se namjerno želi resetirati stanje.
 
-## 1. Dostupni parkinzi, rezervacija i povijest pretraga
+## 1. Dostupni parkinzi, vrijeme, rezervacija i povijest pretraga
 
 Prijava kao `gost`.
 
@@ -30,13 +30,15 @@ Prijava kao `gost`.
 3. Pokazati 24-satni unos vremena.
 4. Pokrenuti pretragu.
 5. Objasniti da se parking skriva samo ako ima preklapajuću `ACTIVE` rezervaciju.
-6. Sortirati rezultate.
-7. Otvoriti **Povijest pretraga** i pokazati da je stvarna pretraga automatski spremljena u `data/search_history.bin`.
-8. Kliknuti **Ponovi**.
-9. Otvoriti parking preko **Detalji → Rezerviraj** i pokazati da je termin već prenesen.
-10. Spremiti rezervaciju.
-11. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
-12. Preuzeti PDF potvrdu.
+6. Pokazati da kartice parkinga za podržane gradove prikazuju trenutačnu temperaturu i vjetar iz Open-Meteo servisa.
+7. Sortirati rezultate.
+8. Otvoriti **Povijest pretraga** i pokazati da je stvarna pretraga automatski spremljena u `data/search_history.bin`.
+9. Kliknuti **Ponovi**.
+10. Otvoriti parking preko **Detalji** i pokazati da se vremenski podatak prikazuje i na detaljima.
+11. Kliknuti **Rezerviraj** i pokazati da je termin već prenesen.
+12. Spremiti rezervaciju.
+13. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
+14. Preuzeti PDF potvrdu.
 
 Pravilo preklapanja:
 
@@ -47,6 +49,8 @@ postojeći završetak > traženi početak
 ```
 
 `CANCELLED` rezervacije ne blokiraju parking.
+
+Open-Meteo se prema tekstu lokacije povezuje s podržanim gradovima Zagreb, Samobor i Velika Gorica. Ako je na istoj stranici više različitih gradova, vremenski zahtjevi dohvaćaju se paralelno. Više parkinga u istom gradu dijeli jedan rezultat.
 
 ### Dokaz vlastitog binarnog formata
 
@@ -116,18 +120,30 @@ Zasebna stranica **Test → Procesi** više ne postoji; provjera je dio stvarnog
 
 Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `config.ini`.
 
-## 7. Test → Dretve
+## 7. Dretve, kritična sekcija i Open-Meteo
 
-Kao administrator otvoriti **Test → Dretve** i pokazati:
+Najprije podsjetiti da se Open-Meteo već koristi u stvarnom korisničkom toku na **Dostupni parkinzi** i **Detalji parkinga**.
 
-- tri Open-Meteo HTTP poziva
+Zatim kao administrator otvoriti **Test → Dretve** i pokazati detalje iste implementacije:
+
+- tri Open-Meteo HTTP poziva za Zagreb, Samobor i Veliku Goricu
 - `ThreadPoolExecutor(max_workers=3)`
 - sekvencijalno i paralelno vrijeme
 - faktor ubrzanja
 - nazive dretvi
+- zajednički `_request_log`
 - `threading.Lock`
 
-Time se pokrivaju dretve, sinkronizacija i udaljeni REST servis.
+Kritična sekcija je dio `fetch_weather()` koji upisuje u zajednički `_request_log`:
+
+```python
+with _request_log_lock:
+    _request_log.append(...)
+```
+
+Lock osigurava da samo jedna dretva u tom trenutku mijenja zajednički zapisnik. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika.
+
+Time se pokrivaju dretve, sinkronizacija i udaljeni REST servis, a vremenski podaci imaju stvarnu funkciju u ParKING aplikaciji.
 
 ## 8. Test → REST
 
@@ -198,11 +214,11 @@ Očekivano:
 models.py                    SQLAlchemy modeli
 app.py                       osnovni CRUD i web rute
 run.py                       REST klijent, AES backup, procesna provjera, SHA-256 ruta
-parking_availability.py      vremenska dostupnost + automatski zapis pretrage
+parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
 binary_store.py              PKSR binarni format
 crypto_store.py              AES-GCM
 hash_demo.py                 SHA-256 integritet, sol i papar
-parallel_tasks.py            ThreadPoolExecutor + Lock + Open-Meteo
+parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
 reservation_worker.py        zasebni proces B
 api_app.py                   vlastiti REST servis na 5001
 json_store.py                JSON CRUD
