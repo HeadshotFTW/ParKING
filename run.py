@@ -12,11 +12,14 @@ from hash_demo import create_integrity_hash, reservation_integrity_text, verify_
 from json_store import list_notes
 from models import Reservation
 from parallel_tasks import run_thread_demo
+from parking_availability import install_parking_availability
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
 EXPORT_DIR = Path(__file__).resolve().parent / "exports"
 REST_API_BASE_URL = "http://127.0.0.1:5001"
+
+install_parking_availability(app)
 
 
 def tech_text(hr, en):
