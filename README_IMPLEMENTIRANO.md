@@ -1,66 +1,48 @@
 # ParKING — implementirane funkcionalnosti
 
-Ovaj dokument izdvaja samo funkcionalnosti koje su implementirane i navedene u popunjenoj prijavnici. Neimplementirani kriteriji namjerno nisu navedeni.
+Ovaj dokument navodi samo funkcionalnosti koje su implementirane i koje se računaju u popunjenoj prijavnici.
 
-**Procijenjeni zbroj: 70 bodova.**
+**Konzervativna procjena: 70 bodova.**
 
 ## 1. Korisničke klase — 3 boda
 
-Implementirane su tri korisničke klase: `User`, `ParkingSpot` i `Reservation`.
-
-`User`: atributi `id`, `username`, `password_hash`, `role`, `api_token`; metode `set_password()`, `check_password()`, `is_admin()`.
-
-`ParkingSpot`: atributi `id`, `owner_id`, `name`, `location`, `price_per_hour`, `description`, `photo`, `photo_mime`; metode `display_price()`, `is_owned_by()`.
-
-`Reservation`: atributi `id`, `parking_id`, `user_id`, `start_time`, `end_time`, `status`; metode `duration_hours()`, `total_price()`, `overlaps()`.
-
-Klase se koriste kroz SQLAlchemy modele i poslovnu logiku aplikacije.
+Implementirane su klase `User`, `ParkingSpot` i `Reservation` kao SQLAlchemy modeli s atributima i metodama koje se koriste kroz poslovnu logiku aplikacije.
 
 ## 2. Forme i komunikacija među formama — 4 boda
 
-Aplikacija sadrži više od tri web forme/dijaloga: prijava, registracija, pretraga dostupnih parkinga, dodavanje/uređivanje parkinga, detalji parkinga, rezervacija, moje rezervacije te administratorske forme za korisnike i rezervacije.
+Aplikacija sadrži više od tri forme/dijaloga: prijava, registracija, pretraga parkinga, dodavanje/uređivanje parkinga, detalji parkinga, rezervacija, moje rezervacije, bilješke te administratorske forme.
 
-Komunikacija među formama vidljiva je u glavnom toku rezervacije. Na stranici **Dostupni parkinzi** korisnik odabire vremenski interval, lokaciju, opcionalnu maksimalnu cijenu i sortiranje. Odabrani `start_time` i `end_time`, zajedno s ostalim parametrima pretrage, prenose se na detalje parkinga i zatim na formu za rezervaciju, gdje su termin i vrijeme već popunjeni. Nakon spremanja korisnik se preusmjerava na pregled svojih rezervacija.
-
-Datumsko-vremenska polja za pretragu, rezervaciju i administratorsko uređivanje rezervacije koriste 24-satni prikaz pomoću Flatpickra, dok se backendu vrijednosti šalju u ISO obliku.
+Na stranici **Dostupni parkinzi** korisnik odabire termin i ostale kriterije. `start_time` i `end_time` prenose se kroz **Detalji → Rezerviraj**, pa su u rezervacijskoj formi već popunjeni. Datumsko-vremenska polja koriste 24-satni Flatpickr prikaz.
 
 ## 3. Višejezično sučelje — 4 boda
 
-Aplikacija podržava hrvatsko i englesko korisničko sučelje. Jezik se može promijeniti tijekom rada aplikacije pomoću HR/EN poveznica u navigaciji bez izlaska iz aplikacije.
-
-Prevedeno je više od 5 dijaloga/stranica: prijava, registracija, popis i pretraga parkinga, moji parkinzi, forma za dodavanje/uređivanje parkinga, detalji parkinga, forma rezervacije, moje rezervacije, JSON bilješke i INI postavke.
+Podržani su hrvatski i engleski jezik. Jezik se može mijenjati tijekom rada aplikacije preko HR/EN poveznica. Prevedeno je više od pet stranica i dijaloga.
 
 ## 4. INI postavke — 2 boda
 
-Postavke aplikacije spremaju se i učitavaju iz INI datoteke `config.ini` pomoću Python modula `configparser`.
-
-Spremaju se najmanje dvije postavke: `default_language` (zadani jezik HR/EN) i `items_per_page` (broj parkinga prikazanih po stranici). Administrator ih može mijenjati kroz stranicu **Postavke**, a promjene se zapisuju natrag u `config.ini`.
+Postavke se čitaju i zapisuju u `config.ini` pomoću `configparser`. Koriste se `default_language` i `items_per_page`, a administrator ih mijenja kroz stranicu **Postavke**.
 
 ## 5. JSON spremanje i CRUD — 4 boda
 
-Aplikacija koristi JSON datoteku `data/parking_notes.json` za niz korisničkih bilješki. Svaki zapis sadrži `id`, `user_id`, `title` i `text`.
-
-Podržane su sve CRUD operacije: čitanje popisa i pojedine bilješke, dodavanje nove bilješke, uređivanje naslova/teksta te brisanje bilješke. Operacije su implementirane u modulu `json_store.py` i dostupne kroz web sučelje **Bilješke**.
+Korisničke bilješke spremaju se u `data/parking_notes.json`. Podržani su čitanje, dodavanje, uređivanje i brisanje zapisa. Logika je u `json_store.py`, a korisničko sučelje na stranici **Bilješke**.
 
 ## 6. Prilagođeni binarni format — 3 boda
 
-Aplikacija koristi vlastiti binarni format datoteke `data/search_history.bin` za stvarnu povijest pretraga parkinga. Binarni zapis više se ne dodaje ručno na izdvojenoj testnoj stranici: kada prijavljeni korisnik na stranici **Dostupni parkinzi** pokrene valjanu pretragu, kriteriji se automatski zapisuju u binarnu datoteku. Korisnik zatim kroz **Povijest pretraga** vidi svoje zapise i može ponoviti prethodnu pretragu.
+Stvarne pretrage parkinga automatski se spremaju u `data/search_history.bin`. Binarni zapis se više ne dodaje ručno preko testne stranice.
 
-Datoteka ima vlastito zaglavlje `PKSR`, verziju formata i broj zapisa. Aktualna verzija 2 za svaki zapis sprema `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak termina, završetak termina i način sortiranja. `binary_store.py` podržava čitanje starije verzije 1 i pri sljedećem zapisu automatski prepisuje sadržaj u verziju 2.
+Format koristi vlastito zaglavlje `PKSR`, verziju i broj zapisa. Verzija 2 sprema `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak termina, završetak termina i sortiranje. `binary_store.py` može čitati verziju 1 i migrirati je u verziju 2.
 
-Implementirane su funkcije za zapis cijelog niza u binarnu datoteku i ponovno čitanje zapisa iz tog formata. Binarni sadržaj može se provjeriti alatom `xxd`, pri čemu se vidi zaglavlje `PKSR` i strukturirani binarni podaci, a ne tekstualni zapis.
+Stranica **Povijest pretraga** prikazuje zapise trenutno prijavljenog korisnika i omogućuje ponavljanje spremljene pretrage.
 
 ## 7. Baza podataka i CRUD — 6 bodova
 
-Aplikacija koristi SQLite bazu podataka preko SQLAlchemy ORM-a. Baza služi za trajnu pohranu korisnika, parkirnih mjesta i rezervacija.
-
-Tablice su `users`, `parking_spots` i `reservations`. Nad sve tri tablice demonstriraju se operacije čitanja, dodavanja, uređivanja i brisanja. Korisnik upravlja vlastitim parkirnim mjestima i rezervacijama, a administrator kroz administratorsko sučelje upravlja korisnicima i rezervacijama.
+Aplikacija koristi SQLite preko SQLAlchemy ORM-a. CRUD se demonstrira nad tablicama `users`, `parking_spots` i `reservations`.
 
 ## 8. Sortiranje, filtriranje, izračunato i lookup polje — 5 bodova
 
-Sortiranje i filtriranje provodi se nad zapisima tablice `parking_spots`. Parkirna mjesta mogu se filtrirati po lokaciji, opcionalnoj maksimalnoj cijeni i vremenskoj dostupnosti te sortirati po cijeni uzlazno/silazno i po nazivu.
+Parkinzi se filtriraju po lokaciji, maksimalnoj cijeni i vremenskoj dostupnosti te sortiraju po cijeni i nazivu.
 
-Kod vremenskog kriterija korisnik zadaje početak i završetak željenog termina, a aplikacija iz rezultata isključuje parkinge koji imaju `ACTIVE` rezervaciju koja se preklapa s tim intervalom. Koristi se uvjet:
+Kod vremenske dostupnosti parking se isključuje samo ako postoji `ACTIVE` rezervacija koja zadovoljava:
 
 ```text
 Reservation.start_time < traženi_završetak
@@ -68,62 +50,93 @@ AND
 Reservation.end_time > traženi_početak
 ```
 
-`CANCELLED` rezervacije ne blokiraju dostupnost. Time parking koji je rezerviran samo dio dana i dalje ostaje dostupan za druge nepreklapajuće termine.
+`CANCELLED` rezervacije ne blokiraju parking.
 
-Izračunato polje: ukupna cijena rezervacije računa se metodom `Reservation.total_price()` iz trajanja rezervacije i cijene parkinga po satu.
-
-Lookup/povezana polja ostvarena su SQLAlchemy relacijama, npr. `Reservation.parking` za dohvat naziva i lokacije parkinga te `ParkingSpot.owner` za dohvat vlasnika.
+Izračunato polje je ukupna cijena rezervacije preko `Reservation.total_price()`. Lookup podaci dohvaćaju se ORM relacijama poput `Reservation.parking` i `ParkingSpot.owner`.
 
 ## 9. BLOB polje u bazi — 3 boda
 
-Tablica `parking_spots` sadrži BLOB polje `photo` u koje se sprema fotografija parkirnog mjesta kao binarni sadržaj. Uz njega se sprema i MIME tip slike (`photo_mime`). Fotografija se učitava kroz obrazac za dodavanje/uređivanje parkinga, sprema izravno u SQLite bazu, može se zamijeniti ili ukloniti te se čita iz baze i prikazuje na stranici detalja parkinga. Podržani su JPEG, PNG i WebP formati uz ograničenje veličine datoteke.
+Fotografija parkinga sprema se izravno u SQLite BLOB polje `photo`, uz MIME tip `photo_mime`. Slika se može učitati, prikazati, zamijeniti i ukloniti. Podržani su JPEG, PNG i WebP.
 
 ## 10. PDF izvještaj — 5 bodova
 
-Aplikacija automatski generira PDF potvrdu rezervacije. Izvještaj sadrži podatke o rezervaciji: identifikator, početak i završetak, trajanje, status i izračunatu ukupnu cijenu. U PDF se uključuju i povezani podaci iz tablice `users` (korisničko ime korisnika) te iz tablice `parking_spots` (naziv parkinga, lokacija, vlasnik i cijena po satu), čime se demonstrira master-detail izvještaj nad više tablica. PDF se generira pomoću biblioteke ReportLab i korisnik ga može preuzeti iz popisa svojih rezervacija.
+ReportLab generira PDF potvrdu rezervacije s podacima iz tablica `reservations`, `users` i `parking_spots`. PDF sadrži termin, trajanje, status, korisnika, parking, vlasnika, cijenu po satu i ukupnu cijenu.
 
 ## 11. Paralelno izvršavanje dretvama — 5 bodova
 
-Aplikacija demonstrira paralelno izvršavanje tri neovisna mrežna zadatka pomoću bazena dretvi (`concurrent.futures.ThreadPoolExecutor`). Paralelno se dohvaćaju vremenski podaci za Zagreb, Samobor i Veliku Goricu s udaljenog REST servisa Open-Meteo. Administratorska stranica **Dretve** prikazuje naziv dretve koja je izvršila svaki zadatak te uspoređuje ukupno vrijeme sekvencijalnog i paralelnog izvršavanja i izračunava faktor ubrzanja. Korištenje više dretvi smanjuje ukupno čekanje jer se mrežni I/O zahtjevi izvršavaju istodobno.
+`ThreadPoolExecutor(max_workers=3)` paralelno dohvaća Open-Meteo podatke za Zagreb, Samobor i Veliku Goricu. Stranica **Test → Dretve** prikazuje radne dretve, sekvencijalno/paralelno vrijeme i ubrzanje.
 
 ## 13. Sinkronizacija dretvi — 2 boda
 
-Za zaštitu zajedničkog zapisnika zahtjeva koji istodobno koriste radne dretve koristi se `threading.Lock`. Svaka dretva prije upisa rezultata u zajedničku strukturu ulazi u kritični odsječak zaštićen `Lock` objektom, čime se sprječava istodobno nekontrolirano mijenjanje zajedničkih podataka.
+`threading.Lock` štiti zajednički zapisnik HTTP zahtjeva od istodobnog nekontroliranog mijenjanja iz više dretvi.
 
 ## 14. Komunikacija između procesa — 4 boda
 
-Aplikacija demonstrira komunikaciju između dva zasebna procesa. Proces A je Flask aplikacija (`run.py`) koja pomoću `subprocess.run` pokreće proces B, zasebnu Python skriptu `reservation_worker.py`. Proces B čita SQLite bazu i provjerava konzistentnost rezervacija, uključujući neispravne vremenske intervale i preklapanja aktivnih rezervacija. Proces B vraća cjelobrojni izlazni kod: `0` kada je provjera uspješna, `1` kada su pronađeni problemi u podacima, a `2` kod tehničke greške. Proces A čita `returncode`, `stdout` i `stderr` te korisniku prikazuje odgovarajuću poruku. Administratorska stranica **Procesi** omogućuje i kontroliranu simulaciju greške radi demonstracije nenultog izlaznog koda.
+Provjera između procesa integrirana je u stvarni administratorski tok. Na stranici **Admin rezervacije** gumb **Provjeri rezervacije** pokreće zasebni proces B `reservation_worker.py` pomoću `subprocess.run` iz glavne Flask aplikacije, procesa A.
+
+Worker čita SQLite bazu i provjerava neispravne vremenske intervale i preklapanja `ACTIVE` rezervacija. Vraća:
+
+```text
+0 = podaci su ispravni
+1 = pronađen je problem u rezervacijama
+2 = tehnička greška
+```
+
+Proces A čita `returncode`, `stdout` i `stderr` te rezultat prikazuje izravno iznad tablice rezervacija. Zasebna stranica **Procesi** više se ne koristi.
 
 ## 20. Udaljeni REST servis — 3 boda
 
-Aplikacija se spaja na udaljeni REST web servis Open-Meteo. HTTP zahtjevima dohvaća aktualne vremenske podatke za tri lokacije: Zagreb, Samobor i Veliku Goricu. Podaci se koriste na administratorskoj stranici **Dretve** kako bi se prikazali rezultati udaljenog servisa i usporedile performanse sekvencijalnih i paralelnih mrežnih poziva.
+Aplikacija HTTP zahtjevima dohvaća vremenske podatke s udaljenog Open-Meteo REST servisa. Pozivi se koriste zajedno s implementacijom dretvi.
 
 ## 21. Vlastiti REST servis i klijent — 4 boda
 
-Aplikacija sadrži REST klijent komponentu u glavnoj Flask aplikaciji (`run.py`, port 5000) koja se preko HTTP-a spaja na vlastiti ParKING REST servis implementiran kao zasebna Flask aplikacija (`api_app.py`, port 5001) i zaseban proces. Obje aplikacije rade u istom Docker containeru, ali imaju odvojene Flask instance i procese.
+Glavna Flask aplikacija `run.py` radi na portu `5000`, a zasebna Flask aplikacija `api_app.py` kao zaseban proces na portu `5001`. Glavna aplikacija kao REST klijent preko HTTP-a koristi vlastiti API.
 
-Servis izlaže resurse `/api/parkings` i `/api/reservations`. Za `parkings` podržani su GET/POST te GET/PUT/DELETE nad pojedinim parkingom; za `reservations` GET/POST te GET/DELETE nad pojedinom rezervacijom. REST klijent demonstrira HTTP GET za oba resursa. Odvojenost se može dokazati tako da `/api/parkings` na portu 5001 vraća 401 bez Bearer tokena, dok ista ruta na portu 5000 vraća 404.
+Resursi su:
+
+```text
+/api/parkings
+/api/reservations
+```
+
+Za `parkings` postoje GET/POST i GET/PUT/DELETE nad pojedinim parkingom. Za `reservations` postoje GET/POST i GET/DELETE nad pojedinom rezervacijom.
 
 ## 22. REST autentifikacija i autorizacija — 4 boda
 
-Vlastiti REST servis koristi Bearer API token u HTTP zaglavlju `Authorization`. Zahtjev bez tokena ili s neispravnim tokenom vraća HTTP 401. Autorizacija se provodi po korisniku i ulozi.
+REST API koristi Bearer token u zaglavlju `Authorization`. Nedostajući ili pogrešan token vraća `401`.
 
-Na resursu `/api/parkings` obični korisnik može čitati parkinge, ali PUT/DELETE nad tuđim parkingom vraća HTTP 403; vlasnik parkinga i administrator imaju pravo izmjene. Na resursu `/api/reservations` obični korisnik vidi i dohvaća samo vlastite rezervacije, dok pokušaj pristupa tuđoj rezervaciji vraća HTTP 403; administrator ima pristup svim rezervacijama. Time se mogu demonstrirati dva korisnika i dva resursa s različitim ovlastima.
+Obični korisnik ne može mijenjati tuđi parking niti dohvatiti tuđu rezervaciju, što vraća `403`. Vlasnik parkinga i administrator imaju šire ovlasti, a administrator može pristupati svim rezervacijama.
 
 ## 23. Simetrično šifriranje AES-GCM — 2 boda
 
-Aplikacija koristi simetrično šifriranje i dešifriranje korisničkih bilješki pomoću algoritma AES-GCM. Za korisnika se generira šifrirana datoteka u direktoriju `exports`, s vlastitim zaglavljem `PKAE` i slučajnim nonceom. Šifrirani sadržaj nije čitljiv kao tekst, a aplikacija ga može dešifrirati i ponovno prikazati izvorne bilješke. Lozinke korisnika ne pohranjuju se reverzibilno šifrirane.
+AES-GCM više nije izdvojena testna stranica. Funkcionalnost je integrirana u **Bilješke** kao sigurnosna kopija stvarnih korisničkih podataka.
+
+Na stranici **Bilješke** korisnik može:
+
+- izraditi šifriranu sigurnosnu kopiju svojih trenutačnih JSON bilješki
+- otvoriti i dešifrirati postojeću kopiju
+- pregledati dešifrirani sadržaj unutar iste stranice
+
+Datoteka se sprema kao `exports/notes_user_<id>.aes`, koristi vlastito `PKAE` zaglavlje, AES-GCM i novi slučajni nonce za svaki izvoz. Korisničke lozinke nisu reverzibilno šifrirane.
 
 ## 25. SHA-256, sol i papar — 7 bodova
 
-SHA-256 je integriran u funkcionalnost rezervacija kao kontrolni otisak integriteta. Korisnik na stranici **Moje rezervacije** može otvoriti SHA-256 provjeru za konkretnu rezervaciju.
+SHA-256 je integriran u rezervacije kao kontrolni otisak integriteta. Korisnik otvara provjeru preko **Moje rezervacije → SHA-256**.
 
-Ulaz u sažimanje nastaje iz stvarnih podataka rezervacije: identifikatora rezervacije, korisnika, parkinga, lokacije, početka i završetka, statusa, cijene po satu i ukupne cijene. Promjena bilo kojeg od tih podataka daje drugačiji kontrolni otisak.
+Ulaz čine stvarni podaci rezervacije: ID, korisnik, parking, lokacija, početak, završetak, status, cijena po satu i ukupna cijena.
 
-Koristi se promjenjiva sol koja se ne sprema u bazu ni datoteku, nego se deterministički izvodi po pravilu:
+Promjenjiva sol se ne sprema nego se deterministički izvodi pravilom:
 
 ```text
 SHA256("ParKING-SHA256-salt:<user_id>:<username>")[0:16]
 ```
 
-Uz sol se koristi papar iz raspona `0-255`. Provjera ispravnosti prolazi kroz cijeli raspon svih 256 mogućih vrijednosti i pomoću `hmac.compare_digest` uspoređuje kandidat s kontrolnim otiskom. Zadana konfigurirana vrijednost papra je 137, a može se promijeniti varijablom okruženja `HASH_DEMO_PEPPER`.
+Koristi se papar iz raspona `0-255`, a provjera prolazi kroz svih 256 mogućih vrijednosti i koristi `hmac.compare_digest`.
+
+## Zbroj
+
+```text
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 4 + 3 + 4 + 4 + 2 + 7 = 70
+```
+
+Ne računaju se kriterij 12 niti neimplementirani kriteriji 15–19, 24, 26 i 27–30.
