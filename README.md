@@ -70,10 +70,6 @@ Dodana je demonstracija SHA-256 sažimanja sa soli i paprom:
 - provjera namjerno prolazi kroz svih 256 mogućih vrijednosti papra i prikazuje broj pokušaja te pronađenu vrijednost
 - demo nije povezan s pohranom korisničkih lozinki
 
-## Faza 11
-
-Dodani su administratorski export i import demonstracijskih podataka pod **Test → Demo podaci**. Jedan JSON dataset može sadržavati korisnike, parkinge, rezervacije, JSON bilješke, BLOB fotografije i binarnu povijest pretraga. Password hash i postojeći API tokeni ne izvoze se. Dataset je namijenjen brzom vraćanju poznatog stanja prije demonstracije.
-
 ## Struktura projekta
 
 ```text
@@ -82,7 +78,6 @@ ParKING/
 ├── run.py
 ├── api_app.py
 ├── start.sh
-├── demo_data.py
 ├── binary_store.py
 ├── crypto_store.py
 ├── hash_demo.py
@@ -97,9 +92,8 @@ ParKING/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── INSTALL_UBUNTU.md
+├── INSTALL_WINDOWS.md
 ├── OBRANA.md
-├── demo/
-│   └── parking-demo.json
 ├── templates/
 ├── static/
 ├── data/
@@ -108,7 +102,7 @@ ParKING/
 
 ## Pokretanje pomoću Dockera
 
-Detaljne upute za čistu instalaciju na Ubuntu 26.04 nalaze se u `INSTALL_UBUNTU.md`.
+Detaljne upute za čistu instalaciju na Ubuntu 26.04 nalaze se u `INSTALL_UBUNTU.md`, a za Windows 11 u `INSTALL_WINDOWS.md`.
 
 Za već pripremljeno računalo dovoljno je:
 
@@ -141,13 +135,15 @@ git pull
 docker compose up -d --build
 ```
 
-## Demo korisnici
+## Demo korisnici i podaci
 
-Ako treba ponovno kreirati osnovne razvojne podatke:
+Početno demonstracijsko stanje kreira se naredbom:
 
 ```bash
 docker compose exec parking python seed.py
 ```
+
+Nakon izvršavanja dostupni su korisnici:
 
 ```text
 vlasnik / parking123
@@ -155,9 +151,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-> `seed.py` briše postojeće podatke baze i služi samo za razvoj i demonstraciju.
-
-Za potpuno demonstracijsko stanje preporučuje se koristiti **Test → Demo podaci → Import** i učitati `demo/parking-demo.json`.
+`seed.py` briše postojeće podatke baze i ponovno kreira početno demo stanje, zato ga treba pokretati samo kada je namjerno potrebno resetirati demonstracijske podatke.
 
 ## Brza provjera odvojenog REST servisa
 
