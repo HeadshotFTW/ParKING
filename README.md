@@ -47,19 +47,21 @@ postojeći završetak > traženi početak
 
 ## Vremenski podaci uz parkinge
 
-Open-Meteo više nije vezan samo uz tehničku stranicu za dretve. Na karticama pod **Dostupni parkinzi** i na stranici **Detalji parkinga** prikazuju se trenutačna temperatura i brzina vjetra za podržani grad parkinga.
+Open-Meteo više nije vezan samo uz tehničku stranicu za dretve. Na karticama pod **Dostupni parkinzi** i na stranici **Detalji parkinga** prikazuju se trenutačna temperatura i brzina vjetra za grad parkinga.
 
-Trenutačno se tekstualna lokacija parkinga povezuje s jednom od podržanih Open-Meteo lokacija:
+Grad se automatski izdvaja iz tekstualne lokacije parkinga i, ako nije jedna od unaprijed poznatih lokacija, pretvara u koordinate preko Open-Meteo Geocoding API-ja. Primjeri podržanog unosa:
 
 ```text
-Zagreb
-Samobor
-Velika Gorica
+Zadar, Obala kneza Branimira 10
+Split, Vukovarska 15
+23000 Zadar, Ulica 1
 ```
 
-Ako je na istoj stranici prikazano više različitih podržanih gradova, `parking_availability.py` poziva `fetch_weather_for_parking_locations()` iz `parallel_tasks.py`, a vremenski zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu dijeli isti dohvaćeni rezultat, pa se isti grad ne dohvaća više puta za jednu stranicu.
+Geokodiranje je ograničeno na Hrvatsku (`countryCode=HR`), pa se vremenski podatak može prikazati za bilo koji hrvatski grad koji Open-Meteo prepoznaje, a ne samo za Zagreb, Samobor i Veliku Goricu.
 
-`fetch_weather()` nakon završetka zahtjeva zapisuje podatke u zajednički `_request_log`. Taj zajednički resurs zaštićen je s `threading.Lock`, pa više dretvi ne mijenja zapisnik istodobno. Ako Open-Meteo privremeno nije dostupan, popis i detalji parkinga i dalje se prikazuju bez vremenskog podatka.
+Ako je na istoj stranici prikazano više različitih gradova, `parking_availability.py` poziva `fetch_weather_for_parking_locations()` iz `parallel_tasks.py`, a vremenski zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu dijeli isti dohvaćeni rezultat, pa se isti grad ne dohvaća više puta za jednu stranicu.
+
+`fetch_weather()` nakon završetka zahtjeva zapisuje podatke u zajednički `_request_log`. Taj zajednički resurs zaštićen je s `threading.Lock`, pa više dretvi ne mijenja zapisnik istodobno. Ako Open-Meteo privremeno nije dostupan ili lokacija nije prepoznata, popis i detalji parkinga i dalje se prikazuju bez vremenskog podatka.
 
 Administratorska stranica **Test → Dretve** ostaje kao detaljan prikaz iste mrežne funkcionalnosti: prikazuje sekvencijalno i paralelno vrijeme, nazive radnih dretvi i faktor ubrzanja za Zagreb, Samobor i Veliku Goricu.
 
