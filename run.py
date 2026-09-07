@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 
 import requests
-from flask import flash, redirect, render_template, request, url_for
+from flask import flash, render_template, request
 
 from app import app, admin_required, current_language, current_user, login_required, DB_PATH, DATA_DIR
-from binary_store import add_record, records_for_user
+from binary_store import records_for_user
 from crypto_store import decrypt_notes, encrypt_notes
 from hash_demo import create_integrity_hash, reservation_integrity_text, verify_by_full_pepper_scan
 from json_store import list_notes
@@ -135,26 +135,11 @@ def admin_process():
     return render_template("admin_process.html", result=result)
 
 
-@app.route("/binary-history", methods=["GET", "POST"])
+@app.route("/search-history")
+@app.route("/binary-history")
 @login_required
 def binary_history():
-    user = current_user()
-
-    if request.method == "POST":
-        location = request.form.get("location", "").strip()
-        try:
-            max_price = float(request.form.get("max_price", ""))
-        except ValueError:
-            max_price = -1
-
-        if not location or max_price < 0:
-            flash(tech_text("Unesite ispravnu lokaciju i maksimalnu cijenu.", "Enter a valid location and maximum price."), "danger")
-        else:
-            add_record(BINARY_HISTORY_PATH, user.id, location, max_price)
-            flash(tech_text("Zapis je spremljen u prilagođenu binarnu datoteku.", "The record was saved to the custom binary file."), "success")
-            return redirect(url_for("binary_history"))
-
-    records = list(reversed(records_for_user(BINARY_HISTORY_PATH, user.id)))
+    records = list(reversed(records_for_user(BINARY_HISTORY_PATH, current_user().id)))
     return render_template("binary_history.html", records=records)
 
 
