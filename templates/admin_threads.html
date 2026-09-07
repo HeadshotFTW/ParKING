@@ -2,7 +2,13 @@
 {% block title %}{{ tr('nav.threads') }} - ParKING{% endblock %}
 {% block content %}
 <h1 class="h3 mb-3">{{ tr('threads.title') }}</h1>
-<p class="text-muted">{{ tr('threads.description') }}</p>
+<p class="text-muted">
+    {% if lang == 'en' %}
+        Open-Meteo requests for cities detected from published parking locations are executed first sequentially and then in parallel using a thread pool.
+    {% else %}
+        Open-Meteo zahtjevi za gradove pronađene iz lokacija objavljenih parkinga izvršavaju se najprije sekvencijalno, a zatim paralelno pomoću bazena dretvi.
+    {% endif %}
+</p>
 
 {% if error %}
 <div class="alert alert-danger">
