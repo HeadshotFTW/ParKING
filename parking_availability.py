@@ -8,7 +8,7 @@ from models import db, ParkingSpot, Reservation
 from parallel_tasks import (
     fetch_weather_for_parking,
     fetch_weather_for_parking_locations,
-    weather_location_for_parking,
+    parking_city_name,
 )
 
 
@@ -152,18 +152,17 @@ def parkings_with_availability():
 
     items = query.offset((page - 1) * per_page).limit(per_page).all()
 
-    # Vremenski podaci dohvaćaju se samo za jedinstvene gradove parkinga na
-    # trenutačnoj stranici. Ako je prikazano više gradova, pozivi se izvršavaju
-    # paralelno kroz ThreadPoolExecutor iz parallel_tasks.py.
+    # Za jedinstvene gradove parkinga grad se automatski geokodira preko
+    # Open-Meteo Geocoding API-ja, a vremenski pozivi izvršavaju se paralelno.
     weather_by_city = fetch_weather_for_parking_locations(
         [item.location for item in items]
     )
     parking_weather = {}
     for item in items:
-        weather_location = weather_location_for_parking(item.location)
-        if weather_location is None:
+        city_name = parking_city_name(item.location)
+        if city_name is None:
             continue
-        weather = weather_by_city.get(weather_location["name"])
+        weather = weather_by_city.get(city_name.casefold())
         if weather and not weather.get("error"):
             parking_weather[item.id] = weather
 
