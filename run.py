@@ -10,7 +10,7 @@ from binary_store import records_for_user
 from crypto_store import decrypt_notes, encrypt_notes
 from hash_demo import create_integrity_hash, reservation_integrity_text, verify_by_full_pepper_scan
 from json_store import list_notes
-from models import Reservation
+from models import ParkingSpot, Reservation
 from parallel_tasks import run_thread_demo
 from parking_availability import install_parking_availability
 
@@ -71,8 +71,13 @@ def rest_client():
 @app.route("/admin/threads")
 @admin_required
 def admin_threads():
+    parking_locations = [
+        row[0]
+        for row in ParkingSpot.query.with_entities(ParkingSpot.location).order_by(ParkingSpot.id).all()
+        if row[0]
+    ]
     try:
-        demo = run_thread_demo()
+        demo = run_thread_demo(parking_locations)
         error = None
     except Exception as exc:
         demo = None
