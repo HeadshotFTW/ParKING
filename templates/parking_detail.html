@@ -13,10 +13,21 @@
             <dt class="col-sm-3">{{ tr('common.owner') }}</dt><dd class="col-sm-9">{{ parking.owner.username }}</dd>
             <dt class="col-sm-3">{{ tr('common.description') }}</dt><dd class="col-sm-9">{{ parking.description or "-" }}</dd>
         </dl>
-        {% if current_user and parking.owner_id != current_user.id %}
-            <a class="btn btn-primary" href="{{ url_for('reserve', parking_id=parking.id) }}">{{ tr('parking_detail.reserve') }}</a>
+
+        {% if request.args.get('start_time') and request.args.get('end_time') %}
+            <div class="alert alert-success py-2">
+                {% if lang == 'en' %}
+                    Selected period: <strong>{{ request.args.get('start_time')|replace('T', ' ') }}</strong> – <strong>{{ request.args.get('end_time')|replace('T', ' ') }}</strong>
+                {% else %}
+                    Odabrani termin: <strong>{{ request.args.get('start_time')|replace('T', ' ') }}</strong> – <strong>{{ request.args.get('end_time')|replace('T', ' ') }}</strong>
+                {% endif %}
+            </div>
         {% endif %}
-        <a class="btn btn-outline-secondary" href="{{ url_for('parkings') }}">{{ tr('common.back') }}</a>
+
+        {% if current_user and parking.owner_id != current_user.id %}
+            <a class="btn btn-primary" href="{{ url_for('reserve', parking_id=parking.id, start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), location=request.args.get('location', ''), sort=request.args.get('sort', 'price_asc'), page=request.args.get('page', '1')) }}">{{ tr('parking_detail.reserve') }}</a>
+        {% endif %}
+        <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=request.args.get('location', ''), sort=request.args.get('sort', 'price_asc'), start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), page=request.args.get('page', '1')) }}">{{ tr('common.back') }}</a>
     </div>
 </div>
 {% endblock %}
