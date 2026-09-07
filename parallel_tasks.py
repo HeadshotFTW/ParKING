@@ -7,7 +7,9 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 
-WEATHER_LOCATIONS = [
+# Poznate koordinate služe samo kao brza prečica. Gradovi za Test → Dretve
+# više nisu zadani ovim popisom nego se dohvaćaju iz stvarnih parkinga u bazi.
+KNOWN_WEATHER_LOCATIONS = [
     {"name": "Zagreb", "latitude": 45.8150, "longitude": 15.9819},
     {"name": "Samobor", "latitude": 45.8031, "longitude": 15.7181},
     {"name": "Velika Gorica", "latitude": 45.7125, "longitude": 16.0756},
@@ -26,7 +28,7 @@ def parking_city_name(location_text):
         return None
 
     normalized = text.casefold()
-    for location in WEATHER_LOCATIONS:
+    for location in KNOWN_WEATHER_LOCATIONS:
         if location["name"].casefold() in normalized:
             return location["name"]
 
@@ -49,13 +51,22 @@ def parking_city_name(location_text):
     return cleaned_parts[0] if cleaned_parts else None
 
 
+def parking_cities(location_texts):
+    """Vrati jedinstvene gradove iz stvarnih lokacija parkinga."""
+    cities = {}
+    for location_text in location_texts:
+        city_name = parking_city_name(location_text)
+        if city_name:
+            cities[city_name.casefold()] = city_name
+    return sorted(cities.values(), key=str.casefold)
+
+
 def _geocode_city(city_name):
     """Pretvori naziv hrvatskog grada u koordinate preko Open-Meteo Geocoding API-ja."""
     cache_key = city_name.casefold()
     with _request_log_lock:
-        cached = _geocode_cache.get(cache_key)
-    if cached is not None:
-        return cached
+        if cache_key in _geocode_cache:
+            return _geocode_cache[cache_key]
 
     params = urlencode({
         "name": city_name,
@@ -93,7 +104,7 @@ def weather_location_for_parking(location_text):
     if city_name is None:
         return None
 
-    for location in WEATHER_LOCATIONS:
+    for location in KNOWN_WEATHER_LOCATIONS:
         if location["name"].casefold() == city_name.casefold():
             return location
 
@@ -146,18 +157,13 @@ def fetch_weather_for_parking(location_text):
 def _fetch_weather_for_city(city_name):
     location = weather_location_for_parking(city_name)
     if location is None:
-        return None
+        raise ValueError(f"Lokacija nije pronađena: {city_name}")
     return fetch_weather(location)
 
 
 def fetch_weather_for_parking_locations(location_texts):
     """Paralelno dohvati vrijeme za jedinstvene gradove prikazanih parkinga."""
-    cities = {}
-    for location_text in location_texts:
-        city_name = parking_city_name(location_text)
-        if city_name:
-            cities[city_name.casefold()] = city_name
-
+    cities = parking_cities(location_texts)
     if not cities:
         return {}
 
@@ -165,17 +171,13 @@ def fetch_weather_for_parking_locations(location_texts):
     workers = min(3, len(cities))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="parking-weather") as executor:
         futures = {
-            executor.submit(_fetch_weather_for_city, city_name): city_key
-            for city_key, city_name in cities.items()
+            executor.submit(_fetch_weather_for_city, city_name): city_name.casefold()
+            for city_name in cities
         }
         for future in as_completed(futures):
             city_key = futures[future]
             try:
-                weather = future.result()
-                if weather is None:
-                    results[city_key] = {"error": "Lokacija nije pronađena."}
-                else:
-                    results[city_key] = weather
+                results[city_key] = future.result()
             except Exception as exc:
                 # Nedostupnost vremenskog servisa ne smije srušiti popis parkinga.
                 results[city_key] = {"error": str(exc)}
@@ -183,39 +185,53 @@ def fetch_weather_for_parking_locations(location_texts):
     return results
 
 
-def run_sequential_weather():
+def run_sequential_weather(city_names):
     started = time.perf_counter()
-    results = [fetch_weather(location) for location in WEATHER_LOCATIONS]
+    results = [_fetch_weather_for_city(city_name) for city_name in city_names]
     return results, time.perf_counter() - started
 
 
-def run_parallel_weather():
+def run_parallel_weather(city_names):
     started = time.perf_counter()
     results = []
 
-    # Bazen od tri dretve paralelno izvršava tri neovisna mrežna zahtjeva.
-    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="parking-weather") as executor:
-        futures = [executor.submit(fetch_weather, location) for location in WEATHER_LOCATIONS]
+    workers = min(3, len(city_names))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="parking-weather") as executor:
+        futures = [executor.submit(_fetch_weather_for_city, city_name) for city_name in city_names]
         for future in as_completed(futures):
             results.append(future.result())
 
-    results.sort(key=lambda item: item["location"])
+    results.sort(key=lambda item: item["location"].casefold())
     return results, time.perf_counter() - started
 
 
-def run_thread_demo():
+def run_thread_demo(location_texts):
+    """Usporedi sekvencijalni i paralelni dohvat za gradove iz stvarnih parkinga."""
     global _request_log
     with _request_log_lock:
         _request_log = []
 
-    sequential_results, sequential_time = run_sequential_weather()
-    parallel_results, parallel_time = run_parallel_weather()
+    city_names = parking_cities(location_texts)
+    if not city_names:
+        return {
+            "city_names": [],
+            "sequential_results": [],
+            "parallel_results": [],
+            "sequential_time": 0.0,
+            "parallel_time": 0.0,
+            "speedup": 0.0,
+            "request_log": [],
+        }
+
+    sequential_results, sequential_time = run_sequential_weather(city_names)
+    parallel_results, parallel_time = run_parallel_weather(city_names)
 
     speedup = sequential_time / parallel_time if parallel_time > 0 else 0
     with _request_log_lock:
         log_snapshot = list(_request_log)
 
     return {
+        "city_names": city_names,
         "sequential_results": sequential_results,
         "parallel_results": parallel_results,
         "sequential_time": sequential_time,
