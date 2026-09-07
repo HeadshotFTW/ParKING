@@ -9,7 +9,9 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN mkdir -p /app/data /app/exports && chmod +x /app/start.sh
+RUN mkdir -p /app/data /app/exports \
+    && sed -i 's/\r$//' /app/start.sh \
+    && chmod +x /app/start.sh
 
 EXPOSE 5000 5001
 
