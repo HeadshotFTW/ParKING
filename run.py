@@ -13,6 +13,11 @@ from json_store import list_notes
 from models import ParkingSpot, Reservation
 from parallel_tasks import run_thread_demo
 from parking_availability import install_parking_availability
+from service_fee import (
+    SERVICE_FEE_PERCENTAGE,
+    calculate_service_fee,
+    total_service_fees_for_reservations,
+)
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
@@ -20,6 +25,12 @@ EXPORT_DIR = Path(__file__).resolve().parent / "exports"
 REST_API_BASE_URL = "http://127.0.0.1:5001"
 
 install_parking_availability(app)
+
+app.jinja_env.globals.update(
+    service_fee=calculate_service_fee,
+    total_service_fees=total_service_fees_for_reservations,
+    service_fee_percentage=SERVICE_FEE_PERCENTAGE,
+)
 
 
 def tech_text(hr, en):
