@@ -22,6 +22,29 @@
     </div>
 </div>
 
+{% set active_reservations = reservations | selectattr('status', 'equalto', 'ACTIVE') | list %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">{% if lang == 'en' %}Active reservations{% else %}Aktivne rezervacije{% endif %}</div>
+                <div class="fs-3 fw-semibold">{{ active_reservations | length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="text-muted small">
+                    {% if lang == 'en' %}Total service fee{% else %}Ukupan service fee{% endif %}
+                    ({{ '%.0f'|format(service_fee_percentage) }}%)
+                </div>
+                <div class="fs-3 fw-semibold">{{ "%.2f"|format(total_service_fees(reservations)) }} €</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if process_result is defined %}
     {% set result_class = 'success' if process_result.returncode == 0 else ('warning' if process_result.returncode == 1 else 'danger') %}
     <div class="alert alert-{{ result_class }}">
@@ -46,6 +69,7 @@
             <th>{{ tr('common.end') }}</th>
             <th>{{ tr('common.status') }}</th>
             <th>{{ tr('common.total') }}</th>
+            <th>Service fee ({{ '%.0f'|format(service_fee_percentage) }}%)</th>
             <th class="text-end">{% if lang == 'en' %}Actions{% else %}Akcije{% endif %}</th>
         </tr>
     </thead>
@@ -59,6 +83,13 @@
             <td>{{ reservation.end_time.strftime('%d.%m.%Y. %H:%M') }}</td>
             <td>{{ reservation.status }}</td>
             <td>{{ "%.2f"|format(reservation.total_price()) }} €</td>
+            <td>
+                {% if reservation.status == 'ACTIVE' %}
+                    {{ "%.2f"|format(service_fee(reservation.total_price())) }} €
+                {% else %}
+                    —
+                {% endif %}
+            </td>
             <td class="text-end">
                 <a class="btn btn-sm btn-warning" href="{{ url_for('admin_reservation_edit', reservation_id=reservation.id) }}">{{ tr('common.edit') }}</a>
                 <form class="d-inline" method="post" action="{{ url_for('admin_reservation_delete', reservation_id=reservation.id) }}" onsubmit="return confirm('{% if lang == 'en' %}Delete reservation?{% else %}Obrisati rezervaciju?{% endif %}')">
@@ -67,7 +98,7 @@
             </td>
         </tr>
         {% else %}
-        <tr><td colspan="8">{% if lang == 'en' %}There are no reservations.{% else %}Nema rezervacija.{% endif %}</td></tr>
+        <tr><td colspan="9">{% if lang == 'en' %}There are no reservations.{% else %}Nema rezervacija.{% endif %}</td></tr>
         {% endfor %}
     </tbody>
 </table>
