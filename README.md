@@ -46,7 +46,21 @@ REST servis je izdvojen u zasebnu Flask aplikaciju `api_app.py` na portu `5001`,
 
 ## Faza 8
 
-Dodana je datoteka prilagođenog binarnog formata `data/search_history.bin` za niz zapisa povijesti pretraga. Format ima vlastito `PKSR` zaglavlje, verziju, broj zapisa i binarno zapisane podatke.
+Povijest stvarnih pretraga parkinga sprema se u prilagođenu binarnu datoteku `data/search_history.bin`.
+
+Kada prijavljeni korisnik na stranici **Dostupni parkinzi** pokrene valjanu pretragu, kriteriji se automatski spremaju u binarni zapis. Posebna stranica **Povijest pretraga** prikazuje korisnikove prethodne pretrage i omogućuje njihovo ponavljanje; više nema ručnog unosa testnih binarnih zapisa.
+
+Aktualni format je verzija 2 i sadrži:
+
+- zaglavlje `PKSR`
+- verziju formata
+- broj zapisa
+- `user_id`
+- Unix vrijeme zapisa
+- opcionalnu maksimalnu cijenu
+- UTF-8 polja promjenjive duljine za lokaciju, početak termina, završetak termina i sortiranje
+
+`binary_store.py` i dalje može čitati postojeće zapise verzije 1. Pri sljedećem stvarnom zapisu stari sadržaj se automatski prepisuje u verziju 2.
 
 ## Faza 9
 
@@ -80,9 +94,10 @@ Na stranici **Dostupni parkinzi** korisnik unosi:
 - lokaciju
 - početak željenog termina
 - završetak željenog termina
+- opcionalnu maksimalnu cijenu po satu
 - način sortiranja
 
-Aplikacija prikazuje samo parkirna mjesta koja nemaju `ACTIVE` rezervaciju koja se preklapa s traženim intervalom. Otkazane (`CANCELLED`) rezervacije ne blokiraju dostupnost. Provjera koristi isto pravilo preklapanja kao i spremanje nove rezervacije:
+Aplikacija prikazuje samo parkirna mjesta koja zadovoljavaju kriterije cijene/lokacije i nemaju `ACTIVE` rezervaciju koja se preklapa s traženim intervalom. Otkazane (`CANCELLED`) rezervacije ne blokiraju dostupnost. Provjera koristi isto pravilo preklapanja kao i spremanje nove rezervacije:
 
 ```text
 postojeći početak < traženi završetak
@@ -90,7 +105,7 @@ AND
 postojeći završetak > traženi početak
 ```
 
-Odabrani termin prenosi se s popisa parkinga na detalje parkinga i dalje na formu za rezervaciju, pa korisnik ne mora ponovno unositi datum i vrijeme.
+Odabrani termin i ostali kriteriji prenose se s popisa parkinga na detalje parkinga i dalje na formu za rezervaciju, pa korisnik ne mora ponovno unositi datum i vrijeme.
 
 Unos datuma i vremena koristi Flatpickr u 24-satnom formatu. Hrvatsko sučelje prikazuje npr. `08.09.2026. 21:00`, a backend i dalje prima ISO vrijednost oblika `2026-09-08T21:00`. Isti 24-satni unos koristi se na pretrazi dostupnosti, korisničkoj rezervaciji i administratorskoj formi rezervacije.
 
@@ -157,7 +172,9 @@ curl http://localhost:5001/api/health
 
 ## Osnovni korisnički tok
 
-Nakon prijave otvoriti **Dostupni parkinzi**, odabrati početak i završetak željenog termina u 24-satnom formatu te pokrenuti pretragu. Prikazuju se samo parking mjesta dostupna tijekom cijelog zadanog intervala. Termin se zatim prenosi kroz **Detalji → Rezerviraj**.
+Nakon prijave otvoriti **Dostupni parkinzi**, odabrati početak i završetak željenog termina u 24-satnom formatu, po želji zadati lokaciju i maksimalnu cijenu te pokrenuti pretragu. Prikazuju se samo parking mjesta dostupna tijekom cijelog zadanog intervala. Termin se zatim prenosi kroz **Detalji → Rezerviraj**.
+
+Svaka valjana pretraga prijavljenog korisnika automatski se zapisuje u `data/search_history.bin`. Stranica **Povijest pretraga** prikazuje te stvarne pretrage i nudi akciju **Ponovi** koja vraća spremljene kriterije na stranicu dostupnih parkinga.
 
 Nakon rezervacije korisnik na stranici **Moje rezervacije** može vidjeti trajanje, ukupnu cijenu i status rezervacije, preuzeti PDF potvrdu te otvoriti SHA-256 provjeru integriteta rezervacije.
 
