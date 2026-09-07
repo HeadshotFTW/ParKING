@@ -61,14 +61,15 @@ Dodano je simetrično šifriranje i dešifriranje korisničkih bilješki pomoću
 
 ## Faza 10
 
-Dodana je demonstracija SHA-256 sažimanja sa soli i paprom:
+SHA-256 je povezan s rezervacijama kao provjera integriteta podataka:
 
-- stranica **SHA-256** sažima proizvoljni tekst algoritmom SHA-256
+- u **Moje rezervacije** svaka rezervacija ima akciju **SHA-256**
+- kontrolni otisak nastaje iz stvarnih podataka rezervacije: korisnika, parkinga, lokacije, termina, statusa, cijene po satu i ukupne cijene
+- promjena bilo kojeg od tih podataka mijenja kontrolni otisak
 - koristi se promjenjiva 16-bajtna sol izvedena po pravilu iz `user_id` i korisničkog imena
 - sol se ne pohranjuje u bazu ili datoteku nego se svaki put ponovno izvodi istim pravilom
-- koristi se demonstracijski papar iz raspona `0-255` (zadano 137, moguće promijeniti varijablom `HASH_DEMO_PEPPER`)
-- provjera namjerno prolazi kroz svih 256 mogućih vrijednosti papra i prikazuje broj pokušaja te pronađenu vrijednost
-- demo nije povezan s pohranom korisničkih lozinki
+- koristi se papar iz raspona `0-255` (zadano 137, moguće promijeniti varijablom `HASH_DEMO_PEPPER`)
+- provjera prolazi kroz svih 256 mogućih vrijednosti papra i potvrđuje odgovara li zadani kontrolni otisak trenutačnim podacima rezervacije
 
 ## Struktura projekta
 
