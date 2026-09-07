@@ -65,12 +65,4 @@
     </tbody>
 </table>
 </div>
-
-<div class="alert alert-secondary mt-3">
-    {% if lang == 'en' %}
-        Binary format: <code>PKSR</code> header, format version and record count. Version 2 stores user ID, Unix timestamp, optional maximum price and variable-length UTF-8 fields for location, start time, end time and sorting. Existing version 1 records remain readable and are migrated on the next write.
-    {% else %}
-        Binarni format: zaglavlje <code>PKSR</code>, verzija formata i broj zapisa. Verzija 2 sprema ID korisnika, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak, završetak i sortiranje. Postojeći zapisi verzije 1 i dalje se mogu čitati te se pri sljedećem zapisu automatski migriraju.
-    {% endif %}
-</div>
 {% endblock %}
