@@ -94,7 +94,7 @@ Ako je prijavljen drugi korisnik, broj u nazivu datoteke prilagoditi njegovu `id
 
 Kao `vlasnik` otvoriti **Moji parkinzi**, urediti parking i učitati fotografiju. Pokazati da se fotografija prikazuje na detaljima parkinga te da se može zamijeniti ili ukloniti.
 
-## 5. Admin CRUD + provjera rezervacija kao proces B
+## 5. Admin CRUD + proces B + dinamička biblioteka
 
 Prijava kao `admin`.
 
@@ -103,16 +103,44 @@ Na **Korisnici** pokazati dodavanje ili uređivanje korisnika.
 Na **Admin rezervacije**:
 
 1. pokazati CRUD nad rezervacijama
-2. kliknuti **Provjeri rezervacije**
-3. očekivati poruku da su sve rezervacije ispravne i povratni kod procesa `0`
+2. pokazati stupac **Service fee (5%)** uz svaku `ACTIVE` rezervaciju
+3. pokazati karticu **Ukupan service fee (5%)** iznad tablice
+4. objasniti da pojedinačni i ukupni izračun dolaze iz vlastite C++ dinamičke biblioteke
+5. kliknuti **Provjeri rezervacije**
+6. očekivati poruku da su sve rezervacije ispravne i povratni kod procesa `0`
 
-Za dokaz nenultog koda može se privremeno napraviti preklapajuća `ACTIVE` rezervacija preko administratorskog CRUD-a, ponovno kliknuti **Provjeri rezervacije** i dobiti kod `1`, zatim obrisati testnu rezervaciju.
+Service fee računa se samo za `ACTIVE` rezervacije. Biblioteka je izvorno u:
+
+```text
+native/service_fee.cpp
+```
+
+Dockerfile je prevodi u:
+
+```text
+/app/native/libservice_fee.so
+```
+
+Biblioteka sadrži C++ klasu `ServiceFeeCalculator` s dvije metode: `calculateFee()` i `calculateTotalFees()`. Python modul `service_fee.py` učitava `.so` pomoću `ctypes` i koristi obje funkcionalnosti u stvarnom administratorskom prikazu.
+
+Brza provjera da je native biblioteka stvarno učitana u Dockeru:
+
+```bash
+docker compose exec parking python -c "import service_fee; print(service_fee.native_library_loaded(), service_fee.LIBRARY_PATH)"
+```
+
+Očekivano je `True` i putanja `/app/native/libservice_fee.so`.
+
+Za dokaz nenultog koda procesa može se privremeno napraviti preklapajuća `ACTIVE` rezervacija preko administratorskog CRUD-a, ponovno kliknuti **Provjeri rezervacije** i dobiti kod `1`, zatim obrisati testnu rezervaciju.
 
 U kodu pokazati:
 
 ```text
-run.py                 → subprocess.run(...)
+run.py                 → subprocess.run(...) + Jinja povezivanje service fee funkcija
 reservation_worker.py  → provjera baze i return code 0/1/2
+native/service_fee.cpp  → C++ klasa i dvije funkcije za service fee
+service_fee.py          → ctypes učitavanje dinamičke biblioteke
+Dockerfile              → g++ -shared -fPIC → libservice_fee.so
 ```
 
 Zasebna stranica **Test → Procesi** više ne postoji; provjera je dio stvarnog administratorskog upravljanja rezervacijama.
@@ -219,13 +247,15 @@ Očekivano:
 ```text
 models.py                    SQLAlchemy modeli
 app.py                       osnovni CRUD i web rute
-run.py                       REST klijent, AES backup, procesna provjera, SHA-256 ruta, gradovi za thread test
+run.py                       REST klijent, AES backup, procesna provjera, SHA-256 ruta, gradovi za thread test, service fee Jinja funkcije
 parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
 binary_store.py              PKSR binarni format
 crypto_store.py              AES-GCM
 hash_demo.py                 SHA-256 integritet, sol i papar
 parallel_tasks.py            Open-Meteo geokodiranje + ThreadPoolExecutor + Lock
 reservation_worker.py        zasebni proces B
+service_fee.py               ctypes wrapper za dinamičku biblioteku
+native/service_fee.cpp       C++ ServiceFeeCalculator
 api_app.py                   vlastiti REST servis na 5001
 json_store.py                JSON CRUD
 config.ini                   INI postavke
@@ -233,4 +263,4 @@ config.ini                   INI postavke
 
 ## Bodovna procjena
 
-Konzervativna procjena ostaje oko **70 bodova**.
+Konzervativna procjena je sada oko **75 bodova**.
