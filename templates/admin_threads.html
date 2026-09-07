@@ -9,34 +9,49 @@
     {{ tr('threads.error') }}: {{ error }}
 </div>
 {% elif demo %}
-<div class="row g-3 mb-4">
-    <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.sequential') }}</strong><span class="fs-4">{{ "%.3f"|format(demo.sequential_time) }} s</span></div></div>
-    <div class="col-md-4"><div class="card card-body"><strong>Thread Pool</strong><span class="fs-4">{{ "%.3f"|format(demo.parallel_time) }} s</span></div></div>
-    <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.speedup') }}</strong><span class="fs-4">{{ "%.2f"|format(demo.speedup) }}×</span></div></div>
-</div>
+    {% if demo.city_names %}
+    <div class="alert alert-secondary py-2">
+        {% if lang == 'en' %}
+            Cities detected from published parking locations:
+        {% else %}
+            Gradovi pronađeni iz lokacija objavljenih parkinga:
+        {% endif %}
+        <strong>{{ demo.city_names|join(', ') }}</strong>
+    </div>
 
-<h2 class="h5">{{ tr('threads.results') }}</h2>
-<div class="table-responsive mb-4">
-<table class="table table-striped align-middle">
-    <thead><tr><th>{{ tr('common.location') }}</th><th>{{ tr('threads.temperature') }}</th><th>{{ tr('threads.wind') }}</th><th>Weather code</th><th>{{ tr('threads.thread') }}</th><th>{{ tr('threads.duration') }}</th></tr></thead>
-    <tbody>
-    {% for item in demo.parallel_results %}
-    <tr>
-        <td>{{ item.location }}</td>
-        <td>{{ item.temperature }} °C</td>
-        <td>{{ item.wind_speed }} km/h</td>
-        <td>{{ item.weather_code }}</td>
-        <td><code>{{ item.thread }}</code></td>
-        <td>{{ "%.3f"|format(item.elapsed) }} s</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-</table>
-</div>
+    <div class="row g-3 mb-4">
+        <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.sequential') }}</strong><span class="fs-4">{{ "%.3f"|format(demo.sequential_time) }} s</span></div></div>
+        <div class="col-md-4"><div class="card card-body"><strong>Thread Pool</strong><span class="fs-4">{{ "%.3f"|format(demo.parallel_time) }} s</span></div></div>
+        <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.speedup') }}</strong><span class="fs-4">{{ "%.2f"|format(demo.speedup) }}×</span></div></div>
+    </div>
 
-<div class="alert alert-info">
-    <strong>{{ tr('threads.sync') }}:</strong> {{ tr('threads.sync_text') }}
-</div>
+    <h2 class="h5">{{ tr('threads.results') }}</h2>
+    <div class="table-responsive mb-4">
+    <table class="table table-striped align-middle">
+        <thead><tr><th>{{ tr('common.location') }}</th><th>{{ tr('threads.temperature') }}</th><th>{{ tr('threads.wind') }}</th><th>Weather code</th><th>{{ tr('threads.thread') }}</th><th>{{ tr('threads.duration') }}</th></tr></thead>
+        <tbody>
+        {% for item in demo.parallel_results %}
+        <tr>
+            <td>{{ item.location }}</td>
+            <td>{{ item.temperature }} °C</td>
+            <td>{{ item.wind_speed }} km/h</td>
+            <td>{{ item.weather_code }}</td>
+            <td><code>{{ item.thread }}</code></td>
+            <td>{{ "%.3f"|format(item.elapsed) }} s</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="alert alert-warning">
+        {% if lang == 'en' %}
+            No parking locations are available for the thread test. Add at least one parking first.
+        {% else %}
+            Nema lokacija parkinga za test dretvi. Najprije dodajte barem jedan parking.
+        {% endif %}
+    </div>
+    {% endif %}
 
 <a class="btn btn-primary" href="{{ url_for('admin_threads') }}">{{ tr('threads.repeat') }}</a>
 {% endif %}
