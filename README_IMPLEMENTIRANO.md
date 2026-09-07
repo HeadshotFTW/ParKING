@@ -20,7 +20,7 @@ Klase se koriste kroz SQLAlchemy modele i poslovnu logiku aplikacije.
 
 Aplikacija sadrži više od tri web forme/dijaloga: prijava, registracija, pretraga dostupnih parkinga, dodavanje/uređivanje parkinga, detalji parkinga, rezervacija, moje rezervacije te administratorske forme za korisnike i rezervacije.
 
-Komunikacija među formama vidljiva je u glavnom toku rezervacije. Na stranici **Dostupni parkinzi** korisnik odabire vremenski interval. Odabrani `start_time` i `end_time`, zajedno s ostalim parametrima pretrage, prenose se na detalje parkinga i zatim na formu za rezervaciju, gdje su termin i vrijeme već popunjeni. Nakon spremanja korisnik se preusmjerava na pregled svojih rezervacija.
+Komunikacija među formama vidljiva je u glavnom toku rezervacije. Na stranici **Dostupni parkinzi** korisnik odabire vremenski interval, lokaciju, opcionalnu maksimalnu cijenu i sortiranje. Odabrani `start_time` i `end_time`, zajedno s ostalim parametrima pretrage, prenose se na detalje parkinga i zatim na formu za rezervaciju, gdje su termin i vrijeme već popunjeni. Nakon spremanja korisnik se preusmjerava na pregled svojih rezervacija.
 
 Datumsko-vremenska polja za pretragu, rezervaciju i administratorsko uređivanje rezervacije koriste 24-satni prikaz pomoću Flatpickra, dok se backendu vrijednosti šalju u ISO obliku.
 
@@ -44,7 +44,11 @@ Podržane su sve CRUD operacije: čitanje popisa i pojedine bilješke, dodavanje
 
 ## 6. Prilagođeni binarni format — 3 boda
 
-Aplikacija koristi vlastiti binarni format datoteke `data/search_history.bin` za pohranu niza zapisa povijesti pretraga. Datoteka ima vlastito zaglavlje `PKSR`, verziju formata i broj zapisa. Svaki binarni zapis sadrži `user_id`, vrijeme zapisa, maksimalnu cijenu i lokaciju promjenjive duljine. Implementirane su funkcije za zapis cijelog niza u binarnu datoteku i ponovno čitanje zapisa iz tog formata. Binarni sadržaj može se provjeriti alatom `xxd`, pri čemu se vidi zaglavlje `PKSR` i strukturirani binarni podaci, a ne tekstualni zapis.
+Aplikacija koristi vlastiti binarni format datoteke `data/search_history.bin` za stvarnu povijest pretraga parkinga. Binarni zapis više se ne dodaje ručno na izdvojenoj testnoj stranici: kada prijavljeni korisnik na stranici **Dostupni parkinzi** pokrene valjanu pretragu, kriteriji se automatski zapisuju u binarnu datoteku. Korisnik zatim kroz **Povijest pretraga** vidi svoje zapise i može ponoviti prethodnu pretragu.
+
+Datoteka ima vlastito zaglavlje `PKSR`, verziju formata i broj zapisa. Aktualna verzija 2 za svaki zapis sprema `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak termina, završetak termina i način sortiranja. `binary_store.py` podržava čitanje starije verzije 1 i pri sljedećem zapisu automatski prepisuje sadržaj u verziju 2.
+
+Implementirane su funkcije za zapis cijelog niza u binarnu datoteku i ponovno čitanje zapisa iz tog formata. Binarni sadržaj može se provjeriti alatom `xxd`, pri čemu se vidi zaglavlje `PKSR` i strukturirani binarni podaci, a ne tekstualni zapis.
 
 ## 7. Baza podataka i CRUD — 6 bodova
 
@@ -54,9 +58,9 @@ Tablice su `users`, `parking_spots` i `reservations`. Nad sve tri tablice demons
 
 ## 8. Sortiranje, filtriranje, izračunato i lookup polje — 5 bodova
 
-Sortiranje i filtriranje provodi se nad zapisima tablice `parking_spots`. Parkirna mjesta mogu se filtrirati po lokaciji te sortirati po cijeni uzlazno/silazno i po nazivu.
+Sortiranje i filtriranje provodi se nad zapisima tablice `parking_spots`. Parkirna mjesta mogu se filtrirati po lokaciji, opcionalnoj maksimalnoj cijeni i vremenskoj dostupnosti te sortirati po cijeni uzlazno/silazno i po nazivu.
 
-Uz to, popis **Dostupni parkinzi** podržava vremenski kriterij. Korisnik zadaje početak i završetak željenog termina, a aplikacija iz rezultata isključuje parkinge koji imaju `ACTIVE` rezervaciju koja se preklapa s tim intervalom. Koristi se uvjet:
+Kod vremenskog kriterija korisnik zadaje početak i završetak željenog termina, a aplikacija iz rezultata isključuje parkinge koji imaju `ACTIVE` rezervaciju koja se preklapa s tim intervalom. Koristi se uvjet:
 
 ```text
 Reservation.start_time < traženi_završetak
