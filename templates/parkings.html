@@ -7,8 +7,9 @@
 </div>
 
 <form method="get" class="card card-body mb-4">
+    <input type="hidden" name="search" value="1">
     <div class="row g-3 align-items-end">
-        <div class="col-lg-3">
+        <div class="col-lg-2">
             <label class="form-label">{{ tr('common.location') }}</label>
             <input class="form-control" name="location" value="{{ location }}" placeholder="{{ tr('parkings.filter') }}">
         </div>
@@ -21,6 +22,10 @@
             <input class="form-control datetime-24h" type="text" name="end_time" value="{{ end_time }}" required>
         </div>
         <div class="col-lg-2">
+            <label class="form-label">{{ 'Max. price €/h' if lang == 'en' else 'Maks. cijena €/h' }}</label>
+            <input class="form-control" type="number" min="0" step="0.01" name="max_price" value="{{ max_price }}" placeholder="—">
+        </div>
+        <div class="col-lg-2">
             <label class="form-label">{{ tr('parkings.sort') }}</label>
             <select class="form-select" name="sort">
                 <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>{{ tr('parkings.price_asc') }}</option>
@@ -28,9 +33,9 @@
                 <option value="name" {% if sort == 'name' %}selected{% endif %}>{{ tr('parkings.name') }}</option>
             </select>
         </div>
-        <div class="col-lg-1 d-grid">
-            <button class="btn btn-primary">{{ tr('parkings.search') }}</button>
-        </div>
+    </div>
+    <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary px-4">{{ tr('parkings.search') }}</button>
     </div>
 </form>
 
@@ -41,9 +46,9 @@
 {% elif availability_active %}
 <div class="alert alert-success py-2">
     {% if lang == 'en' %}
-        Showing parking spaces available from <strong>{{ start_time|replace('T', ' ') }}</strong> until <strong>{{ end_time|replace('T', ' ') }}</strong>.
+        Showing parking spaces available from <strong>{{ start_time|replace('T', ' ') }}</strong> until <strong>{{ end_time|replace('T', ' ') }}</strong>{% if max_price %}, up to <strong>{{ max_price }} €/h</strong>{% endif %}.
     {% else %}
-        Prikazuju se parkirna mjesta dostupna od <strong>{{ start_time|replace('T', ' ') }}</strong> do <strong>{{ end_time|replace('T', ' ') }}</strong>.
+        Prikazuju se parkirna mjesta dostupna od <strong>{{ start_time|replace('T', ' ') }}</strong> do <strong>{{ end_time|replace('T', ' ') }}</strong>{% if max_price %}, do najviše <strong>{{ max_price }} €/h</strong>{% endif %}.
     {% endif %}
 </div>
 {% endif %}
@@ -57,7 +62,7 @@
                 <div class="text-muted mb-2">{{ parking.location }}</div>
                 <div class="fw-bold mb-2">{{ "%.2f €" | format(parking.price_per_hour) }}</div>
                 <p>{{ parking.description or "" }}</p>
-                <a class="btn btn-outline-primary" href="{{ url_for('parking_detail', parking_id=parking.id, location=location, sort=sort, start_time=start_time, end_time=end_time, page=page) }}">{{ tr('common.details') }}</a>
+                <a class="btn btn-outline-primary" href="{{ url_for('parking_detail', parking_id=parking.id, location=location, sort=sort, start_time=start_time, end_time=end_time, max_price=max_price, page=page) }}">{{ tr('common.details') }}</a>
             </div>
         </div>
     </div>
@@ -71,13 +76,13 @@
     <div class="d-flex justify-content-between align-items-center">
         <div>
             {% if page > 1 %}
-                <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=location, sort=sort, start_time=start_time, end_time=end_time, page=page-1) }}">{{ tr('parkings.previous') }}</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=location, sort=sort, start_time=start_time, end_time=end_time, max_price=max_price, page=page-1) }}">{{ tr('parkings.previous') }}</a>
             {% endif %}
         </div>
         <span>{{ tr('parkings.page') }} {{ page }} {{ tr('parkings.of') }} {{ total_pages }}</span>
         <div>
             {% if page < total_pages %}
-                <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=location, sort=sort, start_time=start_time, end_time=end_time, page=page+1) }}">{{ tr('parkings.next') }}</a>
+                <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=location, sort=sort, start_time=start_time, end_time=end_time, max_price=max_price, page=page+1) }}">{{ tr('parkings.next') }}</a>
             {% endif %}
         </div>
     </div>
