@@ -9,13 +9,13 @@ Konzervativna procjena: **70 bodova**.
 | Rb. | Kriterij | Bodovi | Procjena | Dokaz / napomena |
 |---:|---|---:|---|---|
 | 1 | Korisničke klase | 3 | sigurno | `User`, `ParkingSpot`, `Reservation`, svaka s atributima i metodama. |
-| 2 | Dijalozi / forme | 4 | sigurno | Više od tri forme; termin s pretrage dostupnosti prenosi se kroz detalje parkinga u formu rezervacije. |
+| 2 | Dijalozi / forme | 4 | sigurno | Više od tri forme; termin i kriteriji s pretrage dostupnosti prenose se kroz detalje parkinga u formu rezervacije. |
 | 3 | HR / EN sučelje | 4 | sigurno | HR i EN, prevedeno više od pet stranica/dijaloga. |
 | 4 | INI / Registry | 2 | sigurno | `config.ini`: `default_language`, `items_per_page`. Registry se ne koristi. |
 | 5 | XML / JSON CRUD | 4 | sigurno | JSON CRUD nad nizom bilješki u `data/parking_notes.json`. XML se ne koristi. |
-| 6 | Vlastiti binarni format | 3 | sigurno | `data/search_history.bin`, zaglavlje `PKSR`, verzija i niz binarnih zapisa. |
+| 6 | Vlastiti binarni format | 3 | sigurno | Stvarne pretrage automatski se spremaju u `data/search_history.bin`; `PKSR`, verzija 2, broj zapisa, fiksna i promjenjiva binarna polja, čitanje/migracija v1. |
 | 7 | Baza i CRUD | 6 | sigurno | SQLite + SQLAlchemy, CRUD nad `users`, `parking_spots`, `reservations`. |
-| 8 | Sort / filter / calculated / lookup | 5 | sigurno | Lokacija + vremenska dostupnost, sortiranje parkinga, ukupna cijena rezervacije i ORM relacije. |
+| 8 | Sort / filter / calculated / lookup | 5 | sigurno | Lokacija + maksimalna cijena + vremenska dostupnost, sortiranje parkinga, ukupna cijena rezervacije i ORM relacije. |
 | 9 | BLOB | 3 | sigurno | Fotografija parkinga u BLOB polju `photo`, upload/prikaz/zamjena/uklanjanje. |
 | 10 | Izvještaj / PDF / master-detail | 5 | sigurno | PDF potvrda rezervacije s podacima iz tri povezane tablice. |
 | 11 | Dretve / thread pool | 5 | sigurno | `ThreadPoolExecutor(max_workers=3)`, tri Open-Meteo HTTP poziva, prikaz ubrzanja. |
@@ -48,7 +48,7 @@ Kriterij 12 i neimplementirani kriteriji nisu uključeni u zbroj.
 
 ### Dostupnost parkinga prema terminu
 
-Stranica **Dostupni parkinzi** prima lokaciju, `start_time`, `end_time` i način sortiranja. Implementacija je u `parking_availability.py`.
+Stranica **Dostupni parkinzi** prima lokaciju, `start_time`, `end_time`, opcionalnu maksimalnu cijenu i način sortiranja. Implementacija je u `parking_availability.py`.
 
 Parking se isključuje samo ako postoji `ACTIVE` rezervacija za isti parking koja zadovoljava:
 
@@ -65,7 +65,26 @@ To znači:
 - ne blokira 21:00–22:00,
 - `CANCELLED` rezervacija ne blokira niti jedan termin.
 
-Odabrani termin prenosi se u detalje parkinga i dalje u formu rezervacije. Sama ruta za rezerviranje dodatno ponavlja provjeru konflikta prije spremanja, pa pretraga nije jedina zaštita od dvostruke rezervacije.
+Odabrani termin i ostali kriteriji prenose se u detalje parkinga i dalje u formu rezervacije. Sama ruta za rezerviranje dodatno ponavlja provjeru konflikta prije spremanja, pa pretraga nije jedina zaštita od dvostruke rezervacije.
+
+### Stvarna binarna povijest pretraga
+
+Prijavljeni korisnik više ne dodaje ručni zapis kroz **Test → Binarno**. Klik na **Pretraži** na stranici dostupnih parkinga, nakon uspješne validacije termina, automatski poziva `binary_store.add_record()` i sprema stvarne kriterije u `data/search_history.bin`.
+
+Aktualna verzija 2 sadrži:
+
+- `PKSR` zaglavlje, verziju i broj zapisa,
+- `user_id` i Unix vrijeme,
+- opcionalnu maksimalnu cijenu,
+- UTF-8 polja promjenjive duljine za lokaciju, početak, završetak i sortiranje.
+
+Stranica **Povijest pretraga** čita samo zapise trenutačnog korisnika i omogućuje akciju **Ponovi**. Oznaka `search=1` koristi se samo pri novoj pretrazi; nakon zapisa slijedi redirect bez te oznake, pa refresh i paginacija ne stvaraju duplikate. `binary_store.py` čita i stari format v1 te ga pri sljedećem zapisu automatski migrira u v2.
+
+Provjera binarnog sadržaja:
+
+```bash
+xxd data/search_history.bin | head
+```
 
 ### 24-satni unos vremena
 
@@ -137,4 +156,4 @@ admin    / admin123
 
 ## Zaključak
 
-Projekt je dosegao ciljanu razinu bez potrebe za dodavanjem novih rizičnih bodovnih funkcionalnosti. Novija poboljšanja — vremenska dostupnost parkinga, prijenos termina kroz rezervacijski tok, 24-satni unos vremena i SHA-256 integritet rezervacije — dodatno povezuju već implementirane kriterije s glavnom svrhom ParKING aplikacije. Najviše pažnje na obrani i dalje treba posvetiti kriterijima **21 i 22**, jer se oni najviše oslanjaju na način demonstracije i formulaciju da REST servis radi kao zasebna aplikacija/proces.
+Projekt je dosegao ciljanu razinu bez potrebe za dodavanjem novih rizičnih bodovnih funkcionalnosti. Novija poboljšanja — vremenska dostupnost parkinga, maksimalna cijena, automatska binarna povijest stvarnih pretraga, prijenos termina kroz rezervacijski tok, 24-satni unos vremena i SHA-256 integritet rezervacije — dodatno povezuju implementirane kriterije s glavnom svrhom ParKING aplikacije. Najviše pažnje na obrani i dalje treba posvetiti kriterijima **21 i 22**, jer se oni najviše oslanjaju na način demonstracije i formulaciju da REST servis radi kao zasebna aplikacija/proces.
