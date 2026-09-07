@@ -4,7 +4,7 @@ Ovaj dokument je interna kontrolna lista trenutnog stanja projekta.
 
 ## Procijenjeni rezultat
 
-Konzervativna procjena: **70 bodova**.
+Konzervativna procjena: **75 bodova**.
 
 | Rb. | Kriterij | Bodovi | Procjena | Dokaz / napomena |
 |---:|---|---:|---|---|
@@ -34,12 +34,15 @@ Konzervativna procjena: **70 bodova**.
 | 24 | Asimetrična kriptografija | 0 | nije implementirano | — |
 | 25 | SHA-256 + sol + papar | 7 | vrlo vjerojatno | Integritet stvarne rezervacije, promjenjiva sol, papar 0–255, provjera svih 256 vrijednosti. |
 | 26 | Digitalni potpis | 0 | nije implementirano | — |
-| 27–30 | Biblioteke / DLL | 0 | nije implementirano | — |
+| 27 | Biblioteka kriterij 27 | 0 | nije implementirano | — |
+| 28 | Dinamička biblioteka | 5 | sigurno nakon Docker builda | `native/service_fee.cpp` sadrži C++ klasu `ServiceFeeCalculator` i dvije računske funkcionalnosti; Docker stvara `libservice_fee.so`, a `service_fee.py` je učitava preko `ctypes`. |
+| 29 | DLL dijalozi | 0 | nije implementirano | — |
+| 30 | Biblioteka kriterij 30 | 0 | nije implementirano | — |
 
 ## Zbroj
 
 ```text
-3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 4 + 3 + 4 + 4 + 2 + 7 = 70
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 4 + 3 + 4 + 4 + 2 + 7 + 5 = 75
 ```
 
 ## Integracije koje više nisu samo testne stranice
@@ -115,6 +118,20 @@ with _request_log_lock:
 
 Ako udaljeni servis ne odgovara ili grad nije prepoznat, parking stranice i dalje se učitavaju, samo bez vremenskog podatka.
 
+### Dinamička C++ biblioteka za service fee
+
+`native/service_fee.cpp` sadrži klasu `ServiceFeeCalculator` s metodama `calculateFee()` i `calculateTotalFees()`. C sučelje izvozi `parking_calculate_service_fee` i `parking_calculate_total_service_fees`, a `service_fee.py` ih poziva preko `ctypes`.
+
+Dockerfile u zasebnom build stageu prevodi kod naredbom `g++ -shared -fPIC` u `/app/native/libservice_fee.so`. Na stranici **Admin rezervacije** prva funkcionalnost računa 5% service fee za svaku `ACTIVE` rezervaciju, a druga računa ukupan service fee svih aktivnih rezervacija. `CANCELLED` rezervacije se ne računaju.
+
+Provjera nakon builda:
+
+```bash
+docker compose exec parking python -c "import service_fee; print(service_fee.native_library_loaded(), service_fee.LIBRARY_PATH)"
+```
+
+Očekuje se `True` i `/app/native/libservice_fee.so`.
+
 ## Dostupnost parkinga
 
 Parking se isključuje iz rezultata samo ako postoji `ACTIVE` rezervacija koja zadovoljava:
@@ -170,4 +187,4 @@ Seed kreira četiri parkinga u Zagrebu, Zadru i Splitu. Time se odmah mogu pokaz
 
 ## Zaključak
 
-Projekt ostaje na konzervativno procijenjenih **70 bodova**. Kriteriji 6, 11, 13, 14, 20, 23 i 25 povezani su sa stvarnim funkcionalnostima ParKING aplikacije umjesto s izdvojenim demonstracijskim ekranima.
+Projekt je sada konzervativno procijenjen na **75 bodova**. Kriteriji 6, 11, 13, 14, 20, 23, 25 i 28 povezani su sa stvarnim funkcionalnostima ParKING aplikacije umjesto s izdvojenim demonstracijskim ekranima.
