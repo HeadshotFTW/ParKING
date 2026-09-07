@@ -12,6 +12,14 @@
             <dt class="col-sm-3">{{ tr('common.price') }}</dt><dd class="col-sm-9">{{ "%.2f €" | format(parking.price_per_hour) }}</dd>
             <dt class="col-sm-3">{{ tr('common.owner') }}</dt><dd class="col-sm-9">{{ parking.owner.username }}</dd>
             <dt class="col-sm-3">{{ tr('common.description') }}</dt><dd class="col-sm-9">{{ parking.description or "-" }}</dd>
+            {% if weather %}
+                <dt class="col-sm-3">{{ 'Current weather' if lang == 'en' else 'Trenutačno vrijeme' }}</dt>
+                <dd class="col-sm-9">
+                    {{ weather.temperature if weather.temperature is not none else '—' }} °C
+                    · {{ 'wind' if lang == 'en' else 'vjetar' }} {{ weather.wind_speed if weather.wind_speed is not none else '—' }} km/h
+                    <span class="text-muted ms-1">(Open-Meteo · {{ weather.location }})</span>
+                </dd>
+            {% endif %}
         </dl>
 
         {% if request.args.get('start_time') and request.args.get('end_time') %}
