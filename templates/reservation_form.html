@@ -4,9 +4,9 @@
 <h1 class="h3 mb-3">{{ tr('reservation.title') }}: {{ parking.name }}</h1>
 <form method="post" class="card card-body">
     <label class="form-label">{{ tr('common.start') }}</label>
-    <input class="form-control mb-3" type="datetime-local" name="start_time" value="{{ request.form.get('start_time', request.args.get('start_time', '')) }}" required>
+    <input class="form-control mb-3 datetime-24h" type="text" name="start_time" value="{{ request.form.get('start_time', request.args.get('start_time', '')) }}" required>
     <label class="form-label">{{ tr('common.end') }}</label>
-    <input class="form-control mb-3" type="datetime-local" name="end_time" value="{{ request.form.get('end_time', request.args.get('end_time', '')) }}" required>
+    <input class="form-control mb-3 datetime-24h" type="text" name="end_time" value="{{ request.form.get('end_time', request.args.get('end_time', '')) }}" required>
     <div>
         <button class="btn btn-primary">{{ tr('reservation.submit') }}</button>
         <a class="btn btn-outline-secondary" href="{{ url_for('parking_detail', parking_id=parking.id, start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), location=request.args.get('location', ''), sort=request.args.get('sort', 'price_asc'), page=request.args.get('page', '1')) }}">{{ tr('common.cancel') }}</a>
