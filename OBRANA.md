@@ -79,29 +79,44 @@ Očekuje se HTTP `404 NOT FOUND`. Time se jasno pokazuje da glavna aplikacija na
 
 ## Preporučeni redoslijed demonstracije
 
-### 1. Osnovna aplikacija
+### 1. Osnovna aplikacija i dostupnost parkinga
 
 1. Prijava kao `gost`.
-2. Prikaz popisa parkinga.
-3. Filtriranje po lokaciji i sortiranje po cijeni.
-4. Otvaranje parkinga i rezervacija termina.
-5. Prikaz `Moje rezervacije` i izračunate ukupne cijene.
-6. Preuzimanje PDF potvrde rezervacije.
+2. Otvoriti **Dostupni parkinzi**.
+3. Zadati lokaciju te termin **Dostupno od / Dostupno do**.
+4. Pokazati da se vrijeme unosi u 24-satnom obliku, npr. `08.09.2026. 08:00` do `08.09.2026. 21:00`.
+5. Pokrenuti pretragu i objasniti da se prikazuju samo parkirna mjesta bez preklapajuće `ACTIVE` rezervacije.
+6. Po mogućnosti pokazati isti parking u dva termina: u zauzetom terminu ga nema, a neposredno prije ili nakon rezervacije ponovno je vidljiv.
+7. Sortirati rezultate po cijeni ili nazivu.
+8. Kliknuti **Detalji** i zatim **Rezerviraj**; pokazati da je odabrani termin već prenesen u formu rezervacije.
+9. Spremiti rezervaciju.
+10. Otvoriti **Moje rezervacije**, pokazati trajanje i izračunatu ukupnu cijenu.
+11. Preuzeti PDF potvrdu rezervacije.
 
-Pokazuje: forme/dijalozi, SQLite, povezane tablice, filtriranje, sortiranje, izračunato polje, lookup relacije i PDF master-detail izvještaj.
+Pravilo preklapanja koje koristi pretraga dostupnosti i spremanje rezervacije:
+
+```text
+postojeći početak < traženi završetak
+AND
+postojeći završetak > traženi početak
+```
+
+`CANCELLED` rezervacije ne blokiraju parking.
+
+Pokazuje: forme/dijalozi i prijenos podataka među njima, SQLite, povezane tablice, filtriranje po lokaciji i vremenskom kriteriju, sortiranje, izračunato polje, lookup relacije i PDF master-detail izvještaj.
 
 ### 2. HR / EN
 
-Prebaciti aplikaciju s HR na EN i otvoriti nekoliko stranica, uključujući tehničke stranice iz izbornika **Test**.
+Prebaciti aplikaciju s HR na EN i otvoriti nekoliko stranica, uključujući **Dostupni parkinzi** i tehničke stranice iz izbornika **Test**.
 
-Pokazuje: promjena jezika tijekom rada i više od pet prevedenih stranica.
+Pokazuje: promjena jezika tijekom rada i više od pet prevedenih stranica. Flatpickr ostaje u 24-satnom formatu; hrvatski prikaz koristi `dd.mm.YYYY. HH:mm`, a engleski `YYYY-mm-dd HH:mm`.
 
 ### 3. Administratorski CRUD i INI
 
 Prijava kao `admin`.
 
 1. `Users` — dodavanje ili uređivanje korisnika.
-2. `Admin reservations` — pregled/uređivanje rezervacija.
+2. `Admin reservations` — pregled/uređivanje rezervacija; datum i vrijeme također se unose 24-satnim pickerom.
 3. `Settings` — promjena `default_language` ili `items_per_page`.
 
 Pokazuje: CRUD nad tri SQL tablice i čitanje/pisanje INI postavki.
@@ -203,7 +218,7 @@ Na početku se vidi `PKAE`, a ostatak sadržaja nije čitljiv tekst.
 
 Kao korisnik `gost` otvoriti **Moje rezervacije** i na jednoj rezervaciji kliknuti **SHA-256**.
 
-Stranica izrađuje kontrolni otisak iz stvarnih podataka odabrane rezervacije: korisnika, parkinga, lokacije, početka i završetka, statusa, cijene po satu i ukupne cijene. Time SHA-256 nije odvojeni primjer, nego provjera integriteta podataka rezervacije.
+Stranica izrađuje kontrolni otisak iz stvarnih podataka odabrane rezervacije: ID-a rezervacije, korisnika, parkinga, lokacije, početka i završetka, statusa, cijene po satu i ukupne cijene. Time je SHA-256 dio funkcionalnosti provjere integriteta podataka rezervacije.
 
 Pokazati:
 
@@ -225,7 +240,8 @@ Za vlastiti REST servis računa se 4 boda jer nije posebno postavljen na IIS/Apa
 ```text
 models.py                 SQLAlchemy modeli
 app.py                    osnovne rute glavne web aplikacije
-run.py                    tehničke funkcionalnosti, REST klijent i proces A
+run.py                    tehničke funkcionalnosti i instalacija dostupnosti u /parkings
+parking_availability.py   filtriranje parkinga prema vremenskom intervalu
 api_app.py                zasebna REST Flask aplikacija na portu 5001
 start.sh                  pokretanje web i REST procesa u containeru
 parallel_tasks.py         ThreadPoolExecutor + Lock + Open-Meteo
@@ -235,6 +251,8 @@ crypto_store.py           AES-GCM
 hash_demo.py              SHA-256 integritet rezervacije, sol i papar
 json_store.py             JSON CRUD
 config.ini                INI postavke
+templates/base.html       Bootstrap + Flatpickr 24-satni picker
+templates/parkings.html   forma lokacije i vremenske dostupnosti
 seed.py                   reset i početni demo podaci
 ```
 
