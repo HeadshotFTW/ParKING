@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 import requests
-from flask import flash, render_template, request
+from flask import flash, redirect, render_template, request, url_for
 
 from app import app, admin_required, current_language, current_user, login_required, DB_PATH, DATA_DIR
 from binary_store import records_for_user
@@ -80,59 +80,74 @@ def admin_threads():
     return render_template("admin_threads.html", demo=demo, error=error)
 
 
-@app.route("/admin/process", methods=["GET", "POST"])
+def run_reservation_check():
+    """Run the reservation consistency worker as process B and return its result."""
+    worker = Path(__file__).resolve().parent / "reservation_worker.py"
+    command = [sys.executable, str(worker), str(DB_PATH)]
+
+    try:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=False,
+        )
+        messages_hr = {
+            0: "Sve rezervacije su prošle provjeru konzistentnosti.",
+            1: "Pronađeni su problemi u podacima rezervacija.",
+            2: "Provjera rezervacija završila je tehničkom greškom.",
+        }
+        messages_en = {
+            0: "All reservations passed the consistency check.",
+            1: "Problems were found in the reservation data.",
+            2: "The reservation check ended with a technical error.",
+        }
+        messages = messages_en if current_language() == "en" else messages_hr
+        return {
+            "returncode": completed.returncode,
+            "stdout": completed.stdout.strip(),
+            "stderr": completed.stderr.strip(),
+            "message": messages.get(
+                completed.returncode,
+                tech_text(
+                    "Proces provjere vratio je neočekivani kod.",
+                    "The check process returned an unexpected code.",
+                ),
+            ),
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "returncode": -1,
+            "stdout": "",
+            "stderr": tech_text(
+                "Provjera nije završila unutar 10 sekundi.",
+                "The check did not finish within 10 seconds.",
+            ),
+            "message": tech_text(
+                "Provjera rezervacija prekinuta je zbog isteka vremena.",
+                "The reservation check was stopped because it timed out.",
+            ),
+        }
+
+
+@app.route("/admin/reservations/check", methods=["POST"])
+@admin_required
+def admin_reservations_check():
+    result = run_reservation_check()
+    reservations = Reservation.query.order_by(Reservation.start_time.desc()).all()
+    return render_template(
+        "admin_reservations.html",
+        reservations=reservations,
+        process_result=result,
+    )
+
+
+@app.route("/admin/process")
 @admin_required
 def admin_process():
-    result = None
-    if request.method == "POST":
-        worker = Path(__file__).resolve().parent / "reservation_worker.py"
-        command = [sys.executable, str(worker), str(DB_PATH)]
-        if request.form.get("mode") == "error":
-            command.append("--simulate-error")
-
-        try:
-            completed = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                timeout=10,
-                check=False,
-            )
-            messages_hr = {
-                0: "Proces B uspješno je završio posao.",
-                1: "Proces B pronašao je problem u podacima.",
-                2: "Proces B završio je tehničkom greškom.",
-            }
-            messages_en = {
-                0: "Process B completed successfully.",
-                1: "Process B found a data problem.",
-                2: "Process B ended with a technical error.",
-            }
-            messages = messages_en if current_language() == "en" else messages_hr
-            result = {
-                "returncode": completed.returncode,
-                "stdout": completed.stdout.strip(),
-                "stderr": completed.stderr.strip(),
-                "message": messages.get(
-                    completed.returncode,
-                    tech_text("Proces B vratio je neočekivani kod.", "Process B returned an unexpected code."),
-                ),
-            }
-        except subprocess.TimeoutExpired:
-            result = {
-                "returncode": -1,
-                "stdout": "",
-                "stderr": tech_text(
-                    "Proces B nije završio unutar 10 sekundi.",
-                    "Process B did not finish within 10 seconds.",
-                ),
-                "message": tech_text(
-                    "Proces A prekinuo je čekanje zbog isteka vremena.",
-                    "Process A stopped waiting because the timeout expired.",
-                ),
-            }
-
-    return render_template("admin_process.html", result=result)
+    """Backward-compatible redirect from the former standalone process page."""
+    return redirect(url_for("admin_reservations"))
 
 
 @app.route("/search-history")
@@ -143,37 +158,80 @@ def binary_history():
     return render_template("binary_history.html", records=records)
 
 
-@app.route("/crypto", methods=["GET", "POST"])
+@app.route("/notes/backup", methods=["POST"])
+@login_required
+def notes_backup():
+    """Encrypt or decrypt the signed-in user's notes backup with AES-GCM."""
+    user = current_user()
+    output_path = EXPORT_DIR / f"notes_user_{user.id}.aes"
+    action = request.form.get("action", "")
+
+    try:
+        if action == "encrypt":
+            encrypt_notes(
+                list_notes(user.id),
+                app.config["SECRET_KEY"],
+                user.id,
+                output_path,
+            )
+            relative_path = output_path.relative_to(Path(__file__).resolve().parent)
+            flash(
+                tech_text(
+                    f"Šifrirana sigurnosna kopija bilješki spremljena je u {relative_path}.",
+                    f"Encrypted notes backup was saved to {relative_path}.",
+                ),
+                "success",
+            )
+            return redirect(url_for("notes"))
+
+        if action == "decrypt":
+            if not output_path.exists():
+                flash(
+                    tech_text(
+                        "Najprije izradite šifriranu sigurnosnu kopiju bilješki.",
+                        "Create an encrypted notes backup first.",
+                    ),
+                    "warning",
+                )
+                return redirect(url_for("notes"))
+
+            decrypted_backup = decrypt_notes(
+                app.config["SECRET_KEY"],
+                user.id,
+                output_path,
+            )
+            flash(
+                tech_text(
+                    "Sigurnosna kopija uspješno je dešifrirana i provjerena.",
+                    "The backup was successfully decrypted and verified.",
+                ),
+                "success",
+            )
+            return render_template(
+                "notes.html",
+                notes=list_notes(user.id),
+                decrypted_backup=decrypted_backup,
+            )
+
+        flash(
+            tech_text("Nepoznata radnja sigurnosne kopije.", "Unknown backup action."),
+            "danger",
+        )
+    except Exception as exc:
+        prefix = tech_text(
+            "Kriptografska operacija nije uspjela",
+            "Cryptographic operation failed",
+        )
+        flash(f"{prefix}: {exc}", "danger")
+
+    return redirect(url_for("notes"))
+
+
+@app.route("/crypto")
 @login_required
 def crypto_demo():
-    user = current_user()
-    encrypted_path = None
-    decrypted_notes = None
-    output_path = EXPORT_DIR / f"notes_user_{user.id}.aes"
-
-    if request.method == "POST":
-        action = request.form.get("action")
-        try:
-            if action == "encrypt":
-                notes = list_notes(user.id)
-                encrypt_notes(notes, app.config["SECRET_KEY"], user.id, output_path)
-                encrypted_path = str(output_path.relative_to(Path(__file__).resolve().parent))
-                flash(tech_text("Bilješke su uspješno šifrirane AES-GCM algoritmom.", "Notes were successfully encrypted with AES-GCM."), "success")
-            elif action == "decrypt":
-                if not output_path.exists():
-                    flash(tech_text("Najprije izradite šifriranu sigurnosnu kopiju.", "Create an encrypted backup first."), "warning")
-                else:
-                    decrypted_notes = decrypt_notes(app.config["SECRET_KEY"], user.id, output_path)
-                    flash(tech_text("Šifrirana datoteka je uspješno dešifrirana.", "The encrypted file was successfully decrypted."), "success")
-        except Exception as exc:
-            prefix = tech_text("Kriptografska operacija nije uspjela", "Cryptographic operation failed")
-            flash(f"{prefix}: {exc}", "danger")
-
-    return render_template(
-        "crypto.html",
-        encrypted_path=encrypted_path,
-        decrypted_notes=decrypted_notes,
-    )
+    """Backward-compatible redirect from the former standalone AES page."""
+    return redirect(url_for("notes"))
 
 
 @app.route("/hash", methods=["GET", "POST"])
