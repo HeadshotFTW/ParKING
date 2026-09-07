@@ -24,6 +24,7 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - Open-Meteo vremenski podaci prikazani uz stvarne parkinge
 - ThreadPoolExecutor + `threading.Lock` za paralelni dohvat vremenskih podataka
 - vlastiti REST API s Bearer autentifikacijom i autorizacijom
+- vlastita C++ dinamička biblioteka (`.so`) za izračun service fee naknade
 
 ## Dostupnost parkinga prema terminu
 
@@ -122,6 +123,18 @@ Worker provjerava neispravne vremenske intervale i preklapanja `ACTIVE` rezervac
 
 Glavna aplikacija čita `returncode`, `stdout` i `stderr` te rezultat prikazuje izravno iznad tablice rezervacija. Zasebna stranica **Procesi** više se ne koristi.
 
+## Dinamička biblioteka za service fee
+
+`native/service_fee.cpp` sadrži C++ klasu `ServiceFeeCalculator`. Biblioteka ima dvije računske funkcionalnosti: izračun service fee naknade jedne rezervacije i zbroj service fee naknada više rezervacija.
+
+Docker build iz izvornog koda stvara Linux dinamičku biblioteku:
+
+```text
+native/libservice_fee.so
+```
+
+Python modul `service_fee.py` učitava biblioteku pomoću `ctypes`. Naknada je 5% ukupne cijene rezervacije. Na stranici **Admin rezervacije** svaka `ACTIVE` rezervacija prikazuje svoj service fee, a iznad tablice prikazuje se zbroj service feeova svih aktivnih rezervacija. `CANCELLED` rezervacije ne ulaze u ukupan iznos naknade.
+
 ## Vlastiti REST servis
 
 Glavna web aplikacija radi na portu `5000`, a vlastiti REST servis kao zasebna Flask aplikacija/proces na portu `5001`.
@@ -154,6 +167,9 @@ ParKING/
 ├── hash_demo.py
 ├── parallel_tasks.py
 ├── reservation_worker.py
+├── service_fee.py
+├── native/
+│   └── service_fee.cpp
 ├── models.py
 ├── json_store.py
 ├── translations.py
