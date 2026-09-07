@@ -66,11 +66,15 @@ ReportLab generira PDF potvrdu rezervacije s podacima iz tablica `reservations`,
 
 Open-Meteo dohvat koristi se i u glavnom toku aplikacije. Na stranici **Dostupni parkinzi** grad se automatski izdvaja iz lokacije parkinga; za gradove koji nisu unaprijed poznati koordinate se dohvaćaju preko Open-Meteo Geocoding API-ja uz `countryCode=HR`. Tako se vremenski podaci mogu prikazati za bilo koji hrvatski grad koji servis prepoznaje, primjerice Zadar ili Split.
 
-Ako je prikazano više različitih gradova, vremenski podaci dohvaćaju se paralelno pomoću `ThreadPoolExecutor`, a više parkinga u istom gradu koristi isti rezultat jednog HTTP poziva. Administratorska stranica **Test → Dretve** zadržana je kao detaljan pregled i koristi `ThreadPoolExecutor(max_workers=3)` za Zagreb, Samobor i Veliku Goricu te prikazuje nazive radnih dretvi, sekvencijalno i paralelno vrijeme i faktor ubrzanja.
+Ako je prikazano više različitih gradova, vremenski podaci dohvaćaju se paralelno pomoću `ThreadPoolExecutor`, a više parkinga u istom gradu koristi isti rezultat jednog HTTP poziva.
+
+Administratorska stranica **Test → Dretve** više ne koristi tri statički zadana grada. `run.py` čita stvarne lokacije iz tablice `parking_spots`, `parallel_tasks.py` iz njih izdvaja jedinstvene gradove, a isti se gradovi dohvaćaju najprije sekvencijalno pa paralelno uz najviše tri radne dretve. Stranica prikazuje pronađene gradove, nazive radnih dretvi, sekvencijalno/paralelno vrijeme i faktor ubrzanja. `seed.py` kreira parkinge u Zagrebu, Zadru i Splitu, pa se nakon seeda mogu pokazati najmanje tri neovisna mrežna zadatka.
 
 ## 13. Sinkronizacija dretvi — 2 boda
 
 `fetch_weather()` nakon svakog Open-Meteo poziva zapisuje rezultat u zajednički `_request_log`. Taj zapis je kritična sekcija i zaštićen je pomoću `threading.Lock`, tako da više dretvi ne mijenja zajednički zapisnik istodobno. Isti Lock koristi se i kod resetiranja zapisnika, izrade njegove kopije i zaštite cachea geokodiranih lokacija.
+
+Tekstualni blok **Sinkronizacija** uklonjen je sa stranice **Test → Dretve**, ali implementacija `threading.Lock` ostaje nepromijenjena u kodu.
 
 ## 14. Komunikacija između procesa — 4 boda
 
