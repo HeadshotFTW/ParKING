@@ -35,8 +35,22 @@ def seed():
             price_per_hour=1.50,
             description="Mirno parkirno mjesto uz tramvajsku stanicu.",
         )
+        zadar = ParkingSpot(
+            owner_id=owner.id,
+            name="Parking Zadar Centar",
+            location="Zadar, Obala kneza Branimira 10",
+            price_per_hour=2.00,
+            description="Privatni parking u blizini centra Zadra.",
+        )
+        split = ParkingSpot(
+            owner_id=owner.id,
+            name="Parking Split",
+            location="Split, Vukovarska 15",
+            price_per_hour=2.20,
+            description="Privatno parkirno mjesto u Splitu.",
+        )
 
-        db.session.add_all([center, tresnjevka])
+        db.session.add_all([center, tresnjevka, zadar, split])
         db.session.flush()
 
         start = (datetime.now() + timedelta(days=1)).replace(minute=0, second=0, microsecond=0)
@@ -50,10 +64,11 @@ def seed():
         db.session.add(reservation)
         db.session.commit()
 
-        print("Demo podaci su kreirani.")
+        print("Početni podaci su kreirani.")
         print("vlasnik / parking123")
         print("gost     / parking123")
         print("admin    / admin123")
+        print("Parkinzi: Zagreb (2), Zadar (1), Split (1)")
 
 
 if __name__ == "__main__":
