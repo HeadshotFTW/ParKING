@@ -11,7 +11,6 @@ from crypto_store import decrypt_notes, encrypt_notes
 from hash_demo import create_demo_hash, verify_by_full_pepper_scan
 from json_store import list_notes
 from parallel_tasks import run_thread_demo
-import demo_routes  # noqa: F401 - registrira admin rute za demo import/export
 
 
 BINARY_HISTORY_PATH = DATA_DIR / "search_history.bin"
@@ -125,8 +124,7 @@ def admin_process():
                 ),
                 "message": tech_text(
                     "Proces A prekinuo je čekanje zbog isteka vremena.",
-                    "Process A stopped waiting because the timeout expired.",
-                ),
+                    "Process A stopped waiting because the timeout expired."),
             }
 
     return render_template("admin_process.html", result=result)
