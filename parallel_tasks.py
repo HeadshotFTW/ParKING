@@ -17,6 +17,15 @@ _request_log = []
 _request_log_lock = threading.Lock()
 
 
+def weather_location_for_parking(location_text):
+    """Poveži tekstualnu lokaciju parkinga s podržanom Open-Meteo lokacijom."""
+    normalized = (location_text or "").casefold()
+    for location in WEATHER_LOCATIONS:
+        if location["name"].casefold() in normalized:
+            return location
+    return None
+
+
 def fetch_weather(location):
     """Dohvati trenutačno vrijeme iz Open-Meteo REST servisa."""
     started = time.perf_counter()
@@ -52,6 +61,41 @@ def fetch_weather(location):
         })
 
     return result
+
+
+def fetch_weather_for_parking(location_text):
+    """Dohvati vrijeme za jednu lokaciju parkinga ako je grad podržan."""
+    location = weather_location_for_parking(location_text)
+    return fetch_weather(location) if location is not None else None
+
+
+def fetch_weather_for_parking_locations(location_texts):
+    """Paralelno dohvati vrijeme za jedinstvene gradove prikazanih parkinga."""
+    matched_locations = {}
+    for location_text in location_texts:
+        location = weather_location_for_parking(location_text)
+        if location is not None:
+            matched_locations[location["name"]] = location
+
+    if not matched_locations:
+        return {}
+
+    results = {}
+    workers = min(3, len(matched_locations))
+    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="parking-weather") as executor:
+        futures = {
+            executor.submit(fetch_weather, location): name
+            for name, location in matched_locations.items()
+        }
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                results[name] = future.result()
+            except Exception as exc:
+                # Nedostupnost vremenskog servisa ne smije srušiti popis parkinga.
+                results[name] = {"location": name, "error": str(exc)}
+
+    return results
 
 
 def run_sequential_weather():
