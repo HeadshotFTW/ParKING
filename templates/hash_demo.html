@@ -6,9 +6,9 @@
 </h1>
 <p class="text-muted mb-4">
     {% if lang == 'en' %}
-        ParKING creates a SHA-256 fingerprint from the reservation data. The fingerprint can be compared with the value printed on the PDF confirmation to detect whether the reservation data has changed.
+        ParKING creates a SHA-256 fingerprint from the current reservation data. If any relevant reservation value changes, the fingerprint changes as well.
     {% else %}
-        ParKING izrađuje SHA-256 kontrolni otisak iz podataka rezervacije. Otisak se može usporediti s vrijednošću na PDF potvrdi kako bi se provjerilo jesu li se podaci rezervacije promijenili.
+        ParKING izrađuje SHA-256 kontrolni otisak iz trenutačnih podataka rezervacije. Ako se promijeni bilo koji relevantan podatak rezervacije, mijenja se i kontrolni otisak.
     {% endif %}
 </p>
 
@@ -66,14 +66,14 @@
 <form method="post" class="card card-body mb-4">
     <input type="hidden" name="reservation_id" value="{{ reservation.id }}">
     <label class="form-label" for="expected_digest">
-        {{ 'SHA-256 sažetak za provjeru' if lang == 'hr' else 'SHA-256 digest to verify' }}
+        {{ 'Kontrolni otisak za provjeru' if lang == 'hr' else 'Fingerprint to verify' }}
     </label>
     <input class="form-control font-monospace mb-2" id="expected_digest" name="expected_digest" value="{{ expected_digest }}" maxlength="64" required>
     <div class="form-text mb-3">
         {% if lang == 'en' %}
-            Use the fingerprint from the PDF confirmation. If the reservation data has changed, the verification will fail.
+            The current fingerprint is filled in automatically. You can also paste a previously saved fingerprint; verification fails if the reservation data no longer matches it.
         {% else %}
-            Upotrijebite kontrolni otisak s PDF potvrde. Ako su se podaci rezervacije promijenili, provjera neće uspjeti.
+            Trenutačni kontrolni otisak automatski je upisan. Možete zalijepiti i ranije spremljeni otisak; provjera neće uspjeti ako mu trenutačni podaci rezervacije više ne odgovaraju.
         {% endif %}
     </div>
     <button class="btn btn-primary" type="submit">
