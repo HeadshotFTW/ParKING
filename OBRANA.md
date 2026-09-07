@@ -199,17 +199,20 @@ xxd exports/notes_user_3.aes | head
 
 Na početku se vidi `PKAE`, a ostatak sadržaja nije čitljiv tekst.
 
-### 11. Test → SHA-256
+### 11. Moje rezervacije → SHA-256
 
-Unijeti primjer teksta i kliknuti **Izračunaj i provjeri**.
+Kao korisnik `gost` otvoriti **Moje rezervacije** i na jednoj rezervaciji kliknuti **SHA-256**.
+
+Stranica izrađuje kontrolni otisak iz stvarnih podataka odabrane rezervacije: korisnika, parkinga, lokacije, početka i završetka, statusa, cijene po satu i ukupne cijene. Time SHA-256 nije odvojeni primjer, nego provjera integriteta podataka rezervacije.
 
 Pokazati:
 
-- SHA-256,
+- SHA-256 kontrolni otisak rezervacije,
 - promjenjivu sol izvedenu pravilom iz `user_id` i `username`, bez spremanja soli,
 - papar iz raspona `0–255`,
 - provjeru svih `256` mogućih vrijednosti,
-- pronađenu vrijednost papra.
+- uspješnu provjeru trenutačnog kontrolnog otiska,
+- po želji promijeniti jedan znak u kontrolnom otisku i pokazati da provjera više ne prolazi.
 
 ## Bodovna procjena
 
@@ -222,14 +225,14 @@ Za vlastiti REST servis računa se 4 boda jer nije posebno postavljen na IIS/Apa
 ```text
 models.py                 SQLAlchemy modeli
 app.py                    osnovne rute glavne web aplikacije
-run.py                    tehničke demonstracije, REST klijent i proces A
+run.py                    tehničke funkcionalnosti, REST klijent i proces A
 api_app.py                zasebna REST Flask aplikacija na portu 5001
 start.sh                  pokretanje web i REST procesa u containeru
 parallel_tasks.py         ThreadPoolExecutor + Lock + Open-Meteo
 reservation_worker.py     proces B i izlazni kodovi
 binary_store.py           prilagođeni binarni format
 crypto_store.py           AES-GCM
-hash_demo.py              SHA-256, promjenjiva sol i papar
+hash_demo.py              SHA-256 integritet rezervacije, sol i papar
 json_store.py             JSON CRUD
 config.ini                INI postavke
 seed.py                   reset i početni demo podaci
