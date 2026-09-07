@@ -64,11 +64,13 @@ ReportLab generira PDF potvrdu rezervacije s podacima iz tablica `reservations`,
 
 ## 11. Paralelno izvršavanje dretvama — 5 bodova
 
-`ThreadPoolExecutor(max_workers=3)` paralelno dohvaća Open-Meteo podatke za Zagreb, Samobor i Veliku Goricu. Stranica **Test → Dretve** prikazuje radne dretve, sekvencijalno/paralelno vrijeme i ubrzanje.
+Open-Meteo dohvat sada se koristi i u glavnom toku aplikacije. Na stranici **Dostupni parkinzi** vremenski podaci za različite gradove prikazanih parkinga dohvaćaju se paralelno pomoću `ThreadPoolExecutor`. Podržane lokacije su Zagreb, Samobor i Velika Gorica, a više parkinga u istom gradu koristi isti rezultat jednog HTTP poziva.
+
+Administratorska stranica **Test → Dretve** zadržana je kao detaljan pregled iste implementacije i koristi `ThreadPoolExecutor(max_workers=3)` za sva tri grada. Prikazuje nazive radnih dretvi, sekvencijalno i paralelno vrijeme te faktor ubrzanja.
 
 ## 13. Sinkronizacija dretvi — 2 boda
 
-`threading.Lock` štiti zajednički zapisnik HTTP zahtjeva od istodobnog nekontroliranog mijenjanja iz više dretvi.
+`fetch_weather()` nakon svakog Open-Meteo poziva zapisuje rezultat u zajednički `_request_log`. Taj zapis je kritična sekcija i zaštićen je pomoću `threading.Lock`, tako da više dretvi ne mijenja zajednički zapisnik istodobno. Isti Lock koristi se i kod resetiranja zapisnika i izrade njegove kopije.
 
 ## 14. Komunikacija između procesa — 4 boda
 
@@ -86,7 +88,9 @@ Proces A čita `returncode`, `stdout` i `stderr` te rezultat prikazuje izravno i
 
 ## 20. Udaljeni REST servis — 3 boda
 
-Aplikacija HTTP zahtjevima dohvaća vremenske podatke s udaljenog Open-Meteo REST servisa. Pozivi se koriste zajedno s implementacijom dretvi.
+Aplikacija HTTP zahtjevima dohvaća trenutačne vremenske podatke s udaljenog Open-Meteo REST servisa. Podaci nisu samo tehnički prikaz: temperatura i brzina vjetra prikazuju se uz stvarne parkinge na **Dostupni parkinzi** i na **Detalji parkinga** za podržane gradove. Isti REST pozivi koriste se i u paralelnoj implementaciji dretvi.
+
+Ako je Open-Meteo privremeno nedostupan, parking stranice ostaju funkcionalne i samo izostavljaju vremenski podatak.
 
 ## 21. Vlastiti REST servis i klijent — 4 boda
 
