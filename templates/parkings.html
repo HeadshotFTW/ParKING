@@ -61,6 +61,19 @@
                 <h2 class="h5">{{ parking.name }}</h2>
                 <div class="text-muted mb-2">{{ parking.location }}</div>
                 <div class="fw-bold mb-2">{{ "%.2f €" | format(parking.price_per_hour) }}</div>
+
+                {% set weather = parking_weather.get(parking.id) if parking_weather is defined else none %}
+                {% if weather %}
+                <div class="border rounded bg-light px-3 py-2 mb-3 small">
+                    <div class="fw-semibold">{{ 'Current weather' if lang == 'en' else 'Trenutačno vrijeme' }}</div>
+                    <div>
+                        {{ weather.temperature if weather.temperature is not none else '—' }} °C
+                        · {{ 'wind' if lang == 'en' else 'vjetar' }} {{ weather.wind_speed if weather.wind_speed is not none else '—' }} km/h
+                    </div>
+                    <div class="text-muted">Open-Meteo · {{ weather.location }}</div>
+                </div>
+                {% endif %}
+
                 <p>{{ parking.description or "" }}</p>
                 <a class="btn btn-outline-primary" href="{{ url_for('parking_detail', parking_id=parking.id, location=location, sort=sort, start_time=start_time, end_time=end_time, max_price=max_price, page=page) }}">{{ tr('common.details') }}</a>
             </div>
