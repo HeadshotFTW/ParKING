@@ -23,11 +23,14 @@ def _read_exact(handle, size, error_message):
 
 
 def _record(user_id, timestamp, max_price, location, start_time="", end_time="", sort="price_asc"):
+    normalized_max_price = None
+    if max_price is not None and float(max_price) >= 0:
+        normalized_max_price = float(max_price)
     return {
         "user_id": int(user_id),
         "timestamp": int(timestamp),
         "created_at": datetime.fromtimestamp(int(timestamp), tz=timezone.utc),
-        "max_price": None if float(max_price) < 0 else float(max_price),
+        "max_price": normalized_max_price,
         "location": location,
         "start_time": start_time,
         "end_time": end_time,
