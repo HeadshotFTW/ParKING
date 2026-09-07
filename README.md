@@ -2,15 +2,15 @@
 
 ParKING je web aplikacija razvijena u Python Flask frameworku koja korisnicima omogućuje oglašavanje i rezervaciju privatnih parkirnih mjesta.
 
-Projekt je namjerno zadržan malim i preglednim kako bi svaka implementirana funkcionalnost bila jednostavna za demonstraciju i obranu.
+Projekt je zadržan malim i preglednim, ali su glavne funkcionalnosti međusobno povezane tako da aplikacija prati stvarni tok rezervacije parkinga: korisnik traži parking za određeni termin, provjerava dostupnost, rezervira ga, prati svoje rezervacije i po potrebi preuzima PDF potvrdu ili provjerava integritet podataka rezervacije.
 
 ## Faza 1
 
-Osnovna verzija podržava registraciju korisnika, prijavu i odjavu, pregled i filtriranje parkinga, CRUD nad parking mjestima, rezervacije, provjeru preklapanja termina, izračun cijene i SQLite bazu.
+Osnovna verzija podržava registraciju korisnika, prijavu i odjavu, pregled parkinga, filtriranje i sortiranje, CRUD nad parking mjestima, rezervacije, provjeru preklapanja termina, izračun cijene i SQLite bazu.
 
 ## Faza 2
 
-Dodana je administratorska funkcionalnost za jasno demonstriranje CRUD operacija nad tri tablice baze: `users`, `parking_spots` i `reservations`.
+Dodana je administratorska funkcionalnost za CRUD operacije nad tri tablice baze: `users`, `parking_spots` i `reservations`.
 
 ## Faza 3
 
@@ -22,11 +22,11 @@ Dodani su BLOB spremanje slike parkinga u SQLite i PDF potvrda rezervacije s mas
 
 ## Faza 5
 
-Dodana je demonstracija paralelnog izvršavanja tri mrežna REST zadatka pomoću `ThreadPoolExecutor(max_workers=3)`, usporedba sekvencijalnog i paralelnog vremena te zaštita zajedničkog zapisnika pomoću `threading.Lock`. Koristi se udaljeni Open-Meteo REST servis.
+Dodano je paralelno izvršavanje tri mrežna REST zadatka pomoću `ThreadPoolExecutor(max_workers=3)`, usporedba sekvencijalnog i paralelnog vremena te zaštita zajedničkog zapisnika pomoću `threading.Lock`. Koristi se udaljeni Open-Meteo REST servis.
 
 ## Faza 6
 
-Dodana je demonstracija komunikacije između dva procesa:
+Dodana je komunikacija između dva procesa:
 
 - proces A je Flask aplikacija (`run.py`)
 - proces A pokreće proces B pomoću `subprocess.run`
@@ -36,7 +36,7 @@ Dodana je demonstracija komunikacije između dva procesa:
 - povratni kod `1` znači da su pronađeni problemi u rezervacijama
 - povratni kod `2` znači tehničku grešku
 - administratorska stranica **Procesi** prikazuje povratni kod, `stdout`, `stderr` i odgovarajuću poruku korisniku
-- dostupan je i gumb za kontroliranu simulaciju tehničke greške kako bi se na obrani jasno demonstrirala obrada nenultog povratnog koda
+- dostupan je i gumb za kontroliranu simulaciju tehničke greške
 
 ## Faza 7
 
@@ -57,7 +57,7 @@ Dodano je simetrično šifriranje i dešifriranje korisničkih bilješki pomoću
 - za svaki izvoz generira se novi slučajni 12-bajtni nonce
 - AES ključ se izvodi iz aplikacijske tajne i ID-a korisnika
 - ista stranica može dešifrirati datoteku i prikazati izvorne bilješke
-- ne šifriraju se korisničke lozinke
+- korisničke lozinke nisu reverzibilno šifrirane
 
 ## Faza 10
 
@@ -71,6 +71,29 @@ SHA-256 je povezan s rezervacijama kao provjera integriteta podataka:
 - koristi se papar iz raspona `0-255` (zadano 137, moguće promijeniti varijablom `HASH_DEMO_PEPPER`)
 - provjera prolazi kroz svih 256 mogućih vrijednosti papra i potvrđuje odgovara li zadani kontrolni otisak trenutačnim podacima rezervacije
 
+## Faza 11
+
+Pretraga parkinga proširena je stvarnom provjerom dostupnosti u vremenskom intervalu.
+
+Na stranici **Dostupni parkinzi** korisnik unosi:
+
+- lokaciju
+- početak željenog termina
+- završetak željenog termina
+- način sortiranja
+
+Aplikacija prikazuje samo parkirna mjesta koja nemaju `ACTIVE` rezervaciju koja se preklapa s traženim intervalom. Otkazane (`CANCELLED`) rezervacije ne blokiraju dostupnost. Provjera koristi isto pravilo preklapanja kao i spremanje nove rezervacije:
+
+```text
+postojeći početak < traženi završetak
+AND
+postojeći završetak > traženi početak
+```
+
+Odabrani termin prenosi se s popisa parkinga na detalje parkinga i dalje na formu za rezervaciju, pa korisnik ne mora ponovno unositi datum i vrijeme.
+
+Unos datuma i vremena koristi Flatpickr u 24-satnom formatu. Hrvatsko sučelje prikazuje npr. `08.09.2026. 21:00`, a backend i dalje prima ISO vrijednost oblika `2026-09-08T21:00`. Isti 24-satni unos koristi se na pretrazi dostupnosti, korisničkoj rezervaciji i administratorskoj formi rezervacije.
+
 ## Struktura projekta
 
 ```text
@@ -79,6 +102,7 @@ ParKING/
 ├── run.py
 ├── api_app.py
 ├── start.sh
+├── parking_availability.py
 ├── binary_store.py
 ├── crypto_store.py
 ├── hash_demo.py
@@ -95,6 +119,8 @@ ParKING/
 ├── INSTALL_UBUNTU.md
 ├── INSTALL_WINDOWS.md
 ├── OBRANA.md
+├── AUDIT.md
+├── README_IMPLEMENTIRANO.md
 ├── templates/
 ├── static/
 ├── data/
@@ -128,6 +154,12 @@ Health provjera:
 ```bash
 curl http://localhost:5001/api/health
 ```
+
+## Osnovni korisnički tok
+
+Nakon prijave otvoriti **Dostupni parkinzi**, odabrati početak i završetak željenog termina u 24-satnom formatu te pokrenuti pretragu. Prikazuju se samo parking mjesta dostupna tijekom cijelog zadanog intervala. Termin se zatim prenosi kroz **Detalji → Rezerviraj**.
+
+Nakon rezervacije korisnik na stranici **Moje rezervacije** može vidjeti trajanje, ukupnu cijenu i status rezervacije, preuzeti PDF potvrdu te otvoriti SHA-256 provjeru integriteta rezervacije.
 
 ## Ažuriranje nakon promjena na GitHubu
 
