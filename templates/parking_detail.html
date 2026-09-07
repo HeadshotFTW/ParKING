@@ -25,9 +25,9 @@
         {% endif %}
 
         {% if current_user and parking.owner_id != current_user.id %}
-            <a class="btn btn-primary" href="{{ url_for('reserve', parking_id=parking.id, start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), location=request.args.get('location', ''), sort=request.args.get('sort', 'price_asc'), page=request.args.get('page', '1')) }}">{{ tr('parking_detail.reserve') }}</a>
+            <a class="btn btn-primary" href="{{ url_for('reserve', parking_id=parking.id, start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), location=request.args.get('location', ''), max_price=request.args.get('max_price', ''), sort=request.args.get('sort', 'price_asc'), page=request.args.get('page', '1')) }}">{{ tr('parking_detail.reserve') }}</a>
         {% endif %}
-        <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=request.args.get('location', ''), sort=request.args.get('sort', 'price_asc'), start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), page=request.args.get('page', '1')) }}">{{ tr('common.back') }}</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('parkings', location=request.args.get('location', ''), sort=request.args.get('sort', 'price_asc'), start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), max_price=request.args.get('max_price', ''), page=request.args.get('page', '1')) }}">{{ tr('common.back') }}</a>
     </div>
 </div>
 {% endblock %}
