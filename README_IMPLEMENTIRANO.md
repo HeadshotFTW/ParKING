@@ -2,7 +2,7 @@
 
 Ovaj dokument navodi samo funkcionalnosti koje su implementirane i koje se računaju u popunjenoj prijavnici.
 
-**Konzervativna procjena: 70 bodova.**
+**Konzervativna procjena: 75 bodova.**
 
 ## 1. Korisničke klase — 3 boda
 
@@ -141,10 +141,27 @@ SHA256("ParKING-SHA256-salt:<user_id>:<username>")[0:16]
 
 Koristi se papar iz raspona `0-255`, a provjera prolazi kroz svih 256 mogućih vrijednosti i koristi `hmac.compare_digest`.
 
+## 28. Dinamička biblioteka — 5 bodova
+
+Aplikacija koristi vlastitu C++ dinamičku biblioteku za izračun naknade platforme. Izvorni kod je u `native/service_fee.cpp`, a Docker build ga prevodi u Linux shared object `native/libservice_fee.so` pomoću `g++ -shared -fPIC`.
+
+Biblioteka sadrži klasu `ServiceFeeCalculator` s dvije metode:
+
+```text
+calculateFee(...)        → service fee jedne rezervacije
+calculateTotalFees(...)  → zbroj service feeova više rezervacija
+```
+
+Za povezivanje s Pythonom biblioteka izvozi C sučelje `parking_calculate_service_fee` i `parking_calculate_total_service_fees`. Modul `service_fee.py` učitava `.so` tijekom rada aplikacije pomoću `ctypes` i definira postotak naknade od 5%.
+
+Na stranici **Admin rezervacije** za svaku `ACTIVE` rezervaciju prikazuje se pojedinačni service fee, dok se iznad tablice prikazuje ukupan service fee svih aktivnih rezervacija. Pojedinačni izračun koristi prvu funkciju, a ukupni izračun drugu funkciju iz dinamičke biblioteke. `CANCELLED` rezervacije ne ulaze u ukupan service fee.
+
+Python modul ima rezervni izračun ako se aplikacija pokrene izvan Docker okruženja bez izgrađene native biblioteke, ali standardni Docker build uvijek kompajlira i kopira `.so` u runtime image.
+
 ## Zbroj
 
 ```text
-3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 4 + 3 + 4 + 4 + 2 + 7 = 70
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 4 + 3 + 4 + 4 + 2 + 7 + 5 = 75
 ```
 
-Ne računaju se kriterij 12 niti neimplementirani kriteriji 15–19, 24, 26 i 27–30.
+Ne računaju se kriterij 12 niti neimplementirani kriteriji 15–19, 24, 26, 27, 29 i 30.
