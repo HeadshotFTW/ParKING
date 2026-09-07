@@ -63,7 +63,7 @@ Ako je na istoj stranici prikazano više različitih gradova, `parking_availabil
 
 `fetch_weather()` nakon završetka zahtjeva zapisuje podatke u zajednički `_request_log`. Taj zajednički resurs zaštićen je s `threading.Lock`, pa više dretvi ne mijenja zapisnik istodobno. Ako Open-Meteo privremeno nije dostupan ili lokacija nije prepoznata, popis i detalji parkinga i dalje se prikazuju bez vremenskog podatka.
 
-Administratorska stranica **Test → Dretve** ostaje kao detaljan prikaz iste mrežne funkcionalnosti: prikazuje sekvencijalno i paralelno vrijeme, nazive radnih dretvi i faktor ubrzanja za Zagreb, Samobor i Veliku Goricu.
+Administratorska stranica **Test → Dretve** više ne koristi tri unaprijed zadana grada kao ulaz. Gradovi se dohvaćaju iz stvarnih lokacija objavljenih parkinga u bazi, uklanjaju se duplikati, a isti skup gradova izvršava se najprije sekvencijalno pa paralelno kroz `ThreadPoolExecutor` s najviše tri radne dretve. Na stranici se prikazuju pronađeni gradovi, vremena izvođenja, ubrzanje i naziv dretve za svaki rezultat. Tekstualni blok **Sinkronizacija** uklonjen je sa stranice, ali `threading.Lock` i dalje ostaje u kodu i štiti kritičnu sekciju zajedničkog zapisnika.
 
 ## Povijest pretraga i vlastiti binarni format
 
@@ -207,7 +207,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, parkinge i rezervaciju. Oba početna parkinga nalaze se u Zagrebu, pa se nakon pokretanja Open-Meteo podatak odmah vidi uz njihove kartice i detalje.
+`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, četiri parkinga i jednu rezervaciju. Početni parkingi nalaze se u Zagrebu, Zadru i Splitu, pa **Test → Dretve** nakon seeda automatski dobiva najmanje tri različita grada za usporedbu sekvencijalnog i paralelnog izvođenja.
 
 ## Ažuriranje nakon promjena
 
