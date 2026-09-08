@@ -1,6 +1,6 @@
 # ParKING
 
-ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirnih mjesta. Glavne funkcionalnosti povezane su u jedan stvarni korisnički tok: korisnik traži parking za određeni termin, provjerava dostupnost, vidi trenutačne vremenske podatke za lokaciju, rezervira parking, prati rezervacije i koristi dodatne funkcije poput PDF potvrde, SHA-256 provjere, povijesti pretraga i šifriranih sigurnosnih kopija bilješki.
+ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirnih mjesta. Korisnik može pretražiti parking za određeni termin, provjeriti dostupnost, vidjeti vremenske podatke za lokaciju, rezervirati parking i upravljati svojim rezervacijama.
 
 ## Glavne funkcionalnosti
 
@@ -14,23 +14,20 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - administratorski CRUD nad korisnicima i rezervacijama
 - HR/EN sučelje
 - INI postavke u `config.ini`
-- JSON CRUD korisničkih bilješki
+- JSON CRUD korisničkih vozila u `data/vehicles.json`
 - BLOB fotografije parkinga u bazi
 - PDF potvrda rezervacije
-- stvarna binarna povijest pretraga u vlastitom `PKSR` formatu
-- AES-GCM sigurnosna kopija bilješki integrirana u stranicu **Bilješke**
+- vlastiti binarni format povijesti pretraga (`PKSR`)
+- AES-GCM šifrirane privatne pristupne upute parkinga
 - SHA-256 provjera integriteta rezervacije bez soli i papra
-- sigurnosni kod za otvaranje šifrirane kopije s promjenjivom soli i provjerom papra 0–255
-- Open-Meteo vremenski podaci prikazani uz stvarne parkinge
-- ThreadPoolExecutor + `threading.Lock` za paralelni dohvat vremenskih podataka
+- Open-Meteo vremenski podaci uz stvarne parkinge
+- `ThreadPoolExecutor` + `threading.Lock`
 - vlastiti REST API s Bearer autentifikacijom i autorizacijom
 - vlastita C++ dinamička biblioteka (`.so`) za izračun service fee naknade
 
 ## Dostupnost parkinga prema terminu
 
-Na stranici **Dostupni parkinzi** korisnik zadaje lokaciju, početak i završetak termina, opcionalnu maksimalnu cijenu po satu i sortiranje.
-
-Parking se prikazuje ako nema `ACTIVE` rezervaciju koja se preklapa s traženim intervalom. Koristi se pravilo:
+Parking se prikazuje ako nema `ACTIVE` rezervaciju koja se preklapa s traženim intervalom:
 
 ```text
 postojeći početak < traženi završetak
@@ -38,75 +35,81 @@ AND
 postojeći završetak > traženi početak
 ```
 
-`CANCELLED` rezervacije ne blokiraju dostupnost. Odabrani termin prenosi se kroz **Detalji → Rezerviraj**, pa ga korisnik ne mora ponovno unositi.
+`CANCELLED` rezervacije ne blokiraju dostupnost. Termin odabran na pretrazi prenosi se kroz **Detalji → Rezerviraj**.
 
-## Vremenski podaci uz parkinge
+## Moja vozila — JSON CRUD
 
-Na karticama pod **Dostupni parkinzi** i na stranici **Detalji parkinga** prikazuju se trenutačna temperatura i brzina vjetra za grad parkinga.
-
-Grad se automatski izdvaja iz tekstualne lokacije parkinga i, ako nije jedna od unaprijed poznatih lokacija, pretvara u koordinate preko Open-Meteo Geocoding API-ja. Geokodiranje je ograničeno na Hrvatsku (`countryCode=HR`).
-
-Ako je na istoj stranici prikazano više različitih gradova, `parking_availability.py` poziva `fetch_weather_for_parking_locations()` iz `parallel_tasks.py`, a vremenski zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu dijeli isti dohvaćeni rezultat.
-
-`fetch_weather()` nakon završetka zahtjeva zapisuje podatke u zajednički `_request_log`. Taj zajednički resurs zaštićen je s `threading.Lock`, pa više dretvi ne mijenja zapisnik istodobno.
-
-### Test → Dretve
-
-Administratorska stranica **Test → Dretve** koristi gradove iz stvarnih lokacija parkinga u bazi. Za poštenu usporedbu koordinate se razriješe prije mjerenja, a zatim se isti Open-Meteo forecast zahtjevi izvršavaju dvaput kroz isti `ThreadPoolExecutor`:
+Podstranica **Moja vozila** omogućuje prijavljenom korisniku dodavanje, prikaz, uređivanje i brisanje vozila. Podaci se spremaju u:
 
 ```text
-max_workers = 1
-max_workers = 3   (ili manje ako nema tri grada)
+data/vehicles.json
 ```
 
-Stranica prikazuje vrijeme za **1 dretvu**, vrijeme za **3 dretve** i faktor ubrzanja. U zadnjem praktičnom testu dobiveno je `0.516 s` za jednu dretvu i `0.168 s` za tri dretve, odnosno `3.07×` ubrzanje.
+Svaki zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku. Funkcije za čitanje i CRUD nalaze se u `vehicle_store.py`.
 
-## Povijest pretraga i vlastiti binarni format
+## AES-GCM pristupne upute parkinga
 
-Svaka valjana pretraga prijavljenog korisnika automatski se sprema u `data/search_history.bin`. Stranica **Povijest pretraga** prikazuje prethodne pretrage korisnika i omogućuje akciju **Ponovi**.
+Vlasnik pri dodavanju ili uređivanju parkinga može unijeti privatne pristupne upute, primjerice uputu za ulaz ili oznaku parkirnog mjesta. Upute se **ne spremaju kao čitljiv tekst**.
 
-Aktualni binarni format je `PKSR` verzija 2. Sprema `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak, završetak i sortiranje.
-
-## Bilješke, AES-GCM i sigurnosni kod
-
-Korisničke bilješke spremaju se kao JSON u `data/parking_notes.json`. Na istoj stranici **Bilješke** mogu se izraditi i otvoriti AES-GCM šifrirane sigurnosne kopije u `exports/notes_user_<id>.aes`.
-
-Prije izrade ili otvaranja kopije korisnik postavlja sigurnosni kod. Izvorni kod se ne sprema. `security_code_store.py` sprema samo SHA-256 sažetak u `data/security_codes.json`.
-
-Promjenjiva sol izvodi se pravilom:
+`parking_access_crypto.py` prije spremanja koristi AES-GCM. Ključ se deterministički izvodi iz aplikacijskog `SECRET_KEY` i ID-a parkinga, a za svako šifriranje generira se novi slučajni nonce. U tablici `parking_spots` sprema se samo binarni sadržaj u polju:
 
 ```text
-SHA256("ParKING-security-code-salt:<user_id>")[0:16]
+access_instructions BLOB
 ```
 
-Sol se ne sprema. Kod izrade sažetka koristi se jedan papar iz raspona `0–255`, a kod provjere prolazi se svih 256 mogućih vrijednosti papra. Tek nakon uspješne provjere sigurnosnog koda aplikacija otvara AES-GCM kopiju.
+Javni detalji parkinga ne prikazuju privatne upute. Na stranici **Moje rezervacije** aplikacija dohvaća samo rezervacije prijavljenog korisnika i dešifrira pristupne upute samo za `ACTIVE` rezervacije. `CANCELLED` rezervacije ih ne prikazuju.
 
 ## SHA-256 integritet rezervacije
 
-Na stranici **Moje rezervacije** postoji SHA-256 provjera nad stvarnim podacima rezervacije. Ovdje se koristi obični SHA-256 bez soli i papra. Korisnik može usporediti trenutačni sažetak s ranije spremljenim sažetkom; promjena relevantnih podataka rezervacije mijenja kontrolni otisak.
+Na **Moje rezervacije → SHA-256** računa se obični SHA-256 nad stabilnim prikazom stvarnih podataka rezervacije: ID rezervacije, korisnik, parking, lokacija, termin, status, cijena po satu i ukupna cijena.
+
+Za ovu provjeru integriteta namjerno se **ne koriste sol ni papar**. Isti podaci daju isti kontrolni otisak, a promjena podataka mijenja otisak.
+
+## Vremenski podaci i dretve
+
+Open-Meteo podaci prikazuju se uz parkinge. Grad se izdvaja iz lokacije, a po potrebi se geokodira preko Open-Meteo Geocoding API-ja.
+
+**Test → Dretve** koristi iste Open-Meteo forecast zahtjeve kroz isti `ThreadPoolExecutor` s:
+
+```text
+max_workers = 1
+max_workers = 3
+```
+
+Koordinate se razriješe prije mjerenja. Zadnji praktični test dao je:
+
+```text
+1 dretva   0.516 s
+3 dretve   0.168 s
+ubrzanje   3.07×
+```
+
+`threading.Lock` štiti zajednički `_request_log` i kratke pristupe geocode cacheu.
+
+## Povijest pretraga i vlastiti binarni format
+
+Valjane pretrage prijavljenog korisnika spremaju se u `data/search_history.bin`. Format koristi vlastito `PKSR` zaglavlje i podržava ponavljanje spremljene pretrage.
 
 ## Dinamička biblioteka za service fee
 
-`native/service_fee.cpp` sadrži C++ klasu `ServiceFeeCalculator`. Biblioteka ima dvije računske funkcionalnosti: izračun service fee naknade jedne rezervacije i zbroj service fee naknada više rezervacija.
-
-Docker build iz izvornog koda stvara Linux dinamičku biblioteku:
+`native/service_fee.cpp` sadrži klasu `ServiceFeeCalculator` s metodama `calculateFee()` i `calculateTotalFees()`. Docker build stvara:
 
 ```text
 native/libservice_fee.so
 ```
 
-Python modul `service_fee.py` učitava biblioteku pomoću `ctypes`. Naknada je 5% ukupne cijene rezervacije. Na stranici **Admin rezervacije** svaka `ACTIVE` rezervacija prikazuje svoj service fee, a iznad tablice prikazuje se zbroj service feeova svih aktivnih rezervacija. `CANCELLED` rezervacije ne ulaze u ukupan iznos naknade.
+`service_fee.py` učitava biblioteku pomoću `ctypes`. Na **Admin rezervacije** prikazuju se pojedinačni i ukupni service fee izračuni za `ACTIVE` rezervacije.
 
 ## Vlastiti REST servis
 
-Glavna web aplikacija radi na portu `5000`, a vlastiti REST servis kao zasebna Flask aplikacija/proces na portu `5001`.
+Glavna web aplikacija radi na portu `5000`, a zasebna REST Flask aplikacija na portu `5001`:
 
 ```text
 run.py      → web aplikacija → 5000
 api_app.py  → REST API       → 5001
 ```
 
-API izlaže resurse `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju po korisniku i ulozi.
+API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju.
 
 ## Struktura projekta
 
@@ -116,17 +119,16 @@ ParKING/
 ├── run.py
 ├── api_app.py
 ├── start.sh
+├── models.py
 ├── parking_availability.py
+├── parking_access_crypto.py
+├── vehicle_store.py
 ├── binary_store.py
-├── crypto_store.py
 ├── hash_demo.py
-├── security_code_store.py
 ├── parallel_tasks.py
 ├── service_fee.py
 ├── native/
 │   └── service_fee.cpp
-├── models.py
-├── json_store.py
 ├── translations.py
 ├── config.ini
 ├── seed.py
@@ -134,8 +136,6 @@ ParKING/
 ├── Dockerfile
 ├── docker-compose.yml
 ├── README_IMPLEMENTIRANO.md
-├── INSTALL_UBUNTU.md
-├── INSTALL_WINDOWS.md
 ├── OBRANA.md
 ├── AUDIT.md
 ├── templates/
@@ -164,15 +164,7 @@ curl http://localhost:5001/api/health
 docker compose exec parking python seed.py
 ```
 
-Korisnici:
-
-```text
-vlasnik / parking123
-gost     / parking123
-admin    / admin123
-```
-
-`seed.py` briše postojeću razvojnu bazu i ponovno kreira početne korisnike, četiri parkinga i jednu rezervaciju. Početni parkingi nalaze se u Zagrebu, Zadru i Splitu.
+`seed.py` resetira razvojnu bazu i kreira početne korisnike, parkinge u Zagrebu, Zadru i Splitu te jednu rezervaciju. Vozila i privatne pristupne upute mogu se zatim dodati kroz normalno korisničko sučelje.
 
 ## Ažuriranje nakon promjena
 
@@ -181,7 +173,7 @@ git pull --ff-only origin main
 docker compose up -d --build
 ```
 
-## Brza provjera odvojenog REST servisa
+## Brza REST provjera
 
 ```bash
 curl http://localhost:5001/api/health
@@ -191,8 +183,6 @@ curl -i http://localhost:5000/api/parkings
 
 Očekivano:
 
-- health na `5001` vraća `200`
-- `/api/parkings` na `5001` bez tokena vraća `401`
-- `/api/parkings` na `5000` vraća `404`
-
-API token ne zapisivati u dokumentaciju niti spremati u Git.
+- `5001 /api/health` → `200`
+- `5001 /api/parkings` bez tokena → `401`
+- `5000 /api/parkings` → `404`
