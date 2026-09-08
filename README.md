@@ -19,7 +19,8 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - PDF potvrda rezervacije
 - stvarna binarna povijest pretraga u vlastitom `PKSR` formatu
 - AES-GCM sigurnosna kopija bilješki integrirana u stranicu **Bilješke**
-- SHA-256 funkcionalnost nad podacima rezervacije
+- SHA-256 provjera integriteta rezervacije bez soli i papra
+- sigurnosni kod za otvaranje šifrirane kopije s promjenjivom soli i provjerom papra 0–255
 - Open-Meteo vremenski podaci prikazani uz stvarne parkinge
 - ThreadPoolExecutor + `threading.Lock` za paralelni dohvat vremenskih podataka
 - vlastiti REST API s Bearer autentifikacijom i autorizacijom
@@ -58,7 +59,7 @@ max_workers = 1
 max_workers = 3   (ili manje ako nema tri grada)
 ```
 
-Stranica prikazuje vrijeme za **1 dretvu**, vrijeme za **više dretvi** i faktor ubrzanja. Početno stanje sadrži parkinge u Zagrebu, Zadru i Splitu kako bi se mogla demonstrirati usporedba jedne i tri radne dretve.
+Stranica prikazuje vrijeme za **1 dretvu**, vrijeme za **3 dretve** i faktor ubrzanja. U zadnjem praktičnom testu dobiveno je `0.516 s` za jednu dretvu i `0.168 s` za tri dretve, odnosno `3.07×` ubrzanje.
 
 ## Povijest pretraga i vlastiti binarni format
 
@@ -66,13 +67,23 @@ Svaka valjana pretraga prijavljenog korisnika automatski se sprema u `data/searc
 
 Aktualni binarni format je `PKSR` verzija 2. Sprema `user_id`, Unix vrijeme, opcionalnu maksimalnu cijenu te UTF-8 polja promjenjive duljine za lokaciju, početak, završetak i sortiranje.
 
-## Bilješke i AES-GCM sigurnosna kopija
+## Bilješke, AES-GCM i sigurnosni kod
 
 Korisničke bilješke spremaju se kao JSON u `data/parking_notes.json`. Na istoj stranici **Bilješke** mogu se izraditi i otvoriti AES-GCM šifrirane sigurnosne kopije u `exports/notes_user_<id>.aes`.
 
-## SHA-256
+Prije izrade ili otvaranja kopije korisnik postavlja sigurnosni kod. Izvorni kod se ne sprema. `security_code_store.py` sprema samo SHA-256 sažetak u `data/security_codes.json`.
 
-Na stranici **Moje rezervacije** postoji SHA-256 funkcionalnost nad stvarnim podacima rezervacije. Dio vezan uz sol i papar trenutačno je predviđen za redizajn prema povratnoj informaciji nastavnika; ne treba ga smatrati konačnim rješenjem za provjeru integriteta.
+Promjenjiva sol izvodi se pravilom:
+
+```text
+SHA256("ParKING-security-code-salt:<user_id>")[0:16]
+```
+
+Sol se ne sprema. Kod izrade sažetka koristi se jedan papar iz raspona `0–255`, a kod provjere prolazi se svih 256 mogućih vrijednosti papra. Tek nakon uspješne provjere sigurnosnog koda aplikacija otvara AES-GCM kopiju.
+
+## SHA-256 integritet rezervacije
+
+Na stranici **Moje rezervacije** postoji SHA-256 provjera nad stvarnim podacima rezervacije. Ovdje se koristi obični SHA-256 bez soli i papra. Korisnik može usporediti trenutačni sažetak s ranije spremljenim sažetkom; promjena relevantnih podataka rezervacije mijenja kontrolni otisak.
 
 ## Dinamička biblioteka za service fee
 
@@ -109,6 +120,7 @@ ParKING/
 ├── binary_store.py
 ├── crypto_store.py
 ├── hash_demo.py
+├── security_code_store.py
 ├── parallel_tasks.py
 ├── service_fee.py
 ├── native/
