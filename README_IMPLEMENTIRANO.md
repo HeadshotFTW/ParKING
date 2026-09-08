@@ -2,11 +2,11 @@
 
 Ovaj dokument navodi funkcionalnosti koje su implementirane i trenutačno se računaju u procjeni projekta.
 
-**Konzervativna procjena: 66 bodova.** Kriterij 11 je praktično testiran: `0.516 s` s jednom dretvom i `0.168 s` s tri dretve, odnosno `3.07×` ubrzanje.
+**Konzervativna procjena: 71 bod.** Kriterij 11 je praktično testiran: `0.516 s` s jednom dretvom i `0.168 s` s tri dretve, odnosno `3.07×` ubrzanje.
 
 ## 1. Korisničke klase — 3 boda
 
-Implementirane su klase `User`, `ParkingSpot` i `Reservation` kao SQLAlchemy modeli.
+Implementirane su klase `User`, `ParkingSpot`, `Reservation` i `PromoCode` kao SQLAlchemy modeli.
 
 ## 2. Forme i komunikacija među formama — 4 boda
 
@@ -36,11 +36,11 @@ Stvarne pretrage parkinga spremaju se u `data/search_history.bin` u vlastitom `P
 
 ## 7. Baza podataka i CRUD — 6 bodova
 
-SQLite + SQLAlchemy. CRUD se demonstrira nad `users`, `parking_spots` i `reservations`.
+SQLite + SQLAlchemy. CRUD se demonstrira nad `users`, `parking_spots` i `reservations`; promo kodovi se dodatno spremaju u tablici `promo_codes`.
 
 ## 8. Sortiranje, filtriranje, izračunato i lookup polje — 5 bodova
 
-Parkinzi se filtriraju po lokaciji, maksimalnoj cijeni i vremenskoj dostupnosti te sortiraju po cijeni i nazivu. `Reservation.total_price()` računa ukupnu cijenu, a ORM relacije poput `Reservation.parking` i `ParkingSpot.owner` služe kao lookup/povezana polja.
+Parkinzi se filtriraju po lokaciji, maksimalnoj cijeni i vremenskoj dostupnosti te sortiraju po cijeni i nazivu. `Reservation.total_price()` računa konačnu cijenu nakon eventualnog promo popusta, a ORM relacije poput `Reservation.parking` i `ParkingSpot.owner` služe kao lookup/povezana polja.
 
 ## 9. BLOB polje — 3 boda
 
@@ -93,11 +93,25 @@ Vlasnik parkinga može unijeti **privatne pristupne upute**. `parking_access_cry
 
 Ključ se izvodi iz aplikacijskog `SECRET_KEY` i `parking_id`, a za svako šifriranje koristi se novi slučajni nonce. Javni prikaz parkinga ne prikazuje te podatke. Na **Moje rezervacije** aplikacija dešifrira upute samo za `ACTIVE` rezervacije prijavljenog korisnika.
 
-## 25. SHA-256 — 2 boda
+## 25. SHA-256 + promjenjiva sol + papar — 7 bodova
 
-`hash_demo.py` računa obični SHA-256 nad stvarnim podacima rezervacije. **Sol i papar se ne koriste**, u skladu s komentarom nastavnika o provjeri integriteta. Promjena podataka rezervacije mijenja kontrolni otisak.
+Kriterij se koristi u dvije različite poslovne svrhe.
 
-Dodatne bodove za sol i papar više ne računamo niti ih umjetno ugrađujemo u drugu funkcionalnost.
+### Integritet rezervacije
+
+`hash_demo.py` računa obični SHA-256 nad stvarnim podacima rezervacije. Za provjeru integriteta se **ne koriste sol ni papar**, u skladu s komentarom nastavnika.
+
+### Promo kodovi
+
+Administrator na stranici **Promo kodovi** unosi npr. `PARK10` i postotak popusta. Izvorni promo kod se ne sprema u bazu. `promo_code_hash.py` za svaki promo generira promjenjivu sol pravilom:
+
+```text
+SHA256("ParKING-promo-salt:<promo_id>")[0:16]
+```
+
+Sol se ne sprema. Pri stvaranju sažetka slučajno se bira jedan papar iz raspona `0–255`, koji se također ne sprema. U tablicu `promo_codes` zapisuje se samo SHA-256 sažetak, postotak popusta i status aktivnosti.
+
+Kod rezervacije korisnik može unijeti promo kod. `verify_promo_code()` za svaki kandidat prolazi **svih 256 mogućih vrijednosti papra**. Tek nakon završetka cijelog raspona prihvaća podudaranje. Kod uspjeha rezervacija sprema `promo_code_id` i `discount_percent`, a `Reservation.total_price()` računa cijenu nakon popusta.
 
 ## 28. Dinamička biblioteka — 5 bodova
 
@@ -106,7 +120,7 @@ Dodatne bodove za sol i papar više ne računamo niti ih umjetno ugrađujemo u d
 ## Zbroj
 
 ```text
-3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 2 + 5 = 66
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 7 + 5 = 71
 ```
 
 Ne računaju se kriteriji 12, 14–19, 24, 26, 27, 29 i 30.
