@@ -10,7 +10,7 @@ Implementirane su klase `User`, `ParkingSpot`, `Reservation` i `PromoCode` kao S
 
 ## 2. Forme i komunikacija među formama — 4 boda
 
-Aplikacija ima više od tri forme. Termin odabran na pretrazi prenosi se kroz **Detalji → Rezerviraj**, a među formama postoje prijava, registracija, parking CRUD, rezervacije, vozila i administratorske forme.
+Aplikacija ima više od tri forme. Termin odabran na pretrazi prenosi se kroz **Detalji → Rezerviraj**, a među formama postoje prijava, registracija, parking CRUD, rezervacije, vozila i administratorske forme. Pri rezervaciji korisnik može odabrati i jedno od svojih vozila iz JSON spremnika.
 
 ## 3. Višejezično sučelje — 4 boda
 
@@ -28,7 +28,7 @@ Podstranica **Moja vozila** koristi `vehicle_store.py` i datoteku:
 data/vehicles.json
 ```
 
-Za svakog korisnika podržani su prikaz, dodavanje, uređivanje i brisanje vozila. Zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku.
+Za svakog korisnika podržani su prikaz, dodavanje, uređivanje i brisanje vozila. Zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku. Dodano vozilo može se odabrati pri rezervaciji parkinga.
 
 ## 6. Prilagođeni binarni format — 3 boda
 
@@ -36,7 +36,7 @@ Stvarne pretrage parkinga spremaju se u `data/search_history.bin` u vlastitom `P
 
 ## 7. Baza podataka i CRUD — 6 bodova
 
-SQLite + SQLAlchemy. CRUD se demonstrira nad `users`, `parking_spots` i `reservations`; promo kodovi se dodatno spremaju u tablici `promo_codes`.
+SQLite + SQLAlchemy. CRUD se demonstrira nad `users`, `parking_spots` i `reservations`; korisnički promo popusti dodatno se spremaju u tablici `promo_codes`.
 
 ## 8. Sortiranje, filtriranje, izračunato i lookup polje — 5 bodova
 
@@ -52,7 +52,7 @@ ReportLab generira PDF potvrdu rezervacije iz povezanih podataka `reservations`,
 
 ## 11. Paralelno izvršavanje dretvama — 5 bodova
 
-Open-Meteo dohvat koristi `ThreadPoolExecutor`. **Test → Dretve** uspoređuje iste forecast zahtjeve s:
+Open-Meteo dohvat koristi `ThreadPoolExecutor`. **Tools → Test Dretve** uspoređuje iste forecast zahtjeve s:
 
 ```text
 max_workers = 1
@@ -81,7 +81,7 @@ Open-Meteo Geocoding + Forecast API koristi se u stvarnom prikazu parkinga.
 
 ## 21. Vlastiti REST servis i klijent — 4 boda
 
-Glavna aplikacija radi na `5000`, a zasebni vlastiti REST servis na `5001`. Glavna aplikacija preko HTTP-a koristi vlastiti servis.
+Glavna aplikacija radi na `5000`, a zasebni vlastiti REST servis na `5001`. Glavna aplikacija preko HTTP-a koristi vlastiti servis. Demonstracija je dostupna pod **Tools → Test REST**.
 
 ## 22. REST autentifikacija i autorizacija — 4 boda
 
@@ -95,23 +95,25 @@ Ključ se izvodi iz aplikacijskog `SECRET_KEY` i `parking_id`, a za svako šifri
 
 ## 25. SHA-256 + promjenjiva sol + papar — 7 bodova
 
-Kriterij se koristi u dvije različite poslovne svrhe.
+Kriterij se koristi u dvije jasno odvojene svrhe.
 
 ### Integritet rezervacije
 
 `hash_demo.py` računa obični SHA-256 nad stvarnim podacima rezervacije. Za provjeru integriteta se **ne koriste sol ni papar**, u skladu s komentarom nastavnika.
 
-### Promo kodovi
+### Korisnički promo kod POPUST
 
-Administrator na stranici **Promo kodovi** unosi npr. `PARK10` i postotak popusta. Izvorni promo kod se ne sprema u bazu. `promo_code_hash.py` za svaki promo generira promjenjivu sol pravilom:
+Jedini promo kod je `POPUST`. Svaki korisnik ima vlastitu promjenjivu sol izvedenu iz stabilnog korisničkog ID-a pravilom:
 
 ```text
-SHA256("ParKING-promo-salt:<promo_id>")[0:16]
+SHA256("ParKING-user-promo-salt:<user_id>")[0:16]
 ```
 
-Sol se ne sprema. Pri stvaranju sažetka slučajno se bira jedan papar iz raspona `0–255`, koji se također ne sprema. U tablicu `promo_codes` zapisuje se samo SHA-256 sažetak, postotak popusta i status aktivnosti.
+Sol se ne sprema u bazu ni datoteku; iz istog `user_id` se uvijek ponovno izvede ista vrijednost. Papar je jedna vrijednost definirana na razini sustava preko `PROMO_SYSTEM_PEPPER` i nije spremljena uz korisnički hash.
 
-Kod rezervacije korisnik može unijeti promo kod. `verify_promo_code()` za svaki kandidat prolazi **svih 256 mogućih vrijednosti papra**. Tek nakon završetka cijelog raspona prihvaća podudaranje. Kod uspjeha rezervacija sprema `promo_code_id` i `discount_percent`, a `Reservation.total_price()` računa cijenu nakon popusta.
+Administrator na stranici **Promo kodovi** vidi sve korisnike. Za svakog korisnika može uključiti checkbox i postaviti zaseban postotak popusta. Klikom na **Primijeni** za svakog označenog korisnika računa se SHA-256 nad kombinacijom njegove soli, koda `POPUST` i sistemskog papra. Zato isti tekst `POPUST` daje različit hash za različite korisnike.
+
+Kod rezervacije korisnik upisuje `POPUST`. Aplikacija dohvaća samo njegov aktivni promo zapis, ponovno izvodi njegovu sol i namjerno prolazi svih **256 vrijednosti papra (0–255)**. Popust se prihvaća samo ako se pronađeni hash podudara i pronađena vrijednost odgovara sistemskom papru. Rezervacija tada sprema korisnikov `discount_percent` i `promo_code_id`, a `Reservation.total_price()` računa cijenu nakon njegova popusta.
 
 ## 28. Dinamička biblioteka — 5 bodova
 
