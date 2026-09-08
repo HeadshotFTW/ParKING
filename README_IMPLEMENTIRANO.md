@@ -32,7 +32,7 @@ Za svakog korisnika podržani su prikaz, dodavanje, uređivanje i brisanje vozil
 
 ## 6. Prilagođeni binarni format — 3 boda
 
-Stvarne pretrage parkinga spremaju se u `data/search_history.bin` u vlastitom `PKSR` formatu. **Povijest pretraga** prikazuje zapise i omogućuje ponavljanje pretrage.
+Stvarne pretrage parkinga spremaju se u `data/search_history.bin` u vlastitom `PKSR` formatu. **Povijest pretraga** prikazuje zapise i omogućuje ponavljanje pretrage; pristup toj stranici ima administrator.
 
 ## 7. Baza podataka i CRUD — 6 bodova
 
@@ -81,7 +81,7 @@ Open-Meteo Geocoding + Forecast API koristi se u stvarnom prikazu parkinga.
 
 ## 21. Vlastiti REST servis i klijent — 4 boda
 
-Glavna aplikacija radi na `5000`, a zasebni vlastiti REST servis na `5001`. Glavna aplikacija preko HTTP-a koristi vlastiti servis. Demonstracija je dostupna pod **Tools → Test REST**.
+Glavna aplikacija radi na `5000`, a zasebni vlastiti REST servis na `5001`. Glavna aplikacija preko HTTP-a koristi vlastiti servis. Demonstracija je dostupna administratoru pod **Tools → Test REST**.
 
 ## 22. REST autentifikacija i autorizacija — 4 boda
 
@@ -109,11 +109,13 @@ Jedini promo kod je `POPUST`. Svaki korisnik ima vlastitu promjenjivu sol izvede
 SHA256("ParKING-user-promo-salt:<user_id>")[0:16]
 ```
 
-Sol se ne sprema u bazu ni datoteku; iz istog `user_id` se uvijek ponovno izvede ista vrijednost. Papar je jedna vrijednost definirana na razini sustava preko `PROMO_SYSTEM_PEPPER` i nije spremljena uz korisnički hash.
+Sol se ne sprema u bazu ni datoteku; iz istog `user_id` se uvijek ponovno izvede ista vrijednost. Papar je jedna vrijednost definirana na razini sustava preko `PROMO_SYSTEM_PEPPER`. Za obranu i demonstraciju raspon papra je namjerno ograničen na `1-5`, a zadana Docker vrijednost je `3`.
 
 Administrator na stranici **Promo kodovi** vidi sve korisnike. Za svakog korisnika može uključiti checkbox i postaviti zaseban postotak popusta. Klikom na **Primijeni** za svakog označenog korisnika računa se SHA-256 nad kombinacijom njegove soli, koda `POPUST` i sistemskog papra. Zato isti tekst `POPUST` daje različit hash za različite korisnike.
 
-Kod rezervacije korisnik upisuje `POPUST`. Aplikacija dohvaća samo njegov aktivni promo zapis, ponovno izvodi njegovu sol i namjerno prolazi svih **256 vrijednosti papra (0–255)**. Popust se prihvaća samo ako se pronađeni hash podudara i pronađena vrijednost odgovara sistemskom papru. Rezervacija tada sprema korisnikov `discount_percent` i `promo_code_id`, a `Reservation.total_price()` računa cijenu nakon njegova popusta.
+Kod rezervacije uz promo kod postoji jasno označen **DEMO** dropdown s vrijednostima `1-5`. Aplikacija pri provjeri namjerno prolazi cijeli raspon `1-5`, pronalazi papar koji odgovara spremljenom korisničkom hash-u, ali popust prihvaća samo ako je korisnik u DEMO dropdownu pogodio upravo tu vrijednost. Pogrešan papar ne primjenjuje popust.
+
+Ovaj dropdown postoji isključivo za demonstraciju kriterija; u produkcijskoj aplikaciji tajni papar se ne bi prikazivao niti pogađao kroz korisničko sučelje.
 
 ## 28. Dinamička biblioteka — 5 bodova
 
