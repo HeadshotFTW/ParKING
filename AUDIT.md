@@ -4,17 +4,17 @@ Ovaj dokument je interna kontrolna lista trenutnog stanja projekta.
 
 ## Procijenjeni rezultat
 
-Konzervativna procjena: **66 bodova**.
+Konzervativna procjena: **71 bod**.
 
 | Rb. | Kriterij | Bodovi | Procjena | Dokaz / napomena |
 |---:|---|---:|---|---|
-| 1 | Korisničke klase | 3 | sigurno | `User`, `ParkingSpot`, `Reservation`. |
+| 1 | Korisničke klase | 3 | sigurno | `User`, `ParkingSpot`, `Reservation`, dodatno `PromoCode`. |
 | 2 | Dijalozi / forme | 4 | sigurno | Više od tri forme; termin se prenosi iz pretrage u rezervaciju. |
 | 3 | HR / EN | 4 | sigurno | Dva jezika i promjena jezika tijekom rada. |
 | 4 | INI / Registry | 2 | sigurno | `config.ini`: `default_language`, `items_per_page`. |
 | 5 | XML / JSON CRUD | 4 | sigurno | **Moja vozila** koristi `data/vehicles.json` i puni CRUD kroz `vehicle_store.py`. |
 | 6 | Vlastiti binarni format | 3 | sigurno | Stvarne pretrage u `data/search_history.bin`, `PKSR` v2. |
-| 7 | Baza i CRUD | 6 | sigurno | SQLite + SQLAlchemy, CRUD nad tri tablice. |
+| 7 | Baza i CRUD | 6 | sigurno | SQLite + SQLAlchemy, CRUD nad tri glavne tablice; dodatno `promo_codes`. |
 | 8 | Sort / filter / calculated / lookup | 5 | sigurno | Lokacija, cijena, dostupnost, sortiranje, `total_price()` i ORM relacije. |
 | 9 | BLOB | 3 | sigurno | Fotografija parkinga u BLOB polju. |
 | 10 | PDF / master-detail | 5 | sigurno | PDF potvrda rezervacije iz povezanih tablica. |
@@ -32,9 +32,9 @@ Konzervativna procjena: **66 bodova**.
 | 22 | REST auth/authz | 4 | vjerojatno | Bearer token, `401`, `403`. |
 | 23 | AES-GCM | 2 | sigurno | Privatne pristupne upute parkinga šifriraju se u `parking_spots.access_instructions` i dešifriraju samo za `ACTIVE` rezervacije korisnika. |
 | 24 | Asimetrična kriptografija | 0 | nije implementirano | — |
-| 25 | SHA-256 | 2 | sigurno | Integritet rezervacije koristi obični SHA-256 bez soli i papra. |
+| 25 | SHA-256 + promjenjiva sol + papar | 7 | vrlo vjerojatno | Integritet rezervacije koristi obični SHA-256 bez soli/papra. Promo kodovi koriste promjenjivu sol izvedenu iz `promo_id`, slučajni papar 0–255 i puni scan svih 256 vrijednosti pri provjeri. |
 | 26 | Digitalni potpis | 0 | nije implementirano | — |
-| 27 | Statička biblioteka | 0 | nije implementirano | — |
+| 27 | Statička biblioteka | 0 | namjerno ne implementiramo | — |
 | 28 | Dinamička biblioteka | 5 | sigurno nakon Docker builda | `ServiceFeeCalculator`, `.so`, `ctypes`, stvarni service fee prikaz. |
 | 29 | DLL dijalozi | 0 | nije implementirano | — |
 | 30 | Resurs u dinamičkoj biblioteci | 0 | nije implementirano | — |
@@ -42,7 +42,7 @@ Konzervativna procjena: **66 bodova**.
 ## Zbroj
 
 ```text
-3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 2 + 5 = 66
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 7 + 5 = 71
 ```
 
 ## Kriterij 5 — JSON CRUD vozila
@@ -69,11 +69,28 @@ Na obrani ponovno pokazati da je višedretvena varijanta brža.
 
 `ParkingSpot` ima `access_instructions` kao BLOB. `parking_access_crypto.py` koristi AES-GCM i novi nonce pri svakom spremanju. Javni parking ne otkriva te podatke. Server ih dešifrira na **Moje rezervacije** samo kada je rezervacija prijavljenog korisnika `ACTIVE`.
 
-Ovo je poslovno smislenija primjena od prethodne šifrirane kopije bilješki, pa su `crypto_store.py`, Bilješke i sigurnosni kod uklonjeni.
+## Kriterij 25 — SHA-256, sol i papar
 
-## Kriterij 25 — SHA-256
+### Integritet rezervacije
 
-`hash_demo.py` računa SHA-256 nad stabilnim prikazom podataka rezervacije. Sol i papar se namjerno ne koriste jer je cilj provjera integriteta. Dodatnih 5 bodova za sol/papar više ne računamo.
+`hash_demo.py` računa SHA-256 nad stabilnim prikazom podataka rezervacije. Sol i papar se ovdje namjerno ne koriste, jer je cilj provjera integriteta.
+
+### Promo kodovi
+
+`promo_code_hash.py` i `promo_web.py` implementiraju zasebnu poslovnu primjenu soli i papra:
+
+- administrator zadaje promo kod i postotak popusta
+- izvorni kod se ne sprema
+- promjenjiva sol izvodi se pravilom `SHA256("ParKING-promo-salt:<promo_id>")[0:16]`
+- sol se ne sprema
+- kod stvaranja sažetka bira se slučajni papar iz raspona `0–255`
+- papar se ne sprema
+- u `promo_codes.code_hash` sprema se samo SHA-256 sažetak
+- kod provjere prolazi se svih 256 mogućih vrijednosti papra za kandidata
+- tek nakon cijelog raspona prihvaća se podudaranje
+- rezervacija sprema `promo_code_id` i `discount_percent`, a `total_price()` vraća konačnu cijenu
+
+Ovo je poslovno smislenija primjena od prethodnog sigurnosnog koda za bilješke i ne miješa se s provjerom integriteta.
 
 ## Dinamička C++ biblioteka
 
@@ -97,4 +114,4 @@ Očekivano: `200`, `401`, `404`; za kriterij 22 pokazati i stvarni `403`.
 
 ## Zaključak
 
-Projekt je konzervativno procijenjen na **66 bodova**. Uklonjene su Bilješke i umjetna salt/pepper funkcionalnost, a kriteriji 5 i 23 sada su vezani uz stvarne ParKING funkcionalnosti: vozila i privatne pristupne upute parkinga.
+Projekt je konzervativno procijenjen na **71 bod**. Kriterij 25 sada ponovno koristi promjenjivu sol i papar, ali na poslovno smislenim promo kodovima, dok provjera integriteta rezervacije ostaje čisti SHA-256 bez soli i papra.
