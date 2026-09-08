@@ -52,7 +52,7 @@ Svaki zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku. Funkc
 
 Kod rezervacije korisnik može opcionalno odabrati jedno od svojih spremljenih vozila. Aplikacija provjerava da odabrano vozilo stvarno pripada prijavljenom korisniku. U samu rezervaciju sprema se snapshot `vehicle_id`, naziva i registracijske oznake, pa stara rezervacija ostaje razumljiva i ako korisnik kasnije u JSON-u izmijeni ili obriše vozilo. Odabrano vozilo prikazuje se na stranici **Moje rezervacije**.
 
-## Promo kod POPUST — SHA-256, promjenjiva sol i papar
+## Promo kod POPUST — SHA-256, promjenjiva sol i demonstracijski papar
 
 Na administratorskoj stranici **Promo kodovi** postoji samo jedan promo kod:
 
@@ -68,11 +68,13 @@ Svaki korisnik ima vlastitu promjenjivu sol koja se deterministički izvodi iz n
 SHA256("ParKING-user-promo-salt:<user_id>")[0:16]
 ```
 
-Sol se ne sprema u bazu ni datoteku. Papar je definiran na razini sustava preko `PROMO_SYSTEM_PEPPER`; zadana Docker vrijednost je `173`. Papar se ne sprema uz korisnički hash.
+Sol se ne sprema u bazu ni datoteku. Papar je definiran na razini sustava preko `PROMO_SYSTEM_PEPPER` i za demonstraciju je ograničen na raspon `1-5`; zadana Docker vrijednost je `3`. Papar se ne sprema uz korisnički hash.
 
 Hash se računa iz korisnikove soli, teksta `POPUST` i sistemskog papra. Zato isti promo kod daje različit hash za različite korisnike.
 
-Kod rezervacije korisnik može upisati `POPUST`. Aplikacija dohvaća samo njegov aktivni promo zapis, ponovno izvodi njegovu sol i namjerno prolazi svih **256 mogućih vrijednosti papra od 0 do 255**. Popust se prihvaća tek nakon cijelog prolaza i samo ako podudaranje odgovara sistemskom papru. Primjenjuje se postotak koji je administrator dodijelio upravo tom korisniku.
+Kod rezervacije uz polje za promo kod postoji posebno označen **DEMO** padajući izbornik za papar `1-5`. Aplikacija dohvaća korisnikov aktivni promo zapis i pri provjeri prolazi cijeli demonstracijski raspon `1-5` kako bi pronašla vrijednost koja odgovara spremljenom hash-u. Popust se primjenjuje samo ako korisnik u DEMO izborniku pogodi upravo tu vrijednost papra. Pogrešan izbor ne daje popust i korisnik može pokušati drugu vrijednost.
+
+Ovaj izbor papra u korisničkom sučelju postoji isključivo radi demonstracije kriterija projekta. U stvarnoj produkcijskoj aplikaciji tajni papar se ne bi nudio korisniku na pogađanje.
 
 Ova funkcionalnost je odvojena od SHA-256 provjere integriteta rezervacije, gdje se sol i papar namjerno ne koriste.
 
@@ -117,7 +119,7 @@ ubrzanje   3.07×
 
 ## Povijest pretraga i vlastiti binarni format
 
-Valjane pretrage prijavljenog korisnika spremaju se u `data/search_history.bin`. Format koristi vlastito `PKSR` zaglavlje i podržava ponavljanje spremljene pretrage.
+Valjane pretrage prijavljenog korisnika spremaju se u `data/search_history.bin`. Format koristi vlastito `PKSR` zaglavlje i podržava ponavljanje spremljene pretrage. Prikaz stranice **Povijest pretraga** dostupan je administratoru.
 
 ## Dinamička biblioteka za service fee
 
@@ -138,7 +140,7 @@ run.py      → web aplikacija → 5000
 api_app.py  → REST API       → 5001
 ```
 
-API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju. Kod REST kreiranja rezervacije opcionalni `vehicle_id` mora pripadati autentificiranom korisniku; API u odgovoru vraća snapshot odabranog vozila. UI demonstracija vlastitog REST klijenta dostupna je pod **Tools → Test REST**.
+API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju. Kod REST kreiranja rezervacije opcionalni `vehicle_id` mora pripadati autentificiranom korisniku; API u odgovoru vraća snapshot odabranog vozila. UI demonstracija vlastitog REST klijenta dostupna je administratoru pod **Tools → Test REST**.
 
 ## Struktura projekta
 
