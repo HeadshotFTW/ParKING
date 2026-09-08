@@ -15,6 +15,9 @@ def reservation_integrity_text(reservation):
         f"end={reservation.end_time.isoformat(timespec='minutes')}",
         f"status={reservation.status}",
         f"price_per_hour={reservation.parking.price_per_hour:.2f}",
+        f"promo_code_id={reservation.promo_code_id or ''}",
+        f"discount_percent={float(reservation.discount_percent or 0):.2f}",
+        f"base_price={reservation.base_price():.2f}",
         f"total_price={reservation.total_price():.2f}",
     ])
 
