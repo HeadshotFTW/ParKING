@@ -5,8 +5,20 @@
 <form method="post" class="card card-body">
     <label class="form-label">{{ tr('common.start') }}</label>
     <input class="form-control mb-3 datetime-24h" type="text" name="start_time" value="{{ request.form.get('start_time', request.args.get('start_time', '')) }}" required>
+
     <label class="form-label">{{ tr('common.end') }}</label>
     <input class="form-control mb-3 datetime-24h" type="text" name="end_time" value="{{ request.form.get('end_time', request.args.get('end_time', '')) }}" required>
+
+    <label class="form-label" for="promo_code">{{ 'Promo code (optional)' if lang == 'en' else 'Promo kod (opcionalno)' }}</label>
+    <input class="form-control mb-2 text-uppercase" id="promo_code" name="promo_code" maxlength="40" value="{{ request.form.get('promo_code', '') }}">
+    <div class="form-text mb-3">
+        {% if lang == 'en' %}
+            If a valid active promo code is entered, the discount is stored with this reservation.
+        {% else %}
+            Ako unesete valjani aktivni promo kod, popust se sprema uz ovu rezervaciju.
+        {% endif %}
+    </div>
+
     <div>
         <button class="btn btn-primary">{{ tr('reservation.submit') }}</button>
         <a class="btn btn-outline-secondary" href="{{ url_for('parking_detail', parking_id=parking.id, start_time=request.args.get('start_time', ''), end_time=request.args.get('end_time', ''), location=request.args.get('location', ''), max_price=request.args.get('max_price', ''), sort=request.args.get('sort', 'price_asc'), page=request.args.get('page', '1')) }}">{{ tr('common.cancel') }}</a>
