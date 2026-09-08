@@ -4,19 +4,19 @@ import os
 
 
 PROMO_CODE = "POPUST"
-PEPPER_MIN = 0
-PEPPER_MAX = 255
+PEPPER_MIN = 1
+PEPPER_MAX = 5
 
 
 def _system_pepper():
-    """Return the one-byte pepper configured at application/system level."""
-    raw = os.environ.get("PROMO_SYSTEM_PEPPER", "173")
+    """Return the demo pepper configured at application/system level."""
+    raw = os.environ.get("PROMO_SYSTEM_PEPPER", "3")
     try:
         value = int(raw)
     except ValueError as exc:
-        raise ValueError("PROMO_SYSTEM_PEPPER mora biti cijeli broj od 0 do 255.") from exc
+        raise ValueError("PROMO_SYSTEM_PEPPER mora biti cijeli broj od 1 do 5.") from exc
     if not PEPPER_MIN <= value <= PEPPER_MAX:
-        raise ValueError("PROMO_SYSTEM_PEPPER mora biti u rasponu 0-255.")
+        raise ValueError("PROMO_SYSTEM_PEPPER mora biti u rasponu 1-5.")
     return value
 
 
@@ -42,21 +42,37 @@ def _promo_digest(code, user_id, pepper):
 
 
 def create_user_promo_digest(user_id, code=PROMO_CODE):
-    """Hash POPUST with the user's derived salt and the system-level pepper."""
+    """Hash POPUST with the user's derived salt and the system-level demo pepper."""
     normalized = normalize_promo_code(code)
     if normalized != PROMO_CODE:
         raise ValueError(f"Jedini podržani promo kod je {PROMO_CODE}.")
     return _promo_digest(PROMO_CODE, user_id, _system_pepper())
 
 
-def verify_user_promo(code, user_id, stored_digest):
-    """Verify POPUST for one user while intentionally scanning all 256 pepper values."""
+def verify_user_promo(code, user_id, stored_digest, guessed_pepper=None):
+    """Scan the full demo range 1-5 and accept only when the user's guess is correct."""
     normalized = normalize_promo_code(code)
+    try:
+        guessed = int(guessed_pepper)
+    except (TypeError, ValueError):
+        guessed = None
+
     if normalized != PROMO_CODE or not stored_digest:
         return {
             "valid": False,
             "matched_pepper": None,
-            "attempts": 0 if not normalized else 256,
+            "guessed_pepper": guessed,
+            "attempts": 0,
+            "reason": "code",
+        }
+
+    if guessed is None or not PEPPER_MIN <= guessed <= PEPPER_MAX:
+        return {
+            "valid": False,
+            "matched_pepper": None,
+            "guessed_pepper": guessed,
+            "attempts": 0,
+            "reason": "pepper_required",
         }
 
     matches = []
@@ -65,9 +81,14 @@ def verify_user_promo(code, user_id, stored_digest):
         if hmac.compare_digest(candidate, stored_digest.lower()):
             matches.append(pepper)
 
+    matched_pepper = matches[0] if matches else None
     system_pepper = _system_pepper()
+    valid = matched_pepper == system_pepper and guessed == matched_pepper
+
     return {
-        "valid": system_pepper in matches,
-        "matched_pepper": system_pepper if system_pepper in matches else None,
+        "valid": valid,
+        "matched_pepper": matched_pepper,
+        "guessed_pepper": guessed,
         "attempts": PEPPER_MAX - PEPPER_MIN + 1,
+        "reason": "ok" if valid else "wrong_pepper",
     }
