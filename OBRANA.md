@@ -90,43 +90,58 @@ docker compose exec parking python -c "from app import app; from models import P
 
 Važno za objašnjenje: AES-GCM ovdje štiti stvaran privatni podatak parkinga.
 
-## 5. Promo kodovi — SHA-256, promjenjiva sol i papar
+## 5. Promo kod POPUST — SHA-256, promjenjiva sol i papar
 
-Kao administrator otvoriti **Promo kodovi**. Kreirati primjerice:
-
-```text
-kod: PARK10
-popust: 10%
-```
-
-Nakon spremanja pokazati da se u tablici vidi samo SHA-256 sažetak, ne izvorni kod.
-
-Objasniti:
+Kao administrator otvoriti **Promo kodovi**. Na stranici postoji samo jedan promo kod:
 
 ```text
-promo kod + promjenjiva sol + papar
-              ↓
-           SHA-256
-              ↓
-      sprema se samo sažetak
+POPUST
 ```
 
-Promjenjiva sol izvodi se pravilom:
+U tablici su svi korisnici. Za dva različita korisnika označiti checkbox i postaviti različite popuste, primjerice:
 
 ```text
-SHA256("ParKING-promo-salt:<promo_id>")[0:16]
+gost      10%
+vlasnik   20%
 ```
 
-Sol se ne sprema. Kod stvaranja sažetka slučajno se bira jedan papar iz raspona `0–255`, a ni papar se ne sprema.
+Kliknuti **Primijeni**. Za svakog označenog korisnika sprema se različit SHA-256 sažetak, iako je tekst promo koda isti.
 
-Zatim kao obični korisnik rezervirati parking i u polje **Promo kod** unijeti `PARK10`. Aplikacija kod provjere prolazi svih **256 vrijednosti papra** za kandidat i tek nakon cijelog raspona prihvaća podudaranje. Nakon rezervacije poruka izričito prikazuje da je provjereno svih 256 vrijednosti, a na **Moje rezervacije** vidi se stara cijena, popust i konačna cijena.
+Objasniti da svaki korisnik ima vlastitu promjenjivu sol izvedenu pravilom iz stabilnog `user_id`:
+
+```text
+SHA256("ParKING-user-promo-salt:<user_id>")[0:16]
+```
+
+Sol se ne sprema u bazu ni datoteku. Time je svaki korisnik dobio vlastitu reproducibilnu sol čim postoji njegov `user_id`.
+
+Papar je definiran na razini sustava preko varijable:
+
+```text
+PROMO_SYSTEM_PEPPER
+```
+
+U Docker konfiguraciji zadana demonstracijska vrijednost je `173`, ali hash ne sprema papar uz korisnički zapis.
+
+Hash korisnika računa se nad:
+
+```text
+korisnikova sol + "POPUST" + sistemski papar
+                  ↓
+               SHA-256
+```
+
+Zatim se prijaviti kao korisnik kojem je admin dodijelio popust i kod rezervacije upisati `POPUST`. Aplikacija dohvaća samo njegov korisnički promo zapis, ponovno izvodi njegovu sol i namjerno prolazi **svih 256 vrijednosti papra od 0 do 255**. Tek nakon cijelog prolaza prihvaća podudaranje sa sistemskim paprom i primjenjuje baš postotak dodijeljen tom korisniku.
+
+Za drugog korisnika isti tekst `POPUST` daje drugi hash i može dati drugi postotak popusta.
 
 Ključne datoteke:
 
 ```text
-promo_code_hash.py     generiranje soli, SHA-256 i puni pepper scan 0–255
-promo_web.py           admin promo rute, odabir vozila i primjena popusta u rezervaciji
-models.py              PromoCode + podaci popusta + snapshot vozila na rezervaciji
+promo_code_hash.py     sol po user_id-u, sistemski papar i puni scan 0–255
+promo_web.py           checkbox dodjela popusta korisnicima i primjena u rezervaciji
+models.py              PromoCode.user_id + discount_percent + hash po korisniku
+docker-compose.yml     PROMO_SYSTEM_PEPPER na razini sustava
 ```
 
 Važno: ovo je zasebno od provjere integriteta rezervacije. Kod integriteta nema soli ni papra.
@@ -158,7 +173,7 @@ Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `
 
 ## 9. Dretve, ubrzanje, kritična sekcija i Open-Meteo
 
-Kao administrator otvoriti **Test → Dretve**. Koordinate gradova razriješe se prije mjerenja, a potpuno isti Open-Meteo forecast zahtjevi izvršavaju se kroz isti `ThreadPoolExecutor`:
+Kao administrator otvoriti **Tools → Test Dretve**. Koordinate gradova razriješe se prije mjerenja, a potpuno isti Open-Meteo forecast zahtjevi izvršavaju se kroz isti `ThreadPoolExecutor`:
 
 ```text
 max_workers = 1
@@ -184,7 +199,7 @@ with _request_log_lock:
 
 `threading.Lock` štiti zajednički `_request_log`.
 
-## 10. Test → REST
+## 10. Tools → Test REST
 
 Pokazati odvojeni web proces na `5000` i vlastiti REST servis na `5001`:
 
@@ -208,7 +223,7 @@ Za kriterij 22 treba pokazati i stvarni `403` za nedopuštenu akciju.
 
 Otvoriti **Moje rezervacije → SHA-256**.
 
-Objasniti da se koristi **obični SHA-256 bez soli i papra**, jer je svrha provjera integriteta. U kontrolni tekst sada ulaze i snapshot odabranog vozila te eventualni promo popust. Pokazati trenutačni kontrolni otisak, uspješnu provjeru te po želji neuspješnu provjeru nakon promjene jednog znaka otiska.
+Objasniti da se koristi **obični SHA-256 bez soli i papra**, jer je svrha provjera integriteta. U kontrolni tekst ulaze i snapshot odabranog vozila te eventualni promo popust. Pokazati trenutačni kontrolni otisak, uspješnu provjeru te po želji neuspješnu provjeru nakon promjene jednog znaka otiska.
 
 ## Kriterij 14 — ne demonstrirati
 
@@ -217,23 +232,24 @@ Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A 
 ## Datoteke koje je korisno znati
 
 ```text
-models.py                    SQLAlchemy modeli + PromoCode + snapshot vozila na rezervaciji
+models.py                    SQLAlchemy modeli + korisnički PromoCode zapis
 app.py                       web rute, CRUD, vozila, AES pristupne upute
-run.py                       instalira prošireni parking tok i promo funkcionalnost
+run.py                       instalira prošireni rezervacijski tok
 vehicle_store.py             JSON CRUD vozila
 parking_access_crypto.py     AES-GCM šifriranje/dešifriranje pristupnih uputa
-hash_demo.py                 SHA-256 integritet rezervacije, uključuje vozilo i popust
-promo_code_hash.py           promjenjiva sol + slučajni papar + provjera 0–255
-promo_web.py                 administracija promo kodova + odabir vozila + rezervacija
+hash_demo.py                 SHA-256 integritet rezervacije
+promo_code_hash.py           sol po user_id-u + sistemski papar + provjera 0–255
+promo_web.py                 POPUST po korisniku + odabir vozila + rezervacija
 parking_availability.py      dostupnost + binarna povijest + vrijeme
 binary_store.py              PKSR binarni format
 parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
 service_fee.py               ctypes wrapper za dinamičku biblioteku
 native/service_fee.cpp       C++ ServiceFeeCalculator
 api_app.py                   vlastiti REST servis na 5001; podržava opcionalni vehicle_id
+docker-compose.yml           SECRET_KEY + PROMO_SYSTEM_PEPPER
 config.ini                   INI postavke
 ```
 
 ## Bodovna procjena
 
-Konzervativna procjena je oko **71 bod**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen. Kriterij 25 sada ima čistu provjeru integriteta bez soli/papra te zasebnu poslovnu primjenu promjenjive soli i papra na promo kodovima.
+Konzervativna procjena je oko **71 bod**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen. Kriterij 25 ima čistu provjeru integriteta bez soli/papra te zasebnu poslovnu primjenu promjenjive korisničke soli i sistemskog papra na promo kodu `POPUST`.
