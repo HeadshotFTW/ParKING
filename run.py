@@ -2,6 +2,7 @@ import requests
 from flask import flash, render_template, request
 
 from app import app, admin_required, current_language, current_user, login_required, DATA_DIR
+from avatar_web import install_avatar_features
 from binary_store import records_for_user
 from hash_demo import create_integrity_hash, reservation_integrity_text, verify_integrity_hash
 from models import ParkingSpot, Reservation
@@ -34,6 +35,13 @@ def tech_text(hr, en):
 install_promo_features(
     app,
     admin_required=admin_required,
+    login_required=login_required,
+    current_user=current_user,
+    local_text=tech_text,
+)
+
+install_avatar_features(
+    app,
     login_required=login_required,
     current_user=current_user,
     local_text=tech_text,
