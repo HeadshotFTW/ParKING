@@ -12,6 +12,7 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - 24-satni unos datuma i vremena pomoću Flatpickra
 - SQLite + SQLAlchemy
 - administratorski CRUD nad korisnicima i rezervacijama
+- administratorsko upravljanje promo kodovima
 - HR/EN sučelje
 - INI postavke u `config.ini`
 - JSON CRUD korisničkih vozila u `data/vehicles.json`
@@ -20,6 +21,7 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - vlastiti binarni format povijesti pretraga (`PKSR`)
 - AES-GCM šifrirane privatne pristupne upute parkinga
 - SHA-256 provjera integriteta rezervacije bez soli i papra
+- SHA-256 promo kodovi s promjenjivom soli i paprom 0–255
 - Open-Meteo vremenski podaci uz stvarne parkinge
 - `ThreadPoolExecutor` + `threading.Lock`
 - vlastiti REST API s Bearer autentifikacijom i autorizacijom
@@ -47,6 +49,22 @@ data/vehicles.json
 
 Svaki zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku. Funkcije za čitanje i CRUD nalaze se u `vehicle_store.py`.
 
+## Promo kodovi — SHA-256, promjenjiva sol i papar
+
+Administrator na **Promo kodovi** može kreirati npr. `PARK10` i odrediti postotak popusta. Izvorni promo kod se ne sprema u bazu.
+
+`promo_code_hash.py` generira promjenjivu sol iz ID-a promo zapisa:
+
+```text
+SHA256("ParKING-promo-salt:<promo_id>")[0:16]
+```
+
+Sol se ne sprema. Pri stvaranju sažetka slučajno se bira jedan papar iz raspona `0–255`; ni papar se ne sprema. U tablici `promo_codes` ostaju samo SHA-256 sažetak, postotak popusta i status aktivnosti.
+
+Kod rezervacije korisnik može upisati promo kod. Aplikacija za svaki kandidat prolazi **svih 256 mogućih vrijednosti papra** i tek nakon završetka cijelog raspona prihvaća podudaranje. Uspješna rezervacija sprema `promo_code_id` i `discount_percent`, a `Reservation.total_price()` vraća konačnu cijenu nakon popusta.
+
+Ova funkcionalnost je odvojena od SHA-256 provjere integriteta rezervacije, gdje se sol i papar namjerno ne koriste.
+
 ## AES-GCM pristupne upute parkinga
 
 Vlasnik pri dodavanju ili uređivanju parkinga može unijeti privatne pristupne upute, primjerice uputu za ulaz ili oznaku parkirnog mjesta. Upute se **ne spremaju kao čitljiv tekst**.
@@ -61,7 +79,7 @@ Javni detalji parkinga ne prikazuju privatne upute. Na stranici **Moje rezervaci
 
 ## SHA-256 integritet rezervacije
 
-Na **Moje rezervacije → SHA-256** računa se obični SHA-256 nad stabilnim prikazom stvarnih podataka rezervacije: ID rezervacije, korisnik, parking, lokacija, termin, status, cijena po satu i ukupna cijena.
+Na **Moje rezervacije → SHA-256** računa se obični SHA-256 nad stabilnim prikazom stvarnih podataka rezervacije: ID rezervacije, korisnik, parking, lokacija, termin, status, cijena po satu, eventualni promo popust i ukupna cijena.
 
 Za ovu provjeru integriteta namjerno se **ne koriste sol ni papar**. Isti podaci daju isti kontrolni otisak, a promjena podataka mijenja otisak.
 
@@ -125,6 +143,8 @@ ParKING/
 ├── vehicle_store.py
 ├── binary_store.py
 ├── hash_demo.py
+├── promo_code_hash.py
+├── promo_web.py
 ├── parallel_tasks.py
 ├── service_fee.py
 ├── native/
@@ -164,7 +184,7 @@ curl http://localhost:5001/api/health
 docker compose exec parking python seed.py
 ```
 
-`seed.py` resetira razvojnu bazu i kreira početne korisnike, parkinge u Zagrebu, Zadru i Splitu te jednu rezervaciju. Vozila i privatne pristupne upute mogu se zatim dodati kroz normalno korisničko sučelje.
+`seed.py` resetira razvojnu bazu i kreira početne korisnike, parkinge u Zagrebu, Zadru i Splitu te jednu rezervaciju. Vozila, privatne pristupne upute i promo kodovi mogu se zatim dodati kroz normalno korisničko sučelje.
 
 ## Ažuriranje nakon promjena
 
