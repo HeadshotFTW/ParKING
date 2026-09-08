@@ -7,6 +7,7 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - registracija, prijava i odjava korisnika
 - CRUD nad parkirnim mjestima
 - rezervacije s provjerom preklapanja termina
+- odabir jednog spremljenog vozila pri rezervaciji
 - pretraga dostupnih parkinga po lokaciji, vremenu i maksimalnoj cijeni
 - sortiranje po cijeni i nazivu
 - 24-satni unos datuma i vremena pomoću Flatpickra
@@ -49,6 +50,8 @@ data/vehicles.json
 
 Svaki zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku. Funkcije za čitanje i CRUD nalaze se u `vehicle_store.py`.
 
+Kod rezervacije korisnik može opcionalno odabrati jedno od svojih spremljenih vozila. Aplikacija provjerava da odabrano vozilo stvarno pripada prijavljenom korisniku. U samu rezervaciju sprema se snapshot `vehicle_id`, naziva i registracijske oznake, pa stara rezervacija ostaje razumljiva i ako korisnik kasnije u JSON-u izmijeni ili obriše vozilo. Odabrano vozilo prikazuje se na stranici **Moje rezervacije**.
+
 ## Promo kodovi — SHA-256, promjenjiva sol i papar
 
 Administrator na **Promo kodovi** može kreirati npr. `PARK10` i odrediti postotak popusta. Izvorni promo kod se ne sprema u bazu.
@@ -79,7 +82,7 @@ Javni detalji parkinga ne prikazuju privatne upute. Na stranici **Moje rezervaci
 
 ## SHA-256 integritet rezervacije
 
-Na **Moje rezervacije → SHA-256** računa se obični SHA-256 nad stabilnim prikazom stvarnih podataka rezervacije: ID rezervacije, korisnik, parking, lokacija, termin, status, cijena po satu, eventualni promo popust i ukupna cijena.
+Na **Moje rezervacije → SHA-256** računa se obični SHA-256 nad stabilnim prikazom stvarnih podataka rezervacije: ID rezervacije, korisnik, parking, lokacija, odabrano vozilo, termin, status, cijena po satu, eventualni promo popust i ukupna cijena.
 
 Za ovu provjeru integriteta namjerno se **ne koriste sol ni papar**. Isti podaci daju isti kontrolni otisak, a promjena podataka mijenja otisak.
 
@@ -127,7 +130,7 @@ run.py      → web aplikacija → 5000
 api_app.py  → REST API       → 5001
 ```
 
-API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju.
+API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju. Kod REST kreiranja rezervacije opcionalni `vehicle_id` mora pripadati autentificiranom korisniku; API u odgovoru vraća snapshot odabranog vozila.
 
 ## Struktura projekta
 
