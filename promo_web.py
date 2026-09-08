@@ -6,6 +6,7 @@ from sqlalchemy.exc import OperationalError
 
 from models import db, ParkingSpot, PromoCode, Reservation
 from promo_code_hash import create_promo_digest, verify_promo_code
+from vehicle_store import get_vehicle, list_vehicles
 
 
 def _add_column_if_missing(column_name, ddl):
@@ -28,7 +29,7 @@ def _add_column_if_missing(column_name, ddl):
 
 
 def ensure_promo_schema(app):
-    """Upgrade an existing SQLite database with reservation promo columns."""
+    """Upgrade an existing SQLite database with reservation promo and vehicle columns."""
     with app.app_context():
         db.create_all()
         _add_column_if_missing(
@@ -38,6 +39,18 @@ def ensure_promo_schema(app):
         _add_column_if_missing(
             "promo_code_id",
             "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER",
+        )
+        _add_column_if_missing(
+            "vehicle_id",
+            "ALTER TABLE reservations ADD COLUMN vehicle_id INTEGER",
+        )
+        _add_column_if_missing(
+            "vehicle_name",
+            "ALTER TABLE reservations ADD COLUMN vehicle_name VARCHAR(120)",
+        )
+        _add_column_if_missing(
+            "vehicle_registration",
+            "ALTER TABLE reservations ADD COLUMN vehicle_registration VARCHAR(40)",
         )
 
 
@@ -115,6 +128,15 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
     def reserve_with_promo(parking_id):
         parking = db.get_or_404(ParkingSpot, parking_id)
         user = current_user()
+        vehicles = list_vehicles(user.id)
+
+        def render_form():
+            return render_template(
+                "reservation_form.html",
+                parking=parking,
+                vehicles=vehicles,
+            )
+
         if parking.owner_id == user.id:
             flash(local_text(
                 "Ne možete rezervirati vlastiti parking.",
@@ -131,14 +153,14 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                     "Unesite ispravan datum i vrijeme.",
                     "Enter a valid date and time.",
                 ), "danger")
-                return render_template("reservation_form.html", parking=parking)
+                return render_form()
 
             if end_time <= start_time:
                 flash(local_text(
                     "Završetak mora biti nakon početka.",
                     "The end must be after the start.",
                 ), "danger")
-                return render_template("reservation_form.html", parking=parking)
+                return render_form()
 
             conflict = Reservation.query.filter_by(parking_id=parking.id, status="ACTIVE").filter(
                 Reservation.start_time < end_time,
@@ -149,7 +171,22 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                     "Parking je već rezerviran u tom terminu.",
                     "The parking spot is already reserved for that time.",
                 ), "danger")
-                return render_template("reservation_form.html", parking=parking)
+                return render_form()
+
+            selected_vehicle = None
+            vehicle_text = request.form.get("vehicle_id", "").strip()
+            if vehicle_text:
+                try:
+                    vehicle_id = int(vehicle_text)
+                except ValueError:
+                    vehicle_id = None
+                selected_vehicle = get_vehicle(user.id, vehicle_id) if vehicle_id is not None else None
+                if selected_vehicle is None:
+                    flash(local_text(
+                        "Odabrano vozilo nije pronađeno među vašim vozilima.",
+                        "The selected vehicle was not found among your vehicles.",
+                    ), "danger")
+                    return render_form()
 
             promo_text = request.form.get("promo_code", "").strip()
             promo = None
@@ -161,7 +198,7 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                         "Promo kod nije valjan ili nije aktivan.",
                         "The promo code is invalid or inactive.",
                     ), "danger")
-                    return render_template("reservation_form.html", parking=parking)
+                    return render_form()
                 promo = verification["promo"]
 
             reservation = Reservation(
@@ -172,6 +209,9 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                 status="ACTIVE",
                 discount_percent=promo.discount_percent if promo else 0.0,
                 promo_code_id=promo.id if promo else None,
+                vehicle_id=selected_vehicle["id"] if selected_vehicle else None,
+                vehicle_name=selected_vehicle["name"] if selected_vehicle else None,
+                vehicle_registration=selected_vehicle["registration"] if selected_vehicle else None,
             )
             db.session.add(reservation)
             db.session.commit()
@@ -185,8 +225,8 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                 flash(local_text("Rezervacija je spremljena.", "Reservation saved."), "success")
             return redirect(url_for("my_reservations"))
 
-        return render_template("reservation_form.html", parking=parking)
+        return render_form()
 
     # The base app already owns the /parking/<id>/reserve URL. Replace only its view
-    # so the main business flow gains promo verification without creating a second route.
+    # so the main business flow gains promo and vehicle selection without a second route.
     app.view_functions["reserve"] = login_required(reserve_with_promo)
