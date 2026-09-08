@@ -13,7 +13,7 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - 24-satni unos datuma i vremena pomoću Flatpickra
 - SQLite + SQLAlchemy
 - administratorski CRUD nad korisnicima i rezervacijama
-- administratorsko upravljanje promo kodovima
+- administratorska dodjela korisničkih popusta za kod `POPUST`
 - HR/EN sučelje
 - INI postavke u `config.ini`
 - JSON CRUD korisničkih vozila u `data/vehicles.json`
@@ -22,7 +22,7 @@ ParKING je Flask web aplikacija za oglašavanje i rezervaciju privatnih parkirni
 - vlastiti binarni format povijesti pretraga (`PKSR`)
 - AES-GCM šifrirane privatne pristupne upute parkinga
 - SHA-256 provjera integriteta rezervacije bez soli i papra
-- SHA-256 promo kodovi s promjenjivom soli i paprom 0–255
+- SHA-256 korisnički promo hash s promjenjivom soli i sistemskim paprom
 - Open-Meteo vremenski podaci uz stvarne parkinge
 - `ThreadPoolExecutor` + `threading.Lock`
 - vlastiti REST API s Bearer autentifikacijom i autorizacijom
@@ -52,19 +52,27 @@ Svaki zapis sadrži `id`, `user_id`, naziv vozila i registracijsku oznaku. Funkc
 
 Kod rezervacije korisnik može opcionalno odabrati jedno od svojih spremljenih vozila. Aplikacija provjerava da odabrano vozilo stvarno pripada prijavljenom korisniku. U samu rezervaciju sprema se snapshot `vehicle_id`, naziva i registracijske oznake, pa stara rezervacija ostaje razumljiva i ako korisnik kasnije u JSON-u izmijeni ili obriše vozilo. Odabrano vozilo prikazuje se na stranici **Moje rezervacije**.
 
-## Promo kodovi — SHA-256, promjenjiva sol i papar
+## Promo kod POPUST — SHA-256, promjenjiva sol i papar
 
-Administrator na **Promo kodovi** može kreirati npr. `PARK10` i odrediti postotak popusta. Izvorni promo kod se ne sprema u bazu.
-
-`promo_code_hash.py` generira promjenjivu sol iz ID-a promo zapisa:
+Na administratorskoj stranici **Promo kodovi** postoji samo jedan promo kod:
 
 ```text
-SHA256("ParKING-promo-salt:<promo_id>")[0:16]
+POPUST
 ```
 
-Sol se ne sprema. Pri stvaranju sažetka slučajno se bira jedan papar iz raspona `0–255`; ni papar se ne sprema. U tablici `promo_codes` ostaju samo SHA-256 sažetak, postotak popusta i status aktivnosti.
+Administrator vidi sve korisnike, može svakog uključiti checkboxom i svakome zadati zaseban postotak popusta. Klikom na **Primijeni** za svakog označenog korisnika računa se poseban SHA-256 hash.
 
-Kod rezervacije korisnik može upisati promo kod. Aplikacija za svaki kandidat prolazi **svih 256 mogućih vrijednosti papra** i tek nakon završetka cijelog raspona prihvaća podudaranje. Uspješna rezervacija sprema `promo_code_id` i `discount_percent`, a `Reservation.total_price()` vraća konačnu cijenu nakon popusta.
+Svaki korisnik ima vlastitu promjenjivu sol koja se deterministički izvodi iz njegova stabilnog `user_id`:
+
+```text
+SHA256("ParKING-user-promo-salt:<user_id>")[0:16]
+```
+
+Sol se ne sprema u bazu ni datoteku. Papar je definiran na razini sustava preko `PROMO_SYSTEM_PEPPER`; zadana Docker vrijednost je `173`. Papar se ne sprema uz korisnički hash.
+
+Hash se računa iz korisnikove soli, teksta `POPUST` i sistemskog papra. Zato isti promo kod daje različit hash za različite korisnike.
+
+Kod rezervacije korisnik može upisati `POPUST`. Aplikacija dohvaća samo njegov aktivni promo zapis, ponovno izvodi njegovu sol i namjerno prolazi svih **256 mogućih vrijednosti papra od 0 do 255**. Popust se prihvaća tek nakon cijelog prolaza i samo ako podudaranje odgovara sistemskom papru. Primjenjuje se postotak koji je administrator dodijelio upravo tom korisniku.
 
 Ova funkcionalnost je odvojena od SHA-256 provjere integriteta rezervacije, gdje se sol i papar namjerno ne koriste.
 
@@ -90,7 +98,7 @@ Za ovu provjeru integriteta namjerno se **ne koriste sol ni papar**. Isti podaci
 
 Open-Meteo podaci prikazuju se uz parkinge. Grad se izdvaja iz lokacije, a po potrebi se geokodira preko Open-Meteo Geocoding API-ja.
 
-**Test → Dretve** koristi iste Open-Meteo forecast zahtjeve kroz isti `ThreadPoolExecutor` s:
+**Tools → Test Dretve** koristi iste Open-Meteo forecast zahtjeve kroz isti `ThreadPoolExecutor` s:
 
 ```text
 max_workers = 1
@@ -130,7 +138,7 @@ run.py      → web aplikacija → 5000
 api_app.py  → REST API       → 5001
 ```
 
-API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju. Kod REST kreiranja rezervacije opcionalni `vehicle_id` mora pripadati autentificiranom korisniku; API u odgovoru vraća snapshot odabranog vozila.
+API izlaže `/api/parkings` i `/api/reservations` te koristi Bearer token autentifikaciju i autorizaciju. Kod REST kreiranja rezervacije opcionalni `vehicle_id` mora pripadati autentificiranom korisniku; API u odgovoru vraća snapshot odabranog vozila. UI demonstracija vlastitog REST klijenta dostupna je pod **Tools → Test REST**.
 
 ## Struktura projekta
 
@@ -187,7 +195,7 @@ curl http://localhost:5001/api/health
 docker compose exec parking python seed.py
 ```
 
-`seed.py` resetira razvojnu bazu i kreira početne korisnike, parkinge u Zagrebu, Zadru i Splitu te jednu rezervaciju. Vozila, privatne pristupne upute i promo kodovi mogu se zatim dodati kroz normalno korisničko sučelje.
+`seed.py` resetira razvojnu bazu i kreira početne korisnike, parkinge u Zagrebu, Zadru i Splitu te jednu rezervaciju. Vozila i privatne pristupne upute mogu se zatim dodati kroz normalno korisničko sučelje, a administrator može dodijeliti korisničke popuste za `POPUST`.
 
 ## Ažuriranje nakon promjena
 
