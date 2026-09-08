@@ -8,6 +8,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from models import db, ParkingSpot, Reservation, User
+from vehicle_store import get_vehicle
 
 BASE_DIR = Path(__file__).resolve().parent
 DB_PATH = BASE_DIR / "data" / "parking.db"
@@ -61,6 +62,21 @@ def ensure_database():
             "promo_code_id",
             "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER",
         )
+        _add_column_if_missing(
+            "reservations",
+            "vehicle_id",
+            "ALTER TABLE reservations ADD COLUMN vehicle_id INTEGER",
+        )
+        _add_column_if_missing(
+            "reservations",
+            "vehicle_name",
+            "ALTER TABLE reservations ADD COLUMN vehicle_name VARCHAR(120)",
+        )
+        _add_column_if_missing(
+            "reservations",
+            "vehicle_registration",
+            "ALTER TABLE reservations ADD COLUMN vehicle_registration VARCHAR(40)",
+        )
 
         changed = False
         for user in User.query.all():
@@ -100,11 +116,20 @@ def parking_to_dict(parking):
 
 
 def reservation_to_dict(reservation):
+    vehicle = None
+    if reservation.vehicle_name or reservation.vehicle_registration:
+        vehicle = {
+            "id": reservation.vehicle_id,
+            "name": reservation.vehicle_name,
+            "registration": reservation.vehicle_registration,
+        }
+
     return {
         "id": reservation.id,
         "parking_id": reservation.parking_id,
         "parking": reservation.parking.name,
         "user": reservation.user.username,
+        "vehicle": vehicle,
         "start_time": reservation.start_time.isoformat(timespec="minutes"),
         "end_time": reservation.end_time.isoformat(timespec="minutes"),
         "status": reservation.status,
@@ -223,6 +248,17 @@ def api_reservations():
     if conflict:
         return jsonify({"error": "Parking je već rezerviran u tom terminu."}), 409
 
+    selected_vehicle = None
+    raw_vehicle_id = data.get("vehicle_id")
+    if raw_vehicle_id not in (None, ""):
+        try:
+            vehicle_id = int(raw_vehicle_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "vehicle_id mora biti cijeli broj."}), 400
+        selected_vehicle = get_vehicle(user.id, vehicle_id)
+        if selected_vehicle is None:
+            return jsonify({"error": "Odabrano vozilo nije pronađeno među vašim vozilima."}), 400
+
     reservation = Reservation(
         parking_id=parking_id,
         user_id=user.id,
@@ -230,6 +266,9 @@ def api_reservations():
         end_time=end_time,
         status="ACTIVE",
         discount_percent=0.0,
+        vehicle_id=selected_vehicle["id"] if selected_vehicle else None,
+        vehicle_name=selected_vehicle["name"] if selected_vehicle else None,
+        vehicle_registration=selected_vehicle["registration"] if selected_vehicle else None,
     )
     db.session.add(reservation)
     db.session.commit()
