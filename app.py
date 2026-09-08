@@ -13,9 +13,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from sqlalchemy import text
 
-from json_store import add_note, delete_note, get_note, list_notes, update_note
 from models import db, User, ParkingSpot, Reservation
+from parking_access_crypto import decrypt_access_instructions, encrypt_access_instructions
 from translations import TRANSLATIONS
+from vehicle_store import add_vehicle, delete_vehicle, get_vehicle, list_vehicles, update_vehicle
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
@@ -71,6 +72,10 @@ def current_language():
 def tr(key):
     language = current_language()
     return TRANSLATIONS.get(language, {}).get(key, TRANSLATIONS["hr"].get(key, key))
+
+
+def local_text(hr, en):
+    return en if current_language() == "en" else hr
 
 
 def login_required(view_func):
@@ -218,6 +223,16 @@ def read_uploaded_image():
     return data, image.mimetype
 
 
+def decrypt_parking_access(parking):
+    if not parking.access_instructions:
+        return ""
+    return decrypt_access_instructions(
+        parking.access_instructions,
+        app.config["SECRET_KEY"],
+        parking.id,
+    )
+
+
 @app.route("/my-parkings")
 @login_required
 def my_parkings():
@@ -228,28 +243,35 @@ def my_parkings():
 @app.route("/parking/new", methods=["GET", "POST"])
 @login_required
 def parking_new():
+    access_text = request.form.get("access_instructions", "").strip() if request.method == "POST" else ""
     if request.method == "POST":
         try:
             price = float(request.form.get("price_per_hour", ""))
             photo, photo_mime = read_uploaded_image()
         except ValueError as exc:
             flash(str(exc), "danger")
-            return render_template("parking_form.html", parking=None)
+            return render_template("parking_form.html", parking=None, access_instructions=access_text)
         name = request.form.get("name", "").strip()
         location = request.form.get("location", "").strip()
         if not name or not location or price < 0:
             flash(tr("flash.parking_invalid"), "danger")
-            return render_template("parking_form.html", parking=None)
+            return render_template("parking_form.html", parking=None, access_instructions=access_text)
         parking = ParkingSpot(
             owner_id=current_user().id, name=name, location=location,
             price_per_hour=price, description=request.form.get("description", "").strip(),
             photo=photo, photo_mime=photo_mime
         )
         db.session.add(parking)
+        db.session.flush()
+        parking.access_instructions = encrypt_access_instructions(
+            access_text,
+            app.config["SECRET_KEY"],
+            parking.id,
+        )
         db.session.commit()
         flash(tr("flash.parking_added"), "success")
         return redirect(url_for("my_parkings"))
-    return render_template("parking_form.html", parking=None)
+    return render_template("parking_form.html", parking=None, access_instructions="")
 
 
 @app.route("/parking/<int:parking_id>/edit", methods=["GET", "POST"])
@@ -258,28 +280,44 @@ def parking_edit(parking_id):
     parking = db.get_or_404(ParkingSpot, parking_id)
     if not parking.is_owned_by(current_user()):
         abort(403)
-    if request.method == "POST":
+
+    if request.method == "GET":
         try:
-            price = float(request.form.get("price_per_hour", ""))
-            photo, photo_mime = read_uploaded_image()
-        except ValueError as exc:
-            flash(str(exc), "danger")
-            return render_template("parking_form.html", parking=parking)
-        name = request.form.get("name", "").strip()
-        location = request.form.get("location", "").strip()
-        if not name or not location or price < 0:
-            flash(tr("flash.parking_invalid"), "danger")
-            return render_template("parking_form.html", parking=parking)
-        parking.name, parking.location, parking.price_per_hour = name, location, price
-        parking.description = request.form.get("description", "").strip()
-        if request.form.get("remove_photo") == "1":
-            parking.photo, parking.photo_mime = None, None
-        elif photo is not None:
-            parking.photo, parking.photo_mime = photo, photo_mime
-        db.session.commit()
-        flash(tr("flash.parking_updated"), "success")
-        return redirect(url_for("my_parkings"))
-    return render_template("parking_form.html", parking=parking)
+            access_text = decrypt_parking_access(parking)
+        except Exception:
+            access_text = ""
+            flash(local_text(
+                "Pristupne upute nije moguće dešifrirati.",
+                "The access instructions could not be decrypted.",
+            ), "danger")
+        return render_template("parking_form.html", parking=parking, access_instructions=access_text)
+
+    access_text = request.form.get("access_instructions", "").strip()
+    try:
+        price = float(request.form.get("price_per_hour", ""))
+        photo, photo_mime = read_uploaded_image()
+    except ValueError as exc:
+        flash(str(exc), "danger")
+        return render_template("parking_form.html", parking=parking, access_instructions=access_text)
+    name = request.form.get("name", "").strip()
+    location = request.form.get("location", "").strip()
+    if not name or not location or price < 0:
+        flash(tr("flash.parking_invalid"), "danger")
+        return render_template("parking_form.html", parking=parking, access_instructions=access_text)
+    parking.name, parking.location, parking.price_per_hour = name, location, price
+    parking.description = request.form.get("description", "").strip()
+    parking.access_instructions = encrypt_access_instructions(
+        access_text,
+        app.config["SECRET_KEY"],
+        parking.id,
+    )
+    if request.form.get("remove_photo") == "1":
+        parking.photo, parking.photo_mime = None, None
+    elif photo is not None:
+        parking.photo, parking.photo_mime = photo, photo_mime
+    db.session.commit()
+    flash(tr("flash.parking_updated"), "success")
+    return redirect(url_for("my_parkings"))
 
 
 @app.route("/parking/<int:parking_id>/delete", methods=["POST"])
@@ -331,7 +369,22 @@ def reserve(parking_id):
 def my_reservations():
     items = Reservation.query.filter_by(user_id=current_user().id).order_by(
         Reservation.start_time.desc()).all()
-    return render_template("reservations.html", reservations=items)
+    access_by_reservation = {}
+    for reservation in items:
+        if reservation.status != "ACTIVE" or not reservation.parking.access_instructions:
+            continue
+        try:
+            access_by_reservation[reservation.id] = decrypt_parking_access(reservation.parking)
+        except Exception:
+            access_by_reservation[reservation.id] = local_text(
+                "Pristupne upute nije moguće otvoriti.",
+                "The access instructions could not be opened.",
+            )
+    return render_template(
+        "reservations.html",
+        reservations=items,
+        access_instructions=access_by_reservation,
+    )
 
 
 @app.route("/reservation/<int:reservation_id>/cancel", methods=["POST"])
@@ -390,50 +443,58 @@ def reservation_pdf(reservation_id):
                      download_name=f"parking-rezervacija-{reservation.id}.pdf")
 
 
-@app.route("/notes")
+@app.route("/vehicles")
 @login_required
-def notes():
-    return render_template("notes.html", notes=list_notes(current_user().id))
+def vehicles():
+    return render_template("vehicles.html", vehicles=list_vehicles(current_user().id))
 
 
-@app.route("/notes/new", methods=["GET", "POST"])
+@app.route("/vehicles/new", methods=["GET", "POST"])
 @login_required
-def note_new():
+def vehicle_new():
     if request.method == "POST":
-        title = request.form.get("title", "").strip()
-        if not title:
-            flash(tr("flash.note_title_required"), "danger")
+        name = request.form.get("name", "").strip()
+        registration = request.form.get("registration", "").strip()
+        if not name or not registration:
+            flash(local_text(
+                "Unesite naziv vozila i registracijsku oznaku.",
+                "Enter the vehicle name and registration plate.",
+            ), "danger")
         else:
-            add_note(current_user().id, title, request.form.get("text", "").strip())
-            flash(tr("flash.note_added"), "success")
-            return redirect(url_for("notes"))
-    return render_template("note_form.html", note=None)
+            add_vehicle(current_user().id, name, registration)
+            flash(local_text("Vozilo je dodano.", "Vehicle added."), "success")
+            return redirect(url_for("vehicles"))
+    return render_template("vehicle_form.html", vehicle=None)
 
 
-@app.route("/notes/<int:note_id>/edit", methods=["GET", "POST"])
+@app.route("/vehicles/<int:vehicle_id>/edit", methods=["GET", "POST"])
 @login_required
-def note_edit(note_id):
-    note = get_note(current_user().id, note_id)
-    if not note:
+def vehicle_edit(vehicle_id):
+    vehicle = get_vehicle(current_user().id, vehicle_id)
+    if not vehicle:
         abort(404)
     if request.method == "POST":
-        title = request.form.get("title", "").strip()
-        if not title:
-            flash(tr("flash.note_title_required"), "danger")
+        name = request.form.get("name", "").strip()
+        registration = request.form.get("registration", "").strip()
+        if not name or not registration:
+            flash(local_text(
+                "Unesite naziv vozila i registracijsku oznaku.",
+                "Enter the vehicle name and registration plate.",
+            ), "danger")
         else:
-            update_note(current_user().id, note_id, title, request.form.get("text", "").strip())
-            flash(tr("flash.note_updated"), "success")
-            return redirect(url_for("notes"))
-    return render_template("note_form.html", note=note)
+            update_vehicle(current_user().id, vehicle_id, name, registration)
+            flash(local_text("Vozilo je ažurirano.", "Vehicle updated."), "success")
+            return redirect(url_for("vehicles"))
+    return render_template("vehicle_form.html", vehicle=vehicle)
 
 
-@app.route("/notes/<int:note_id>/delete", methods=["POST"])
+@app.route("/vehicles/<int:vehicle_id>/delete", methods=["POST"])
 @login_required
-def note_delete(note_id):
-    if not delete_note(current_user().id, note_id):
+def vehicle_delete(vehicle_id):
+    if not delete_vehicle(current_user().id, vehicle_id):
         abort(404)
-    flash(tr("flash.note_deleted"), "info")
-    return redirect(url_for("notes"))
+    flash(local_text("Vozilo je obrisano.", "Vehicle deleted."), "info")
+    return redirect(url_for("vehicles"))
 
 
 @app.route("/admin/users")
@@ -590,12 +651,14 @@ def forbidden(_error):
     return render_template("403.html"), 403
 
 
-def ensure_phase4_columns():
+def ensure_schema_columns():
     columns = {row[1] for row in db.session.execute(text("PRAGMA table_info(parking_spots)")).all()}
     if "photo" not in columns:
         db.session.execute(text("ALTER TABLE parking_spots ADD COLUMN photo BLOB"))
     if "photo_mime" not in columns:
         db.session.execute(text("ALTER TABLE parking_spots ADD COLUMN photo_mime VARCHAR(100)"))
+    if "access_instructions" not in columns:
+        db.session.execute(text("ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB"))
     db.session.commit()
 
 
@@ -603,7 +666,7 @@ def create_database():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     with app.app_context():
         db.create_all()
-        ensure_phase4_columns()
+        ensure_schema_columns()
 
 
 create_database()
