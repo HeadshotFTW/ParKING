@@ -13,7 +13,7 @@ docker compose exec parking python seed.py
 
 `seed.py` briše postojeću razvojnu bazu i kreira parkinge u Zagrebu, Zadru i Splitu.
 
-## 1. Dostupni parkinzi, vrijeme, rezervacija i povijest pretraga
+## 1. Dostupni parkinzi, vrijeme i rezervacija
 
 Kao obični korisnik:
 
@@ -24,12 +24,10 @@ Kao obični korisnik:
 5. objasniti provjeru preklapanja `ACTIVE` rezervacija
 6. pokazati Open-Meteo temperaturu i vjetar
 7. sortirati rezultate
-8. otvoriti **Povijest pretraga** i pokazati da je pretraga spremljena u `data/search_history.bin`
-9. kliknuti **Ponovi**
-10. otvoriti **Moja vozila** i imati barem jedno spremljeno vozilo
-11. rezervirati parking, pokazati preneseni termin i odabrati jedno od svojih vozila
-12. otvoriti **Moje rezervacije** i pokazati odabrano vozilo uz rezervaciju
-13. preuzeti PDF potvrdu
+8. otvoriti **Moja vozila** i imati barem jedno spremljeno vozilo
+9. rezervirati parking, pokazati preneseni termin i odabrati jedno od svojih vozila
+10. otvoriti **Moje rezervacije** i pokazati odabrano vozilo uz rezervaciju
+11. preuzeti PDF potvrdu
 
 Pravilo preklapanja:
 
@@ -38,6 +36,8 @@ postojeći početak < traženi završetak
 AND
 postojeći završetak > traženi početak
 ```
+
+**Povijest pretraga** demonstrira se kao administrator jer je pristup toj stranici ograničen na admin korisnike.
 
 ## 2. HR / EN
 
@@ -90,7 +90,7 @@ docker compose exec parking python -c "from app import app; from models import P
 
 Važno za objašnjenje: AES-GCM ovdje štiti stvaran privatni podatak parkinga.
 
-## 5. Promo kod POPUST — SHA-256, promjenjiva sol i papar
+## 5. Promo kod POPUST — SHA-256, promjenjiva sol i DEMO papar
 
 Kao administrator otvoriti **Promo kodovi**. Na stranici postoji samo jedan promo kod:
 
@@ -121,7 +121,7 @@ Papar je definiran na razini sustava preko varijable:
 PROMO_SYSTEM_PEPPER
 ```
 
-U Docker konfiguraciji zadana demonstracijska vrijednost je `173`, ali hash ne sprema papar uz korisnički zapis.
+Za demonstraciju je raspon namjerno ograničen na vrijednosti `1-5`; zadana Docker vrijednost je `3`. Papar se ne sprema uz korisnički hash.
 
 Hash korisnika računa se nad:
 
@@ -131,15 +131,27 @@ korisnikova sol + "POPUST" + sistemski papar
                SHA-256
 ```
 
-Zatim se prijaviti kao korisnik kojem je admin dodijelio popust i kod rezervacije upisati `POPUST`. Aplikacija dohvaća samo njegov korisnički promo zapis, ponovno izvodi njegovu sol i namjerno prolazi **svih 256 vrijednosti papra od 0 do 255**. Tek nakon cijelog prolaza prihvaća podudaranje sa sistemskim paprom i primjenjuje baš postotak dodijeljen tom korisniku.
+Zatim se prijaviti kao korisnik kojem je admin dodijelio popust i otvoriti rezervaciju. Uz unos promo koda nalazi se jasno označen **Papar — DEMO** dropdown s vrijednostima `1-5`.
+
+Demonstracija:
+
+1. upisati `POPUST`
+2. namjerno odabrati pogrešan papar, npr. `1` — popust se ne prihvaća
+3. pokušati ponovno s drugom vrijednošću
+4. kad se pogodi ispravan papar, popust se prihvaća i primjenjuje baš postotak dodijeljen tom korisniku
+
+Backend pri svakoj provjeri prolazi cijeli demonstracijski raspon `1-5` i pronalazi vrijednost koja daje spremljeni hash, ali popust daje samo ako korisnikov odabir odgovara toj vrijednosti. Time se istodobno demonstrira provjera cijelog raspona i pogađanje papra.
+
+**Važno za obranu:** dropdown papra postoji isključivo u demonstracijske svrhe. U stvarnoj produkcijskoj aplikaciji tajni papar se ne bi prikazivao korisniku niti bi ga korisnik pogađao.
 
 Za drugog korisnika isti tekst `POPUST` daje drugi hash i može dati drugi postotak popusta.
 
 Ključne datoteke:
 
 ```text
-promo_code_hash.py     sol po user_id-u, sistemski papar i puni scan 0–255
-promo_web.py           checkbox dodjela popusta korisnicima i primjena u rezervaciji
+promo_code_hash.py     sol po user_id-u, sistemski papar i puni scan 1-5
+promo_web.py           checkbox dodjela popusta + provjera korisničkog DEMO odabira
+templates/reservation_form.html   DEMO dropdown za papar 1-5
 models.py              PromoCode.user_id + discount_percent + hash po korisniku
 docker-compose.yml     PROMO_SYSTEM_PEPPER na razini sustava
 ```
@@ -238,8 +250,8 @@ run.py                       instalira prošireni rezervacijski tok
 vehicle_store.py             JSON CRUD vozila
 parking_access_crypto.py     AES-GCM šifriranje/dešifriranje pristupnih uputa
 hash_demo.py                 SHA-256 integritet rezervacije
-promo_code_hash.py           sol po user_id-u + sistemski papar + provjera 0–255
-promo_web.py                 POPUST po korisniku + odabir vozila + rezervacija
+promo_code_hash.py           sol po user_id-u + sistemski papar + provjera 1-5
+promo_web.py                 POPUST po korisniku + DEMO pogađanje papra + rezervacija
 parking_availability.py      dostupnost + binarna povijest + vrijeme
 binary_store.py              PKSR binarni format
 parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
@@ -252,4 +264,4 @@ config.ini                   INI postavke
 
 ## Bodovna procjena
 
-Konzervativna procjena je oko **71 bod**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen. Kriterij 25 ima čistu provjeru integriteta bez soli/papra te zasebnu poslovnu primjenu promjenjive korisničke soli i sistemskog papra na promo kodu `POPUST`.
+Konzervativna procjena je oko **71 bod**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen. Kriterij 25 ima čistu provjeru integriteta bez soli/papra te zasebnu demonstraciju promjenjive korisničke soli i sistemskog papra na promo kodu `POPUST`.
