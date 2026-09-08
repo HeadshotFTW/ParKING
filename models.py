@@ -76,7 +76,7 @@ class PromoCode(db.Model):
     __tablename__ = "promo_codes"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
     code_hash = db.Column(db.String(64), nullable=False)
     discount_percent = db.Column(db.Float, nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True)
