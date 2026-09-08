@@ -26,9 +26,10 @@ Kao obični korisnik:
 7. sortirati rezultate
 8. otvoriti **Povijest pretraga** i pokazati da je pretraga spremljena u `data/search_history.bin`
 9. kliknuti **Ponovi**
-10. rezervirati parking i pokazati preneseni termin
-11. otvoriti **Moje rezervacije**
-12. preuzeti PDF potvrdu
+10. otvoriti **Moja vozila** i imati barem jedno spremljeno vozilo
+11. rezervirati parking, pokazati preneseni termin i odabrati jedno od svojih vozila
+12. otvoriti **Moje rezervacije** i pokazati odabrano vozilo uz rezervaciju
+13. preuzeti PDF potvrdu
 
 Pravilo preklapanja:
 
@@ -49,7 +50,7 @@ Otvoriti **Moja vozila** i pokazati puni CRUD:
 1. dodati vozilo
 2. prikazati ga na listi
 3. urediti naziv ili registraciju
-4. obrisati vozilo
+4. po završetku demonstracije po želji obrisati vozilo
 
 Za tehnički dokaz pokazati:
 
@@ -58,6 +59,8 @@ cat data/vehicles.json
 ```
 
 Objasniti da `vehicle_store.py` sprema `id`, `user_id`, naziv vozila i registracijsku oznaku u JSON, bez baze podataka.
+
+Kod normalne rezervacije padajući izbornik prikazuje samo vozila prijavljenog korisnika. Ako korisnik odabere vozilo, aplikacija provjerava vlasništvo nad tim JSON zapisom i u rezervaciju sprema snapshot ID-a, naziva i registracije. Zato stara rezervacija ostaje razumljiva čak i ako se vozilo kasnije izmijeni ili obriše iz `vehicles.json`.
 
 ## 4. AES-GCM — privatne pristupne upute parkinga
 
@@ -122,8 +125,8 @@ Ključne datoteke:
 
 ```text
 promo_code_hash.py     generiranje soli, SHA-256 i puni pepper scan 0–255
-promo_web.py           admin promo rute i primjena popusta u rezervaciji
-models.py              PromoCode + discount_percent + promo_code_id
+promo_web.py           admin promo rute, odabir vozila i primjena popusta u rezervaciji
+models.py              PromoCode + podaci popusta + snapshot vozila na rezervaciji
 ```
 
 Važno: ovo je zasebno od provjere integriteta rezervacije. Kod integriteta nema soli ni papra.
@@ -205,7 +208,7 @@ Za kriterij 22 treba pokazati i stvarni `403` za nedopuštenu akciju.
 
 Otvoriti **Moje rezervacije → SHA-256**.
 
-Objasniti da se koristi **obični SHA-256 bez soli i papra**, jer je svrha provjera integriteta. Pokazati trenutačni kontrolni otisak, uspješnu provjeru te po želji neuspješnu provjeru nakon promjene jednog znaka otiska.
+Objasniti da se koristi **obični SHA-256 bez soli i papra**, jer je svrha provjera integriteta. U kontrolni tekst sada ulaze i snapshot odabranog vozila te eventualni promo popust. Pokazati trenutačni kontrolni otisak, uspješnu provjeru te po želji neuspješnu provjeru nakon promjene jednog znaka otiska.
 
 ## Kriterij 14 — ne demonstrirati
 
@@ -214,20 +217,20 @@ Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A 
 ## Datoteke koje je korisno znati
 
 ```text
-models.py                    SQLAlchemy modeli + PromoCode
+models.py                    SQLAlchemy modeli + PromoCode + snapshot vozila na rezervaciji
 app.py                       web rute, CRUD, vozila, AES pristupne upute
 run.py                       instalira prošireni parking tok i promo funkcionalnost
 vehicle_store.py             JSON CRUD vozila
 parking_access_crypto.py     AES-GCM šifriranje/dešifriranje pristupnih uputa
-hash_demo.py                 SHA-256 integritet rezervacije
+hash_demo.py                 SHA-256 integritet rezervacije, uključuje vozilo i popust
 promo_code_hash.py           promjenjiva sol + slučajni papar + provjera 0–255
-promo_web.py                 administracija promo kodova + primjena u rezervaciji
+promo_web.py                 administracija promo kodova + odabir vozila + rezervacija
 parking_availability.py      dostupnost + binarna povijest + vrijeme
 binary_store.py              PKSR binarni format
 parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
 service_fee.py               ctypes wrapper za dinamičku biblioteku
 native/service_fee.cpp       C++ ServiceFeeCalculator
-api_app.py                   vlastiti REST servis na 5001
+api_app.py                   vlastiti REST servis na 5001; podržava opcionalni vehicle_id
 config.ini                   INI postavke
 ```
 
