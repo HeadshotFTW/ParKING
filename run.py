@@ -1,11 +1,9 @@
-import subprocess
-import sys
 from pathlib import Path
 
 import requests
 from flask import flash, redirect, render_template, request, url_for
 
-from app import app, admin_required, current_language, current_user, login_required, DB_PATH, DATA_DIR
+from app import app, admin_required, current_language, current_user, login_required, DATA_DIR
 from binary_store import records_for_user
 from crypto_store import decrypt_notes, encrypt_notes
 from hash_demo import create_integrity_hash, reservation_integrity_text, verify_by_full_pepper_scan
@@ -94,76 +92,6 @@ def admin_threads():
         demo = None
         error = str(exc)
     return render_template("admin_threads.html", demo=demo, error=error)
-
-
-def run_reservation_check():
-    """Run the reservation consistency worker as process B and return its result."""
-    worker = Path(__file__).resolve().parent / "reservation_worker.py"
-    command = [sys.executable, str(worker), str(DB_PATH)]
-
-    try:
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            timeout=10,
-            check=False,
-        )
-        messages_hr = {
-            0: "Sve rezervacije su prošle provjeru konzistentnosti.",
-            1: "Pronađeni su problemi u podacima rezervacija.",
-            2: "Provjera rezervacija završila je tehničkom greškom.",
-        }
-        messages_en = {
-            0: "All reservations passed the consistency check.",
-            1: "Problems were found in the reservation data.",
-            2: "The reservation check ended with a technical error.",
-        }
-        messages = messages_en if current_language() == "en" else messages_hr
-        return {
-            "returncode": completed.returncode,
-            "stdout": completed.stdout.strip(),
-            "stderr": completed.stderr.strip(),
-            "message": messages.get(
-                completed.returncode,
-                tech_text(
-                    "Proces provjere vratio je neočekivani kod.",
-                    "The check process returned an unexpected code.",
-                ),
-            ),
-        }
-    except subprocess.TimeoutExpired:
-        return {
-            "returncode": -1,
-            "stdout": "",
-            "stderr": tech_text(
-                "Provjera nije završila unutar 10 sekundi.",
-                "The check did not finish within 10 seconds.",
-            ),
-            "message": tech_text(
-                "Provjera rezervacija prekinuta je zbog isteka vremena.",
-                "The reservation check was stopped because it timed out.",
-            ),
-        }
-
-
-@app.route("/admin/reservations/check", methods=["POST"])
-@admin_required
-def admin_reservations_check():
-    result = run_reservation_check()
-    reservations = Reservation.query.order_by(Reservation.start_time.desc()).all()
-    return render_template(
-        "admin_reservations.html",
-        reservations=reservations,
-        process_result=result,
-    )
-
-
-@app.route("/admin/process")
-@admin_required
-def admin_process():
-    """Backward-compatible redirect from the former standalone process page."""
-    return redirect(url_for("admin_reservations"))
 
 
 @app.route("/search-history")
