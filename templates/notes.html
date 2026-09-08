@@ -15,36 +15,96 @@
     <a class="btn btn-primary" href="{{ url_for('note_new') }}">{{ tr('notes.add') }}</a>
 </div>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
-            <div>
-                <h2 class="h5 mb-1">{% if lang == 'en' %}Encrypted backup{% else %}Šifrirana sigurnosna kopija{% endif %}</h2>
-                <p class="text-muted mb-0">
+{% set has_security_code = security_code_configured(current_user.id) %}
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h5 mb-0">{% if lang == 'en' %}Backup security code{% else %}Sigurnosni kod za kopiju{% endif %}</h2>
+                    <span class="badge {% if has_security_code %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                        {% if has_security_code %}
+                            {% if lang == 'en' %}Configured{% else %}Postavljen{% endif %}
+                        {% else %}
+                            {% if lang == 'en' %}Not configured{% else %}Nije postavljen{% endif %}
+                        {% endif %}
+                    </span>
+                </div>
+                <p class="text-muted small">
                     {% if lang == 'en' %}
-                        The backup contains your current notes and is protected with AES-GCM.
+                        Only the SHA-256 digest of the code is stored. A per-user salt is derived from user_id and is not stored. During verification all 256 possible one-byte pepper values are checked.
                     {% else %}
-                        Sigurnosna kopija sadrži vaše trenutačne bilješke i zaštićena je AES-GCM algoritmom.
+                        Sprema se samo SHA-256 sažetak koda. Promjenjiva sol izvodi se iz user_id i ne sprema se. Kod provjere prolazi se svih 256 mogućih jednobajtnih vrijednosti papra.
                     {% endif %}
                 </p>
-            </div>
-            <div class="d-flex flex-wrap gap-2">
-                <form method="post" action="{{ url_for('notes_backup') }}">
-                    <input type="hidden" name="action" value="encrypt">
+                <form method="post" action="{{ url_for('notes_security_code') }}">
+                    {% if has_security_code %}
+                    <div class="mb-3">
+                        <label class="form-label" for="current_code">{% if lang == 'en' %}Current code{% else %}Trenutačni kod{% endif %}</label>
+                        <input class="form-control" type="password" id="current_code" name="current_code" autocomplete="off" required>
+                    </div>
+                    {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label" for="new_code">{% if lang == 'en' %}New security code{% else %}Novi sigurnosni kod{% endif %}</label>
+                        <input class="form-control" type="password" id="new_code" name="new_code" minlength="4" autocomplete="off" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" for="confirm_code">{% if lang == 'en' %}Repeat new code{% else %}Ponovite novi kod{% endif %}</label>
+                        <input class="form-control" type="password" id="confirm_code" name="confirm_code" minlength="4" autocomplete="off" required>
+                    </div>
                     <button class="btn btn-outline-primary" type="submit">
-                        {% if lang == 'en' %}Create encrypted backup{% else %}Izradi šifriranu kopiju{% endif %}
-                    </button>
-                </form>
-                <form method="post" action="{{ url_for('notes_backup') }}">
-                    <input type="hidden" name="action" value="decrypt">
-                    <button class="btn btn-outline-secondary" type="submit">
-                        {% if lang == 'en' %}Open encrypted backup{% else %}Otvori šifriranu kopiju{% endif %}
+                        {% if has_security_code %}
+                            {% if lang == 'en' %}Change security code{% else %}Promijeni sigurnosni kod{% endif %}
+                        {% else %}
+                            {% if lang == 'en' %}Set security code{% else %}Postavi sigurnosni kod{% endif %}
+                        {% endif %}
                     </button>
                 </form>
             </div>
         </div>
     </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h5 mb-1">{% if lang == 'en' %}Encrypted backup{% else %}Šifrirana sigurnosna kopija{% endif %}</h2>
+                <p class="text-muted small">
+                    {% if lang == 'en' %}
+                        The backup contains your current notes and is protected with AES-GCM. A security code must be configured before a backup can be created or opened.
+                    {% else %}
+                        Sigurnosna kopija sadrži vaše trenutačne bilješke i zaštićena je AES-GCM algoritmom. Prije izrade ili otvaranja kopije potrebno je postaviti sigurnosni kod.
+                    {% endif %}
+                </p>
+                <form method="post" action="{{ url_for('notes_backup') }}" class="mb-3">
+                    <input type="hidden" name="action" value="encrypt">
+                    <button class="btn btn-outline-primary" type="submit" {% if not has_security_code %}disabled{% endif %}>
+                        {% if lang == 'en' %}Create encrypted backup{% else %}Izradi šifriranu kopiju{% endif %}
+                    </button>
+                </form>
+                <form method="post" action="{{ url_for('notes_backup') }}">
+                    <input type="hidden" name="action" value="decrypt">
+                    <label class="form-label" for="backup_security_code">{% if lang == 'en' %}Security code{% else %}Sigurnosni kod{% endif %}</label>
+                    <div class="input-group">
+                        <input class="form-control" type="password" id="backup_security_code" name="security_code" autocomplete="off" required {% if not has_security_code %}disabled{% endif %}>
+                        <button class="btn btn-outline-secondary" type="submit" {% if not has_security_code %}disabled{% endif %}>
+                            {% if lang == 'en' %}Open encrypted backup{% else %}Otvori šifriranu kopiju{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
+
+{% if security_verification is defined %}
+<div class="alert alert-success">
+    {% if lang == 'en' %}
+        Security-code verification checked all <strong>{{ security_verification.attempts }}</strong> possible pepper values before the backup was opened.
+    {% else %}
+        Provjera sigurnosnog koda prošla je svih <strong>{{ security_verification.attempts }}</strong> mogućih vrijednosti papra prije otvaranja kopije.
+    {% endif %}
+</div>
+{% endif %}
 
 {% if decrypted_backup is defined %}
 <div class="card mb-4 border-success">
