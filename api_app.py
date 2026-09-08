@@ -22,10 +22,18 @@ def ensure_database():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with api_app.app_context():
         db.create_all()
-        columns = {row[1] for row in db.session.execute(text("PRAGMA table_info(users)")).all()}
-        if "api_token" not in columns:
+
+        user_columns = {row[1] for row in db.session.execute(text("PRAGMA table_info(users)")).all()}
+        if "api_token" not in user_columns:
             db.session.execute(text("ALTER TABLE users ADD COLUMN api_token VARCHAR(64)"))
-            db.session.commit()
+
+        parking_columns = {
+            row[1] for row in db.session.execute(text("PRAGMA table_info(parking_spots)")).all()
+        }
+        if "access_instructions" not in parking_columns:
+            db.session.execute(text("ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB"))
+
+        db.session.commit()
 
         changed = False
         for user in User.query.all():
