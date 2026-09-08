@@ -17,13 +17,17 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends wget ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 COPY --from=native-builder /build/libservice_fee.so /app/native/libservice_fee.so
 
-RUN mkdir -p /app/data /app/exports \
+RUN mkdir -p /app/data /app/data/avatars /app/exports \
     && sed -i 's/\r$//' /app/start.sh \
     && chmod +x /app/start.sh
 
