@@ -1,14 +1,7 @@
 {% extends "base.html" %}
-{% block title %}{{ tr('nav.threads') }} - ParKING{% endblock %}
+{% block title %}Test Dretve - ParKING{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">{{ tr('threads.title') }}</h1>
-<p class="text-muted">
-    {% if lang == 'en' %}
-        The same Open-Meteo requests are executed with ThreadPoolExecutor first using one worker thread and then using up to three worker threads.
-    {% else %}
-        Isti Open-Meteo zahtjevi izvršavaju se pomoću ThreadPoolExecutora najprije s jednom radnom dretvom, a zatim s najviše tri radne dretve.
-    {% endif %}
-</p>
+<h1 class="h3 mb-3">Test Dretve</h1>
 
 {% if error %}
 <div class="alert alert-danger">
