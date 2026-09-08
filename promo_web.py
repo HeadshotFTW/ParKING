@@ -5,7 +5,13 @@ from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
 from models import db, ParkingSpot, PromoCode, Reservation, User
-from promo_code_hash import PROMO_CODE, create_user_promo_digest, verify_user_promo
+from promo_code_hash import (
+    PEPPER_MAX,
+    PEPPER_MIN,
+    PROMO_CODE,
+    create_user_promo_digest,
+    verify_user_promo,
+)
 from vehicle_store import get_vehicle, list_vehicles
 
 
@@ -67,7 +73,7 @@ def _assignment_for_user(user_id):
     return PromoCode.query.filter_by(user_id=user_id).order_by(PromoCode.id.desc()).first()
 
 
-def verify_assigned_discount(code, user_id):
+def verify_assigned_discount(code, user_id, guessed_pepper):
     assignment = PromoCode.query.filter_by(user_id=user_id, active=True).order_by(
         PromoCode.id.desc()
     ).first()
@@ -76,10 +82,12 @@ def verify_assigned_discount(code, user_id):
             "valid": False,
             "assignment": None,
             "matched_pepper": None,
+            "guessed_pepper": guessed_pepper,
             "attempts": 0,
+            "reason": "no_assignment",
         }
 
-    result = verify_user_promo(code, user_id, assignment.code_hash)
+    result = verify_user_promo(code, user_id, assignment.code_hash, guessed_pepper)
     result["assignment"] = assignment if result["valid"] else None
     return result
 
@@ -173,6 +181,7 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                 "reservation_form.html",
                 parking=parking,
                 vehicles=vehicles,
+                pepper_values=range(PEPPER_MIN, PEPPER_MAX + 1),
             )
 
         if parking.owner_id == user.id:
@@ -230,12 +239,31 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
             assignment = None
             verification = None
             if promo_text:
-                verification = verify_assigned_discount(promo_text, user.id)
-                if not verification["valid"]:
+                pepper_text = request.form.get("promo_pepper", "").strip()
+                try:
+                    guessed_pepper = int(pepper_text)
+                except ValueError:
+                    guessed_pepper = None
+
+                if guessed_pepper is None or not PEPPER_MIN <= guessed_pepper <= PEPPER_MAX:
                     flash(local_text(
-                        "Promo kod POPUST nije dodijeljen vašem korisničkom računu ili nije valjan.",
-                        "Promo code POPUST is not assigned to your account or is invalid.",
-                    ), "danger")
+                        "DEMONSTRACIJA: za promo kod odaberite papar od 1 do 5.",
+                        "DEMONSTRATION: select a pepper value from 1 to 5 for the promo code.",
+                    ), "warning")
+                    return render_form()
+
+                verification = verify_assigned_discount(promo_text, user.id, guessed_pepper)
+                if not verification["valid"]:
+                    if verification.get("reason") == "wrong_pepper":
+                        flash(local_text(
+                            "DEMONSTRACIJA: odabrani papar nije ispravan. Popust nije primijenjen; pokušajte drugu vrijednost od 1 do 5.",
+                            "DEMONSTRATION: the selected pepper is incorrect. The discount was not applied; try another value from 1 to 5.",
+                        ), "danger")
+                    else:
+                        flash(local_text(
+                            "Promo kod POPUST nije dodijeljen vašem korisničkom računu ili nije valjan.",
+                            "Promo code POPUST is not assigned to your account or is invalid.",
+                        ), "danger")
                     return render_form()
                 assignment = verification["assignment"]
 
@@ -256,8 +284,8 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
 
             if assignment:
                 flash(local_text(
-                    f"Promo kod POPUST je prihvaćen: {assignment.discount_percent:.0f}% popusta. Provjereno je svih {verification['attempts']} vrijednosti papra.",
-                    f"Promo code POPUST accepted: {assignment.discount_percent:.0f}% discount. All {verification['attempts']} pepper values were checked.",
+                    f"DEMONSTRACIJA: pogođen je ispravan papar. Promo kod POPUST je prihvaćen: {assignment.discount_percent:.0f}% popusta. Provjereno je svih {verification['attempts']} vrijednosti papra.",
+                    f"DEMONSTRATION: the correct pepper was guessed. Promo code POPUST was accepted: {assignment.discount_percent:.0f}% discount. All {verification['attempts']} pepper values were checked.",
                 ), "success")
             else:
                 flash(local_text("Rezervacija je spremljena.", "Reservation saved."), "success")
