@@ -3,5 +3,5 @@ __pycache__/
 *.pyc
 .env
 data/*.db
-data/security_codes.json
+data/vehicles.json
 .DS_Store
