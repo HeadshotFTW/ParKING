@@ -36,6 +36,7 @@
                 {% if current_user.is_admin() %}
                     <a class="nav-link" href="{{ url_for('admin_users') }}">{{ tr('nav.users') }}</a>
                     <a class="nav-link" href="{{ url_for('admin_reservations') }}">{{ tr('nav.admin_reservations') }}</a>
+                    <a class="nav-link" href="{{ url_for('admin_promos') }}">{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }}</a>
                     <a class="nav-link" href="{{ url_for('admin_settings') }}">{{ tr('nav.settings') }}</a>
                 {% endif %}
                 <a class="nav-link" href="{{ url_for('logout') }}">{{ tr('nav.logout') }} ({{ current_user.username }})</a>
