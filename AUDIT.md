@@ -32,7 +32,7 @@ Konzervativna procjena: **71 bod**.
 | 22 | REST auth/authz | 4 | vjerojatno | Bearer token, `401`, `403`. |
 | 23 | AES-GCM | 2 | sigurno | Privatne pristupne upute parkinga šifriraju se u `parking_spots.access_instructions` i dešifriraju samo za `ACTIVE` rezervacije korisnika. |
 | 24 | Asimetrična kriptografija | 0 | nije implementirano | — |
-| 25 | SHA-256 + promjenjiva sol + papar | 7 | vrlo vjerojatno | Integritet rezervacije koristi obični SHA-256 bez soli/papra. Promo kodovi koriste promjenjivu sol izvedenu iz `promo_id`, slučajni papar 0–255 i puni scan svih 256 vrijednosti pri provjeri. |
+| 25 | SHA-256 + promjenjiva sol + papar | 7 | vrlo vjerojatno | Integritet rezervacije koristi obični SHA-256 bez soli/papra. `POPUST` koristi sol po `user_id`, sistemski papar i puni scan 0–255. |
 | 26 | Digitalni potpis | 0 | nije implementirano | — |
 | 27 | Statička biblioteka | 0 | namjerno ne implementiramo | — |
 | 28 | Dinamička biblioteka | 5 | sigurno nakon Docker builda | `ServiceFeeCalculator`, `.so`, `ctypes`, stvarni service fee prikaz. |
@@ -47,7 +47,7 @@ Konzervativna procjena: **71 bod**.
 
 ## Kriterij 5 — JSON CRUD vozila
 
-`vehicle_store.py` sprema vozila prijavljenih korisnika u `data/vehicles.json`. Podržani su create, read, update i delete. Podaci nisu duplicirani u SQL bazi.
+`vehicle_store.py` sprema vozila prijavljenih korisnika u `data/vehicles.json`. Podržani su create, read, update i delete. Podaci nisu duplicirani u SQL bazi. Pri rezervaciji korisnik može odabrati jedno od vlastitih vozila, a rezervacija čuva snapshot vozila.
 
 ## Kriterij 11 — praktična potvrda
 
@@ -59,7 +59,7 @@ Isti Open-Meteo forecast zahtjevi izvršavaju se kroz isti `ThreadPoolExecutor` 
 ubrzanje   3.07×
 ```
 
-Na obrani ponovno pokazati da je višedretvena varijanta brža.
+Na obrani ponovno pokazati da je višedretvena varijanta brža preko **Tools → Test Dretve**.
 
 ## Kriterij 14 — uklonjen
 
@@ -75,22 +75,21 @@ Na obrani ponovno pokazati da je višedretvena varijanta brža.
 
 `hash_demo.py` računa SHA-256 nad stabilnim prikazom podataka rezervacije. Sol i papar se ovdje namjerno ne koriste, jer je cilj provjera integriteta.
 
-### Promo kodovi
+### Promo kod POPUST po korisniku
 
 `promo_code_hash.py` i `promo_web.py` implementiraju zasebnu poslovnu primjenu soli i papra:
 
-- administrator zadaje promo kod i postotak popusta
-- izvorni kod se ne sprema
-- promjenjiva sol izvodi se pravilom `SHA256("ParKING-promo-salt:<promo_id>")[0:16]`
-- sol se ne sprema
-- kod stvaranja sažetka bira se slučajni papar iz raspona `0–255`
-- papar se ne sprema
-- u `promo_codes.code_hash` sprema se samo SHA-256 sažetak
-- kod provjere prolazi se svih 256 mogućih vrijednosti papra za kandidata
-- tek nakon cijelog raspona prihvaća se podudaranje
-- rezervacija sprema `promo_code_id` i `discount_percent`, a `total_price()` vraća konačnu cijenu
-
-Ovo je poslovno smislenija primjena od prethodnog sigurnosnog koda za bilješke i ne miješa se s provjerom integriteta.
+- jedini promo kod je `POPUST`
+- svaki korisnik dobiva vlastitu reproducibilnu sol izvedenu pravilom `SHA256("ParKING-user-promo-salt:<user_id>")[0:16]`
+- sol se ne sprema u bazu ni datoteku
+- papar je definiran na razini sustava preko `PROMO_SYSTEM_PEPPER`
+- papar se ne sprema uz korisnički hash
+- administrator vidi checkbox listu svih korisnika i svakome može zadati drugi postotak popusta
+- za svakog označenog korisnika računa se zaseban SHA-256 hash iz njegove soli + `POPUST` + sistemskog papra
+- isti kod zato daje različit hash za različite korisnike
+- kod provjere za prijavljenog korisnika prolazi se svih 256 vrijednosti papra od 0 do 255
+- tek nakon cijelog raspona prihvaća se podudaranje koje odgovara sistemskom papru
+- rezervacija sprema `promo_code_id` i korisnikov `discount_percent`, a `total_price()` vraća konačnu cijenu
 
 ## Dinamička C++ biblioteka
 
@@ -110,8 +109,8 @@ curl -i http://localhost:5001/api/parkings
 curl -i http://localhost:5000/api/parkings
 ```
 
-Očekivano: `200`, `401`, `404`; za kriterij 22 pokazati i stvarni `403`.
+Očekivano: `200`, `401`, `404`; za kriterij 22 pokazati i stvarni `403`. UI demonstracija je pod **Tools → Test REST**.
 
 ## Zaključak
 
-Projekt je konzervativno procijenjen na **71 bod**. Kriterij 25 sada ponovno koristi promjenjivu sol i papar, ali na poslovno smislenim promo kodovima, dok provjera integriteta rezervacije ostaje čisti SHA-256 bez soli i papra.
+Projekt je konzervativno procijenjen na **71 bod**. Kriterij 25 koristi promjenjivu korisničku sol i sistemski papar na poslovno smislenom promo kodu `POPUST`, dok provjera integriteta rezervacije ostaje čisti SHA-256 bez soli i papra.
