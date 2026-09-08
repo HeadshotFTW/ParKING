@@ -15,6 +15,18 @@
     <label class="form-label">{{ tr('common.description') }}</label>
     <textarea class="form-control mb-3" name="description" rows="4">{{ parking.description if parking else '' }}</textarea>
 
+    <label class="form-label" for="access_instructions">
+        {% if lang == 'en' %}Private access instructions{% else %}Privatne pristupne upute{% endif %}
+    </label>
+    <textarea class="form-control" id="access_instructions" name="access_instructions" rows="3" placeholder="{% if lang == 'en' %}Example: gate code 4821, entrance from the courtyard...{% else %}Primjer: kod rampe 4821, ulaz iz dvorišta...{% endif %}">{{ access_instructions or '' }}</textarea>
+    <div class="form-text mb-3">
+        {% if lang == 'en' %}
+            These instructions are encrypted with AES-GCM before being stored and are shown only to users with an active reservation.
+        {% else %}
+            Ove upute se prije spremanja šifriraju AES-GCM algoritmom i prikazuju se samo korisniku s aktivnom rezervacijom.
+        {% endif %}
+    </div>
+
     <label class="form-label">Slika parkinga (JPEG, PNG ili WebP, do 2 MB)</label>
     <input class="form-control mb-3" type="file" name="photo" accept="image/jpeg,image/png,image/webp">
 
