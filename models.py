@@ -28,12 +28,6 @@ class User(db.Model):
         cascade="all, delete-orphan",
         foreign_keys="Reservation.user_id",
     )
-    promo_assignment = db.relationship(
-        "PromoCode",
-        back_populates="user",
-        uselist=False,
-        foreign_keys="PromoCode.user_id",
-    )
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -81,7 +75,7 @@ class PromoCode(db.Model):
     discount_percent = db.Column(db.Float, nullable=False)
     active = db.Column(db.Boolean, nullable=False, default=True)
 
-    user = db.relationship("User", back_populates="promo_assignment", foreign_keys=[user_id])
+    user = db.relationship("User", foreign_keys=[user_id])
     reservations = db.relationship("Reservation", back_populates="promo_code")
 
 
