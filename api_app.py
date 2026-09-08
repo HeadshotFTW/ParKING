@@ -5,6 +5,7 @@ from pathlib import Path
 
 from flask import Flask, g, jsonify, request
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from models import db, ParkingSpot, Reservation, User
 
@@ -17,33 +18,49 @@ api_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(api_app)
 
 
+def _add_column_if_missing(table_name, column_name, ddl):
+    columns = {
+        row[1]
+        for row in db.session.execute(text(f"PRAGMA table_info({table_name})")).all()
+    }
+    if column_name in columns:
+        return
+
+    try:
+        db.session.execute(text(ddl))
+        db.session.commit()
+    except OperationalError as exc:
+        db.session.rollback()
+        if "duplicate column" not in str(exc).lower():
+            raise
+
+
 def ensure_database():
     """Ensure the shared SQLite schema and API tokens exist."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with api_app.app_context():
         db.create_all()
 
-        user_columns = {row[1] for row in db.session.execute(text("PRAGMA table_info(users)")).all()}
-        if "api_token" not in user_columns:
-            db.session.execute(text("ALTER TABLE users ADD COLUMN api_token VARCHAR(64)"))
-
-        parking_columns = {
-            row[1] for row in db.session.execute(text("PRAGMA table_info(parking_spots)")).all()
-        }
-        if "access_instructions" not in parking_columns:
-            db.session.execute(text("ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB"))
-
-        reservation_columns = {
-            row[1] for row in db.session.execute(text("PRAGMA table_info(reservations)")).all()
-        }
-        if "discount_percent" not in reservation_columns:
-            db.session.execute(
-                text("ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0")
-            )
-        if "promo_code_id" not in reservation_columns:
-            db.session.execute(text("ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER"))
-
-        db.session.commit()
+        _add_column_if_missing(
+            "users",
+            "api_token",
+            "ALTER TABLE users ADD COLUMN api_token VARCHAR(64)",
+        )
+        _add_column_if_missing(
+            "parking_spots",
+            "access_instructions",
+            "ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB",
+        )
+        _add_column_if_missing(
+            "reservations",
+            "discount_percent",
+            "ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0",
+        )
+        _add_column_if_missing(
+            "reservations",
+            "promo_code_id",
+            "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER",
+        )
 
         changed = False
         for user in User.query.all():
