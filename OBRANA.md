@@ -11,34 +11,24 @@ docker compose ps
 docker compose exec parking python seed.py
 ```
 
-Korisnici:
-
-```text
-vlasnik / parking123
-gost     / parking123
-admin    / admin123
-```
-
-`seed.py` briše postojeću razvojnu bazu. Početno stanje sadrži parkinge u Zagrebu, Zadru i Splitu.
+`seed.py` briše postojeću razvojnu bazu i kreira parkinge u Zagrebu, Zadru i Splitu.
 
 ## 1. Dostupni parkinzi, vrijeme, rezervacija i povijest pretraga
 
-Prijava kao `gost`.
+Kao obični korisnik:
 
-1. Otvoriti **Dostupni parkinzi**.
-2. Zadati lokaciju, termin i po želji maksimalnu cijenu.
-3. Pokazati 24-satni unos vremena.
-4. Pokrenuti pretragu.
-5. Objasniti provjeru preklapanja `ACTIVE` rezervacija.
-6. Pokazati Open-Meteo temperaturu i vjetar uz parkinge.
-7. Sortirati rezultate.
-8. Otvoriti **Povijest pretraga** i pokazati `data/search_history.bin`.
-9. Kliknuti **Ponovi**.
-10. Otvoriti parking preko **Detalji**.
-11. Kliknuti **Rezerviraj** i pokazati preneseni termin.
-12. Spremiti rezervaciju.
-13. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
-14. Preuzeti PDF potvrdu.
+1. otvoriti **Dostupni parkinzi**
+2. zadati lokaciju, termin i maksimalnu cijenu
+3. pokazati 24-satni unos vremena
+4. pokrenuti pretragu
+5. objasniti provjeru preklapanja `ACTIVE` rezervacija
+6. pokazati Open-Meteo temperaturu i vjetar
+7. sortirati rezultate
+8. otvoriti **Povijest pretraga** i pokazati da je pretraga spremljena u `data/search_history.bin`
+9. kliknuti **Ponovi**
+10. rezervirati parking i pokazati preneseni termin
+11. otvoriti **Moje rezervacije**
+12. preuzeti PDF potvrdu
 
 Pravilo preklapanja:
 
@@ -48,75 +38,69 @@ AND
 postojeći završetak > traženi početak
 ```
 
-`CANCELLED` rezervacije ne blokiraju parking.
-
 ## 2. HR / EN
 
-Prebaciti HR → EN i otvoriti nekoliko stranica.
+Prebaciti HR → EN i otvoriti nekoliko glavnih stranica.
 
-## 3. JSON CRUD + AES-GCM + sigurnosni kod
+## 3. JSON CRUD — Moja vozila
 
-Na stranici **Bilješke**:
+Otvoriti **Moja vozila** i pokazati puni CRUD:
 
-1. pokazati dodavanje, uređivanje i brisanje JSON bilješke
-2. postaviti sigurnosni kod od barem 4 znaka
-3. izraditi AES-GCM šifriranu sigurnosnu kopiju
-4. unijeti sigurnosni kod i otvoriti kopiju
-5. pokazati poruku da je kod provjere pregledano svih 256 mogućih vrijednosti papra
+1. dodati vozilo
+2. prikazati ga na listi
+3. urediti naziv ili registraciju
+4. obrisati vozilo
 
-Kod sigurnosnog koda objasniti:
-
-```text
-sigurnosni kod + promjenjiva sol + slučajni papar 0–255
-                         ↓
-                      SHA-256
-                         ↓
-                 sprema se samo sažetak
-```
-
-Promjenjiva sol izvodi se pravilom:
-
-```text
-SHA256("ParKING-security-code-salt:<user_id>")[0:16]
-```
-
-Sol se ne sprema. Papar se kod postavljanja slučajno bira iz raspona `0–255` i također se ne sprema. Kod provjere `verify_security_code()` prolazi svih 256 vrijednosti i traži onu koja zajedno s unesenim kodom daje spremljeni SHA-256 sažetak.
-
-Dokaz datoteka:
+Za tehnički dokaz pokazati:
 
 ```bash
-cat data/security_codes.json
-xxd exports/notes_user_<id>.aes | head
+cat data/vehicles.json
 ```
 
-U `security_codes.json` vidi se samo SHA-256 sažetak, ne izvorni kod, sol ili papar. AES datoteka počinje s `PKAE`.
+Objasniti da `vehicle_store.py` sprema `id`, `user_id`, naziv vozila i registracijsku oznaku u JSON, bez baze podataka.
 
-## 4. BLOB fotografija
+## 4. AES-GCM — privatne pristupne upute parkinga
 
-Kao `vlasnik` otvoriti **Moji parkinzi**, urediti parking i učitati fotografiju. Pokazati prikaz, zamjenu i uklanjanje slike.
-
-## 5. Admin CRUD + dinamička biblioteka
-
-Prijava kao `admin`.
-
-Na **Korisnici** pokazati CRUD. Na **Admin rezervacije** pokazati:
-
-1. CRUD nad rezervacijama
-2. stupac **Service fee (5%)** uz svaku `ACTIVE` rezervaciju
-3. karticu **Ukupan service fee (5%)**
-4. da pojedinačni i ukupni izračun dolaze iz vlastite C++ dinamičke biblioteke
-
-Biblioteka:
+Kao vlasnik otvoriti **Moji parkinzi → Uredi** i u polje **Privatne pristupne upute** upisati primjerice:
 
 ```text
-native/service_fee.cpp          C++ klasa ServiceFeeCalculator
-/app/native/libservice_fee.so   rezultat Docker builda
-service_fee.py                  ctypes wrapper
+Ulaz je iz dvorišta. Parkirno mjesto je označeno brojem 12.
 ```
 
-Klasa ima metode `calculateFee()` i `calculateTotalFees()`.
+Spremiti parking. Objasniti:
 
-Provjera da je `.so` stvarno učitan:
+- aplikacija prije spremanja poziva `encrypt_access_instructions()`
+- koristi se AES-GCM
+- za svako šifriranje generira se novi slučajni nonce
+- u `parking_spots.access_instructions` sprema se samo binarni šifrirani sadržaj
+- ključ se izvodi iz `SECRET_KEY` i `parking_id`
+
+Javni **Detalji parkinga** ne prikazuju privatne upute.
+
+Zatim kao korisnik s `ACTIVE` rezervacijom otvoriti **Moje rezervacije**. U stupcu **Pristupne upute** prikazuje se dešifrirani tekst. Za `CANCELLED` rezervacije prikazuje se `—`.
+
+Za dokaz da se u bazi ne nalazi čitljiv tekst može se izvršiti:
+
+```bash
+docker compose exec parking python -c "from app import app; from models import ParkingSpot; app.app_context().push(); p=ParkingSpot.query.filter(ParkingSpot.access_instructions.isnot(None)).first(); print(p.access_instructions.hex() if p else 'nema uputa')"
+```
+
+Važno za objašnjenje: AES-GCM ovdje štiti stvaran privatni podatak parkinga. Nema dodatnog sigurnosnog koda, soli ni papra.
+
+## 5. BLOB fotografija
+
+Kao vlasnik urediti parking i učitati fotografiju. Pokazati prikaz, zamjenu i uklanjanje slike.
+
+## 6. Admin CRUD + dinamička biblioteka
+
+Kao administrator na **Korisnici** pokazati CRUD. Na **Admin rezervacije** pokazati:
+
+1. CRUD nad rezervacijama
+2. stupac **Service fee (5%)**
+3. karticu **Ukupan service fee (5%)**
+4. da izračun dolazi iz vlastite C++ dinamičke biblioteke
+
+Provjera biblioteke:
 
 ```bash
 docker compose exec parking python -c "import service_fee; print(service_fee.native_library_loaded(), service_fee.LIBRARY_PATH)"
@@ -124,22 +108,20 @@ docker compose exec parking python -c "import service_fee; print(service_fee.nat
 
 Očekuje se `True` i `/app/native/libservice_fee.so`.
 
-## 6. INI postavke
+## 7. INI postavke
 
 Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `config.ini`.
 
-## 7. Dretve, ubrzanje, kritična sekcija i Open-Meteo
+## 8. Dretve, ubrzanje, kritična sekcija i Open-Meteo
 
-Kao administrator otvoriti **Test → Dretve**. `run.py` čita lokacije stvarnih parkinga iz baze, a `parallel_tasks.py` izdvaja jedinstvene gradove. Nakon seeda trebali bi se pojaviti Zagreb, Zadar i Split.
-
-Koordinate se razriješe **prije mjerenja**, kako geokodiranje ne bi dalo prednost jednom prolazu. Zatim se potpuno isti Open-Meteo forecast zahtjevi izvršavaju kroz isti `ThreadPoolExecutor`:
+Kao administrator otvoriti **Test → Dretve**. Koordinate gradova razriješe se prije mjerenja, a potpuno isti Open-Meteo forecast zahtjevi izvršavaju se kroz isti `ThreadPoolExecutor`:
 
 ```text
-1. max_workers = 1
-2. max_workers = 3
+max_workers = 1
+max_workers = 3
 ```
 
-Na zadnjem praktičnom testu dobiveno je:
+Zadnji praktični test:
 
 ```text
 1 dretva   0.516 s
@@ -147,7 +129,7 @@ Na zadnjem praktičnom testu dobiveno je:
 ubrzanje   3.07×
 ```
 
-Na obrani ponovno pokazati da je vrijeme s tri dretve manje od vremena s jednom dretvom. Zbog mrežne latencije konkretne brojke mogu varirati.
+Na obrani ponovno pokazati da je varijanta s tri dretve brža. Brojke mogu varirati zbog mrežne latencije.
 
 Kritična sekcija:
 
@@ -158,9 +140,9 @@ with _request_log_lock:
 
 `threading.Lock` štiti zajednički `_request_log`.
 
-## 8. Test → REST
+## 9. Test → REST
 
-Pokazati da web aplikacija na portu `5000` preko HTTP-a poziva zasebni vlastiti REST servis na `5001`.
+Pokazati odvojeni web proces na `5000` i vlastiti REST servis na `5001`:
 
 ```bash
 curl http://localhost:5001/api/health
@@ -176,45 +158,35 @@ Očekivano:
 5000 /api/parkings  → 404
 ```
 
-Za autorizaciju pokazati stvarni `403` na nedopuštenoj akciji.
+Za kriterij 22 treba pokazati i stvarni `403` za nedopuštenu akciju.
 
-## 9. SHA-256 integritet rezervacije
+## 10. SHA-256 integritet rezervacije
 
-Kao `gost` otvoriti **Moje rezervacije → SHA-256**.
+Otvoriti **Moje rezervacije → SHA-256**.
 
-Ovdje se namjerno koristi **obični SHA-256 bez soli i papra**. Objasniti da je cilj provjera integriteta: isti podaci daju isti kontrolni otisak, a promjena podataka rezervacije mijenja otisak.
-
-Pokazati:
-
-1. trenutačni SHA-256 otisak rezervacije
-2. uspješnu provjeru trenutačnog otiska
-3. po želji promijeniti jedan znak otiska i pokazati neuspješnu provjeru
-
-Važno: sol i papar ne braniti na ovoj stranici. Oni su zasebno implementirani kod sigurnosnog koda na **Bilješke**.
+Objasniti da se koristi **obični SHA-256 bez soli i papra**, jer je svrha provjera integriteta. Pokazati trenutačni kontrolni otisak, uspješnu provjeru te po želji neuspješnu provjeru nakon promjene jednog znaka otiska.
 
 ## Kriterij 14 — ne demonstrirati
 
-Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A i B kao izvršne EXE aplikacije, pa kriterij 14 ne prijavljujemo i ne pokazujemo.
+Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A i B kao izvršne EXE aplikacije, pa kriterij 14 ne prijavljujemo.
 
 ## Datoteke koje je korisno znati
 
 ```text
 models.py                    SQLAlchemy modeli
-app.py                       osnovni CRUD i web rute
-run.py                       REST klijent, AES backup, security-code ruta, SHA-256 ruta, thread test, service fee Jinja funkcije
-parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
+app.py                       web rute, CRUD, vozila, AES pristupne upute
+vehicle_store.py             JSON CRUD vozila
+parking_access_crypto.py     AES-GCM šifriranje/dešifriranje pristupnih uputa
+hash_demo.py                 SHA-256 integritet rezervacije
+parking_availability.py      dostupnost + binarna povijest + vrijeme
 binary_store.py              PKSR binarni format
-crypto_store.py              AES-GCM
-hash_demo.py                 obični SHA-256 integritet rezervacije
-security_code_store.py       promjenjiva sol + slučajni papar + provjera 0–255
 parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
 service_fee.py               ctypes wrapper za dinamičku biblioteku
 native/service_fee.cpp       C++ ServiceFeeCalculator
 api_app.py                   vlastiti REST servis na 5001
-json_store.py                JSON CRUD
 config.ini                   INI postavke
 ```
 
 ## Bodovna procjena
 
-Konzervativna procjena je oko **71 bod**. Kriterij 14 je namjerno izbačen, kriterij 11 je praktično potvrdio ubrzanje, a kriterij 25 sada jasno razdvaja integritet rezervacije od hashiranja sigurnosnog koda sa soli i paprom.
+Konzervativna procjena je oko **66 bodova**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen, a kriterij 25 računamo samo kao 2 boda za pravilno korištenje SHA-256 pri provjeri integriteta.
