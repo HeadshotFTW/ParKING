@@ -6,18 +6,13 @@
         <h1>{% if lang == 'en' %}Reservations{% else %}Rezervacije{% endif %}</h1>
         <p class="text-muted mb-0">
             {% if lang == 'en' %}
-                Manage reservations and verify their consistency.
+                Manage reservations and review service fees.
             {% else %}
-                Upravljajte rezervacijama i provjerite njihovu konzistentnost.
+                Upravljajte rezervacijama i pregledajte service fee naknade.
             {% endif %}
         </p>
     </div>
     <div class="d-flex flex-wrap gap-2">
-        <form method="post" action="{{ url_for('admin_reservations_check') }}">
-            <button class="btn btn-outline-primary" type="submit">
-                {% if lang == 'en' %}Check reservations{% else %}Provjeri rezervacije{% endif %}
-            </button>
-        </form>
         <a class="btn btn-success" href="{{ url_for('admin_reservation_new') }}">+ {% if lang == 'en' %}Add reservation{% else %}Dodaj rezervaciju{% endif %}</a>
     </div>
 </div>
@@ -44,19 +39,6 @@
         </div>
     </div>
 </div>
-
-{% if process_result is defined %}
-    {% set result_class = 'success' if process_result.returncode == 0 else ('warning' if process_result.returncode == 1 else 'danger') %}
-    <div class="alert alert-{{ result_class }}">
-        <div class="fw-semibold">{{ process_result.message }}</div>
-        {% if process_result.stdout %}
-            <pre class="mb-0 mt-2 small text-wrap">{{ process_result.stdout }}</pre>
-        {% endif %}
-        {% if process_result.stderr %}
-            <pre class="mb-0 mt-2 small text-wrap">{{ process_result.stderr }}</pre>
-        {% endif %}
-    </div>
-{% endif %}
 
 <div class="table-responsive">
 <table class="table table-striped align-middle">
