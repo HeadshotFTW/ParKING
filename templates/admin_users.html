@@ -13,6 +13,7 @@
 <table class="table table-striped align-middle">
     <thead>
         <tr>
+            <th style="width: 64px">Avatar</th>
             <th>ID</th>
             <th>{{ tr('common.username') }}</th>
             <th>{% if lang == 'en' %}Role{% else %}Uloga{% endif %}</th>
@@ -22,6 +23,10 @@
     <tbody>
         {% for user in users %}
         <tr>
+            <td>
+                <img src="/avatar/{{ user.id }}.jpg" alt="Avatar" width="42" height="42"
+                     class="rounded-circle border" style="object-fit: cover;">
+            </td>
             <td>{{ user.id }}</td>
             <td>{{ user.username }}</td>
             <td>{{ user.role }}</td>
@@ -35,7 +40,7 @@
             </td>
         </tr>
         {% else %}
-        <tr><td colspan="4">{% if lang == 'en' %}There are no users.{% else %}Nema korisnika.{% endif %}</td></tr>
+        <tr><td colspan="5">{% if lang == 'en' %}There are no users.{% else %}Nema korisnika.{% endif %}</td></tr>
         {% endfor %}
     </tbody>
 </table>
