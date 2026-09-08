@@ -1,6 +1,6 @@
 # ParKING — plan obrane
 
-Cilj je u kratkom vremenu pokazati stvarni tok aplikacije i pritom pokriti implementirane kriterije.
+Cilj je pokazati samo funkcionalnosti koje možemo jasno objasniti i demonstrirati.
 
 ## Priprema
 
@@ -11,7 +11,7 @@ docker compose ps
 docker compose exec parking python seed.py
 ```
 
-Demo korisnici:
+Korisnici:
 
 ```text
 vlasnik / parking123
@@ -19,7 +19,7 @@ gost     / parking123
 admin    / admin123
 ```
 
-`seed.py` briše postojeću razvojnu bazu, zato ga koristiti samo kada se namjerno želi resetirati stanje. Seed sada kreira četiri parkinga u tri različita grada: Zagreb, Zadar i Split.
+`seed.py` briše postojeću razvojnu bazu. Početno stanje sadrži parkinge u Zagrebu, Zadru i Splitu.
 
 ## 1. Dostupni parkinzi, vrijeme, rezervacija i povijest pretraga
 
@@ -29,17 +29,16 @@ Prijava kao `gost`.
 2. Zadati lokaciju, termin i po želji maksimalnu cijenu.
 3. Pokazati 24-satni unos vremena.
 4. Pokrenuti pretragu.
-5. Objasniti da se parking skriva samo ako ima preklapajuću `ACTIVE` rezervaciju.
-6. Pokazati da kartice parkinga prikazuju trenutačnu temperaturu i vjetar iz Open-Meteo servisa.
-7. Pokazati da parkingi u Zagrebu, Zadru i Splitu dobivaju vremenske podatke prema stvarnoj lokaciji.
-8. Sortirati rezultate.
-9. Otvoriti **Povijest pretraga** i pokazati da je stvarna pretraga automatski spremljena u `data/search_history.bin`.
-10. Kliknuti **Ponovi**.
-11. Otvoriti parking preko **Detalji** i pokazati da se vremenski podatak prikazuje i na detaljima.
-12. Kliknuti **Rezerviraj** i pokazati da je termin već prenesen.
-13. Spremiti rezervaciju.
-14. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
-15. Preuzeti PDF potvrdu.
+5. Objasniti provjeru preklapanja `ACTIVE` rezervacija.
+6. Pokazati Open-Meteo temperaturu i vjetar uz parkinge.
+7. Sortirati rezultate.
+8. Otvoriti **Povijest pretraga** i pokazati `data/search_history.bin`.
+9. Kliknuti **Ponovi**.
+10. Otvoriti parking preko **Detalji**.
+11. Kliknuti **Rezerviraj** i pokazati preneseni termin.
+12. Spremiti rezervaciju.
+13. Otvoriti **Moje rezervacije**, pokazati trajanje i ukupnu cijenu.
+14. Preuzeti PDF potvrdu.
 
 Pravilo preklapanja:
 
@@ -51,184 +50,94 @@ postojeći završetak > traženi početak
 
 `CANCELLED` rezervacije ne blokiraju parking.
 
-Za vremenske podatke aplikacija iz tekstualne lokacije izdvaja grad. Zagreb, Samobor i Velika Gorica imaju unaprijed poznate koordinate, a ostali hrvatski gradovi, primjerice Zadar ili Split, automatski se pretvaraju u koordinate preko Open-Meteo Geocoding API-ja (`countryCode=HR`). Ako je na istoj stranici više različitih gradova, vremenski zahtjevi dohvaćaju se paralelno. Više parkinga u istom gradu dijeli jedan rezultat.
-
-### Dokaz vlastitog binarnog formata
-
-```bash
-xxd data/search_history.bin | head
-```
-
-Na početku se vidi `PKSR`. Aktualna verzija 2 sprema stvarne kriterije pretrage, a `binary_store.py` može čitati i stariju verziju 1.
-
 ## 2. HR / EN
 
-Prebaciti HR → EN i otvoriti nekoliko stranica: Dostupni parkinzi, Povijest pretraga, Bilješke, Moje rezervacije i administratorske stranice.
+Prebaciti HR → EN i otvoriti nekoliko stranica.
 
-## 3. JSON CRUD + AES-GCM na istoj stranici
+## 3. JSON CRUD + AES-GCM
 
-Otvoriti **Bilješke**.
+Na stranici **Bilješke** pokazati dodavanje, uređivanje i brisanje JSON bilješke, zatim izradu i otvaranje AES-GCM šifrirane sigurnosne kopije.
 
-Najprije pokazati JSON CRUD:
-
-1. dodati bilješku
-2. urediti bilješku
-3. obrisati bilješku
-
-Zatim na istoj stranici pokazati AES-GCM:
-
-1. dodati jednu bilješku koja će ostati spremljena
-2. kliknuti **Izradi šifriranu kopiju**
-3. kliknuti **Otvori šifriranu kopiju**
-4. pokazati dešifrirani sadržaj na istoj stranici
-
-Dokaz šifrirane datoteke:
+Dokaz datoteke:
 
 ```bash
-xxd exports/notes_user_2.aes | head
+xxd exports/notes_user_<id>.aes | head
 ```
-
-Ako je prijavljen drugi korisnik, broj u nazivu datoteke prilagoditi njegovu `id`-u. Na početku se vidi `PKAE`, a ostatak nije čitljiv tekst.
 
 ## 4. BLOB fotografija
 
-Kao `vlasnik` otvoriti **Moji parkinzi**, urediti parking i učitati fotografiju. Pokazati da se fotografija prikazuje na detaljima parkinga te da se može zamijeniti ili ukloniti.
+Kao `vlasnik` otvoriti **Moji parkinzi**, urediti parking i učitati fotografiju. Pokazati prikaz, zamjenu i uklanjanje slike.
 
-## 5. Admin CRUD + proces B + dinamička biblioteka
+## 5. Admin CRUD + dinamička biblioteka
 
 Prijava kao `admin`.
 
-Na **Korisnici** pokazati dodavanje ili uređivanje korisnika.
+Na **Korisnici** pokazati CRUD. Na **Admin rezervacije** pokazati:
 
-Na **Admin rezervacije**:
+1. CRUD nad rezervacijama
+2. stupac **Service fee (5%)** uz svaku `ACTIVE` rezervaciju
+3. karticu **Ukupan service fee (5%)**
+4. da pojedinačni i ukupni izračun dolaze iz vlastite C++ dinamičke biblioteke
 
-1. pokazati CRUD nad rezervacijama
-2. pokazati stupac **Service fee (5%)** uz svaku `ACTIVE` rezervaciju
-3. pokazati karticu **Ukupan service fee (5%)** iznad tablice
-4. objasniti da pojedinačni i ukupni izračun dolaze iz vlastite C++ dinamičke biblioteke
-5. kliknuti **Provjeri rezervacije**
-6. očekivati poruku da su sve rezervacije ispravne i povratni kod procesa `0`
-
-Service fee računa se samo za `ACTIVE` rezervacije. Biblioteka je izvorno u:
+Biblioteka:
 
 ```text
-native/service_fee.cpp
+native/service_fee.cpp          C++ klasa ServiceFeeCalculator
+/app/native/libservice_fee.so   rezultat Docker builda
+service_fee.py                  ctypes wrapper
 ```
 
-Dockerfile je prevodi u:
+Klasa ima metode `calculateFee()` i `calculateTotalFees()`.
 
-```text
-/app/native/libservice_fee.so
-```
-
-Biblioteka sadrži C++ klasu `ServiceFeeCalculator` s dvije metode: `calculateFee()` i `calculateTotalFees()`. Python modul `service_fee.py` učitava `.so` pomoću `ctypes` i koristi obje funkcionalnosti u stvarnom administratorskom prikazu.
-
-Brza provjera da je native biblioteka stvarno učitana u Dockeru:
+Provjera da je `.so` stvarno učitan:
 
 ```bash
 docker compose exec parking python -c "import service_fee; print(service_fee.native_library_loaded(), service_fee.LIBRARY_PATH)"
 ```
 
-Očekivano je `True` i putanja `/app/native/libservice_fee.so`.
-
-Za dokaz nenultog koda procesa može se privremeno napraviti preklapajuća `ACTIVE` rezervacija preko administratorskog CRUD-a, ponovno kliknuti **Provjeri rezervacije** i dobiti kod `1`, zatim obrisati testnu rezervaciju.
-
-U kodu pokazati:
-
-```text
-run.py                 → subprocess.run(...) + Jinja povezivanje service fee funkcija
-reservation_worker.py  → provjera baze i return code 0/1/2
-native/service_fee.cpp  → C++ klasa i dvije funkcije za service fee
-service_fee.py          → ctypes učitavanje dinamičke biblioteke
-Dockerfile              → g++ -shared -fPIC → libservice_fee.so
-```
-
-Zasebna stranica **Test → Procesi** više ne postoji; provjera je dio stvarnog administratorskog upravljanja rezervacijama.
+Očekuje se `True` i `/app/native/libservice_fee.so`.
 
 ## 6. INI postavke
 
 Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `config.ini`.
 
-## 7. Dretve, kritična sekcija i Open-Meteo
+## 7. Dretve, ubrzanje, kritična sekcija i Open-Meteo
 
-Najprije podsjetiti da se Open-Meteo već koristi u stvarnom korisničkom toku na **Dostupni parkinzi** i **Detalji parkinga**.
+Ovo je važan dio zbog komentara nastavnika za kriterij 11.
 
-Zatim kao administrator otvoriti **Test → Dretve**. Stranica više nema statički zadane Zagreb/Samobor/Velika Gorica zadatke. `run.py` čita lokacije stvarnih parkinga iz baze, a `parallel_tasks.py` iz njih izdvaja jedinstvene gradove. Nakon seeda stranica bi trebala prikazati:
+Kao administrator otvoriti **Test → Dretve**. `run.py` čita lokacije stvarnih parkinga iz baze, a `parallel_tasks.py` izdvaja jedinstvene gradove. Nakon seeda trebali bi se pojaviti Zagreb, Zadar i Split.
+
+U kodu objasniti da se koordinate prvo razriješe **prije mjerenja**, kako geokodiranje ne bi dalo prednost jednom prolazu. Zatim se potpuno isti Open-Meteo forecast zahtjevi izvršavaju kroz isti `ThreadPoolExecutor`:
 
 ```text
-Zagreb, Zadar, Split
+1. max_workers = 1
+2. max_workers = 3
 ```
 
-Pokazati:
+Na stranici pokazati:
 
-- gradove pronađene iz stvarnih parkinga
-- da se isti gradovi dohvaćaju najprije sekvencijalno pa paralelno
-- `ThreadPoolExecutor` s najviše tri radne dretve
-- sekvencijalno i paralelno vrijeme
+- vrijeme **1 dretva**
+- vrijeme **3 dretve**
 - faktor ubrzanja
-- nazive dretvi uz rezultate
+- da je vrijeme s tri dretve manje od vremena s jednom dretvom
+- nazive radnih dretvi u rezultatima
 
-Tekstualni blok **Sinkronizacija** namjerno je uklonjen sa stranice. Sinkronizacija i dalje postoji u kodu. Kritična sekcija je dio `fetch_weather()` koji upisuje u zajednički `_request_log`:
+Prema komentaru nastavnika, kriterij 11 računamo samo ako se na obrani stvarno vidi da je višedretvena varijanta brža.
+
+Kritična sekcija:
 
 ```python
 with _request_log_lock:
     _request_log.append(...)
 ```
 
-Lock osigurava da samo jedna dretva u tom trenutku mijenja zajednički zapisnik. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika te za kratke pristupe cacheu geokodiranih gradova.
-
-Time se pokrivaju dretve, sinkronizacija i udaljeni REST servis, a vremenski podaci imaju stvarnu funkciju u ParKING aplikaciji.
+`threading.Lock` štiti zajednički `_request_log`.
 
 ## 8. Test → REST
 
-Pokazati da glavni Flask proces na portu `5000` preko HTTP-a poziva vlastiti REST servis na portu `5001`.
-
-Provjera health endpointa:
+Pokazati da web aplikacija na portu `5000` preko HTTP-a poziva zasebni vlastiti REST servis na `5001`.
 
 ```bash
-curl http://localhost:5001/api/health
-```
-
-Bez tokena:
-
-```bash
-curl -i http://localhost:5001/api/parkings
-```
-
-Očekuje se `401`.
-
-Dokaz da ruta nije registrirana u glavnoj web aplikaciji:
-
-```bash
-curl -i http://localhost:5000/api/parkings
-```
-
-Očekuje se `404`.
-
-Za autorizaciju pokazati ili objasniti:
-
-- korisnik ne može mijenjati tuđi parking → `403`
-- korisnik ne može dohvatiti tuđu rezervaciju → `403`
-- administrator ima šire ovlasti
-
-## 9. SHA-256 integritet rezervacije
-
-Kao `gost` otvoriti **Moje rezervacije → SHA-256**.
-
-Pokazati:
-
-- kontrolni otisak stvarnih podataka rezervacije
-- promjenjivu sol izvedenu iz `user_id` i `username`
-- da se sol ne sprema
-- papar iz raspona `0–255`
-- provjeru svih 256 mogućih vrijednosti
-- uspješnu provjeru trenutačnog otiska
-- po želji promijeniti jedan znak u otisku i pokazati neuspješnu provjeru
-
-## Brza REST provjera prije obrane
-
-```bash
-docker compose logs --tail=50
 curl http://localhost:5001/api/health
 curl -i http://localhost:5001/api/parkings
 curl -i http://localhost:5000/api/parkings
@@ -242,18 +151,27 @@ Očekivano:
 5000 /api/parkings  → 404
 ```
 
+Za autorizaciju pokazati stvarni `403` na nedopuštenoj akciji.
+
+## 9. SHA-256
+
+Trenutačna SHA-256 funkcionalnost postoji, ali dio sa soli i paprom nije konačan. Nastavnik je pojasnio da se za provjeru integriteta ne koriste sol ni papar. Prije obrane ovaj dio treba proći zaseban redizajn; do tada ne učiti trenutačno rješenje kao konačan odgovor za kriterij 25.
+
+## Kriterij 14 — ne demonstrirati
+
+Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A i B kao izvršne EXE aplikacije, pa kriterij 14 trenutačno ne prijavljujemo i ne pokazujemo.
+
 ## Datoteke koje je korisno znati
 
 ```text
 models.py                    SQLAlchemy modeli
 app.py                       osnovni CRUD i web rute
-run.py                       REST klijent, AES backup, procesna provjera, SHA-256 ruta, gradovi za thread test, service fee Jinja funkcije
+run.py                       REST klijent, AES backup, SHA-256 ruta, thread test, service fee Jinja funkcije
 parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
 binary_store.py              PKSR binarni format
 crypto_store.py              AES-GCM
-hash_demo.py                 SHA-256 integritet, sol i papar
-parallel_tasks.py            Open-Meteo geokodiranje + ThreadPoolExecutor + Lock
-reservation_worker.py        zasebni proces B
+hash_demo.py                 SHA-256 dio koji treba redizajn soli/papra
+parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
 service_fee.py               ctypes wrapper za dinamičku biblioteku
 native/service_fee.cpp       C++ ServiceFeeCalculator
 api_app.py                   vlastiti REST servis na 5001
@@ -263,4 +181,4 @@ config.ini                   INI postavke
 
 ## Bodovna procjena
 
-Konzervativna procjena je sada oko **75 bodova**.
+Trenutačna konzervativna procjena je oko **66 bodova**, uz uvjet da kriterij 11 na obrani stvarno pokaže ubrzanje. Kriterij 25 ponovno procijeniti nakon redizajna soli i papra.
