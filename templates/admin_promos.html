@@ -1,71 +1,62 @@
 {% extends "base.html" %}
 {% block title %}{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }} - ParKING{% endblock %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-start mb-4">
-    <div>
-        <h1 class="h3 mb-1">{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }}</h1>
-        <p class="text-muted mb-0">
-            {% if lang == 'en' %}
-                Create discounts without storing the original promo code. Only a SHA-256 digest is stored.
+<h1 class="h3 mb-4">{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }}</h1>
+
+<div class="card card-body mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div>
+            <span class="text-muted">{{ 'Promo code' if lang == 'en' else 'Promo kod' }}</span>
+            <div class="fs-4 fw-semibold"><code>{{ promo_code }}</code></div>
+        </div>
+    </div>
+</div>
+
+<form method="post">
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th style="width: 90px">{{ 'Apply' if lang == 'en' else 'Primijeni' }}</th>
+                    <th>{{ 'User' if lang == 'en' else 'Korisnik' }}</th>
+                    <th style="width: 180px">{{ 'Discount (%)' if lang == 'en' else 'Popust (%)' }}</th>
+                    <th>SHA-256</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for user in users %}
+                {% set assignment = assignments.get(user.id) %}
+                <tr>
+                    <td>
+                        <input class="form-check-input" type="checkbox" name="selected_users" value="{{ user.id }}"
+                               {% if assignment and assignment.active %}checked{% endif %}>
+                    </td>
+                    <td>
+                        <strong>{{ user.username }}</strong>
+                        {% if user.is_admin() %}<span class="badge text-bg-secondary ms-1">ADMIN</span>{% endif %}
+                    </td>
+                    <td>
+                        <input class="form-control" type="number" min="1" max="100" step="1"
+                               name="discount_{{ user.id }}"
+                               value="{{ '%.0f'|format(assignment.discount_percent) if assignment else '10' }}">
+                    </td>
+                    <td>
+                        {% if assignment and assignment.active %}
+                            <code class="small text-break">{{ assignment.code_hash }}</code>
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
             {% else %}
-                Kreirajte popuste bez spremanja izvornog promo koda. Sprema se samo SHA-256 sažetak.
-            {% endif %}
-        </p>
+                <tr>
+                    <td colspan="4" class="text-muted">{{ 'There are no users.' if lang == 'en' else 'Nema korisnika.' }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
     </div>
-</div>
 
-<div class="row g-4 mb-4">
-    <div class="col-lg-5">
-        <form method="post" class="card card-body">
-            <h2 class="h5">{{ 'New promo code' if lang == 'en' else 'Novi promo kod' }}</h2>
-            <label class="form-label" for="code">{{ 'Code' if lang == 'en' else 'Kod' }}</label>
-            <input class="form-control mb-3 text-uppercase" id="code" name="code" minlength="4" maxlength="40" required>
-
-            <label class="form-label" for="discount_percent">{{ 'Discount (%)' if lang == 'en' else 'Popust (%)' }}</label>
-            <input class="form-control mb-3" id="discount_percent" name="discount_percent" type="number" min="1" max="100" step="1" required>
-
-            <button class="btn btn-primary" type="submit">{{ 'Create promo' if lang == 'en' else 'Kreiraj promo kod' }}</button>
-        </form>
-    </div>
-</div>
-
-<div class="table-responsive">
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th>ID</th>
-            <th>{{ 'Discount' if lang == 'en' else 'Popust' }}</th>
-            <th>{{ 'Status' if lang == 'en' else 'Status' }}</th>
-            <th>SHA-256</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
-    {% for promo in promos %}
-        <tr>
-            <td>{{ promo.id }}</td>
-            <td>{{ '%.0f%%'|format(promo.discount_percent) }}</td>
-            <td>
-                <span class="badge {% if promo.active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
-                    {% if promo.active %}{{ 'Active' if lang == 'en' else 'Aktivan' }}{% else %}{{ 'Inactive' if lang == 'en' else 'Neaktivan' }}{% endif %}
-                </span>
-            </td>
-            <td><code class="small text-break">{{ promo.code_hash }}</code></td>
-            <td class="text-nowrap">
-                <form class="d-inline" method="post" action="{{ url_for('admin_promo_toggle', promo_id=promo.id) }}">
-                    <button class="btn btn-sm btn-outline-secondary" type="submit">
-                        {% if promo.active %}{{ 'Deactivate' if lang == 'en' else 'Deaktiviraj' }}{% else %}{{ 'Activate' if lang == 'en' else 'Aktiviraj' }}{% endif %}
-                    </button>
-                </form>
-                <form class="d-inline" method="post" action="{{ url_for('admin_promo_delete', promo_id=promo.id) }}">
-                    <button class="btn btn-sm btn-outline-danger" type="submit">{{ 'Delete' if lang == 'en' else 'Obriši' }}</button>
-                </form>
-            </td>
-        </tr>
-    {% else %}
-        <tr><td colspan="5" class="text-muted">{{ 'No promo codes yet.' if lang == 'en' else 'Još nema promo kodova.' }}</td></tr>
-    {% endfor %}
-    </tbody>
-</table>
-</div>
+    <button class="btn btn-primary" type="submit">{{ 'Apply' if lang == 'en' else 'Primijeni' }}</button>
+</form>
 {% endblock %}
