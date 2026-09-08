@@ -53,6 +53,11 @@ def ensure_database():
             "ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB",
         )
         _add_column_if_missing(
+            "promo_codes",
+            "user_id",
+            "ALTER TABLE promo_codes ADD COLUMN user_id INTEGER",
+        )
+        _add_column_if_missing(
             "reservations",
             "discount_percent",
             "ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0",
