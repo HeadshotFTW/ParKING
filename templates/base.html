@@ -17,7 +17,7 @@
             {% if current_user %}
                 <a class="nav-link" href="{{ url_for('my_parkings') }}">{{ tr('nav.my_parkings') }}</a>
                 <a class="nav-link" href="{{ url_for('my_reservations') }}">{{ tr('nav.my_reservations') }}</a>
-                <a class="nav-link" href="{{ url_for('notes') }}">{{ tr('nav.notes') }}</a>
+                <a class="nav-link" href="{{ url_for('vehicles') }}">{{ 'My vehicles' if lang == 'en' else 'Moja vozila' }}</a>
                 <a class="nav-link" href="{{ url_for('binary_history') }}">{{ 'Search history' if lang == 'en' else 'Povijest pretraga' }}</a>
 
                 <div class="nav-item dropdown">
