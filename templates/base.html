@@ -18,20 +18,19 @@
                 <a class="nav-link" href="{{ url_for('my_parkings') }}">{{ tr('nav.my_parkings') }}</a>
                 <a class="nav-link" href="{{ url_for('my_reservations') }}">{{ tr('nav.my_reservations') }}</a>
                 <a class="nav-link" href="{{ url_for('vehicles') }}">{{ 'My vehicles' if lang == 'en' else 'Moja vozila' }}</a>
-                <a class="nav-link" href="{{ url_for('binary_history') }}">{{ 'Search history' if lang == 'en' else 'Povijest pretraga' }}</a>
-
-                <div class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Tools</a>
-                    <ul class="dropdown-menu dropdown-menu-dark">
-                        <li><a class="dropdown-item" href="{{ url_for('rest_client') }}">Test REST</a></li>
-                        {% if current_user.is_admin() %}
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('admin_threads') }}">Test Dretve</a></li>
-                        {% endif %}
-                    </ul>
-                </div>
 
                 {% if current_user.is_admin() %}
+                    <a class="nav-link" href="{{ url_for('binary_history') }}">{{ 'Search history' if lang == 'en' else 'Povijest pretraga' }}</a>
+
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Tools</a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="{{ url_for('rest_client') }}">Test REST</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('admin_threads') }}">Test Dretve</a></li>
+                        </ul>
+                    </div>
+
                     <a class="nav-link" href="{{ url_for('admin_users') }}">{{ tr('nav.users') }}</a>
                     <a class="nav-link" href="{{ url_for('admin_reservations') }}">{{ tr('nav.admin_reservations') }}</a>
                     <a class="nav-link" href="/admin/promos">{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }}</a>
