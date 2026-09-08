@@ -185,28 +185,40 @@ def fetch_weather_for_parking_locations(location_texts):
     return results
 
 
-def run_sequential_weather(city_names):
-    started = time.perf_counter()
-    results = [_fetch_weather_for_city(city_name) for city_name in city_names]
-    return results, time.perf_counter() - started
+def resolve_weather_locations(city_names):
+    """Razriješi koordinate prije mjerenja kako geokodiranje ne bi utjecalo na usporedbu."""
+    locations = []
+    for city_name in city_names:
+        location = weather_location_for_parking(city_name)
+        if location is None:
+            raise ValueError(f"Lokacija nije pronađena: {city_name}")
+        locations.append(location)
+    return locations
 
 
-def run_parallel_weather(city_names):
+def run_weather_with_workers(locations, max_workers):
+    """Izvrši iste vremenske zahtjeve kroz ThreadPoolExecutor sa zadanim brojem radnika."""
+    if not locations:
+        return [], 0.0, 0
+
+    workers = max(1, min(max_workers, len(locations)))
     started = time.perf_counter()
     results = []
 
-    workers = min(3, len(city_names))
-    with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="parking-weather") as executor:
-        futures = [executor.submit(_fetch_weather_for_city, city_name) for city_name in city_names]
+    with ThreadPoolExecutor(
+        max_workers=workers,
+        thread_name_prefix=f"parking-weather-{workers}",
+    ) as executor:
+        futures = [executor.submit(fetch_weather, location) for location in locations]
         for future in as_completed(futures):
             results.append(future.result())
 
     results.sort(key=lambda item: item["location"].casefold())
-    return results, time.perf_counter() - started
+    return results, time.perf_counter() - started, workers
 
 
 def run_thread_demo(location_texts):
-    """Usporedi sekvencijalni i paralelni dohvat za gradove iz stvarnih parkinga."""
+    """Usporedi isti ThreadPoolExecutor s jednom i s najviše tri radne dretve."""
     global _request_log
     with _request_log_lock:
         _request_log = []
@@ -215,27 +227,33 @@ def run_thread_demo(location_texts):
     if not city_names:
         return {
             "city_names": [],
-            "sequential_results": [],
-            "parallel_results": [],
-            "sequential_time": 0.0,
-            "parallel_time": 0.0,
+            "one_thread_results": [],
+            "multi_thread_results": [],
+            "one_thread_time": 0.0,
+            "multi_thread_time": 0.0,
+            "multi_thread_workers": 0,
             "speedup": 0.0,
             "request_log": [],
         }
 
-    sequential_results, sequential_time = run_sequential_weather(city_names)
-    parallel_results, parallel_time = run_parallel_weather(city_names)
+    # Koordinate se razrješavaju prije mjerenja tako da obje varijante mjere
+    # isti posao: Open-Meteo forecast HTTP zahtjeve za isti skup gradova.
+    locations = resolve_weather_locations(city_names)
 
-    speedup = sequential_time / parallel_time if parallel_time > 0 else 0
+    one_thread_results, one_thread_time, _ = run_weather_with_workers(locations, 1)
+    multi_thread_results, multi_thread_time, multi_thread_workers = run_weather_with_workers(locations, 3)
+
+    speedup = one_thread_time / multi_thread_time if multi_thread_time > 0 else 0
     with _request_log_lock:
         log_snapshot = list(_request_log)
 
     return {
         "city_names": city_names,
-        "sequential_results": sequential_results,
-        "parallel_results": parallel_results,
-        "sequential_time": sequential_time,
-        "parallel_time": parallel_time,
+        "one_thread_results": one_thread_results,
+        "multi_thread_results": multi_thread_results,
+        "one_thread_time": one_thread_time,
+        "multi_thread_time": multi_thread_time,
+        "multi_thread_workers": multi_thread_workers,
         "speedup": speedup,
         "request_log": log_snapshot,
     }
