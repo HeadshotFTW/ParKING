@@ -66,6 +66,17 @@ class ParkingSpot(db.Model):
         return bool(user and self.owner_id == user.id)
 
 
+class PromoCode(db.Model):
+    __tablename__ = "promo_codes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code_hash = db.Column(db.String(64), nullable=False)
+    discount_percent = db.Column(db.Float, nullable=False)
+    active = db.Column(db.Boolean, nullable=False, default=True)
+
+    reservations = db.relationship("Reservation", back_populates="promo_code")
+
+
 class Reservation(db.Model):
     __tablename__ = "reservations"
 
@@ -75,16 +86,26 @@ class Reservation(db.Model):
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime, nullable=False)
     status = db.Column(db.String(20), nullable=False, default="ACTIVE")
+    discount_percent = db.Column(db.Float, nullable=False, default=0.0)
+    promo_code_id = db.Column(db.Integer, db.ForeignKey("promo_codes.id"), nullable=True)
 
     parking = db.relationship("ParkingSpot", back_populates="reservations")
     user = db.relationship("User", back_populates="reservations", foreign_keys=[user_id])
+    promo_code = db.relationship("PromoCode", back_populates="reservations")
 
     def duration_hours(self):
         seconds = (self.end_time - self.start_time).total_seconds()
         return max(seconds / 3600, 0)
 
-    def total_price(self):
+    def base_price(self):
         return self.duration_hours() * self.parking.price_per_hour
+
+    def discount_amount(self):
+        percent = max(0.0, min(float(self.discount_percent or 0.0), 100.0))
+        return self.base_price() * percent / 100.0
+
+    def total_price(self):
+        return self.base_price() - self.discount_amount()
 
     def overlaps(self, start_time, end_time):
         return self.status == "ACTIVE" and start_time < self.end_time and end_time > self.start_time
