@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Profile' if lang == 'en' else 'Profil' }} - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">{{ 'Profile' if lang == 'en' else 'Profil' }}</h1>
+
+<div class="row g-4">
+    <div class="col-md-5 col-lg-4">
+        <div class="card card-body text-center">
+            <img src="{{ url_for('user_avatar', user_id=user.id) }}"
+                 alt="Avatar"
+                 class="rounded-circle mx-auto mb-3 border"
+                 width="220" height="220"
+                 style="object-fit: cover;">
+            <h2 class="h5 mb-1">{{ user.username }}</h2>
+            <div class="text-muted mb-3">{{ user.role }}</div>
+
+            <form method="post" action="{{ url_for('refresh_avatar') }}">
+                <button class="btn btn-primary" type="submit">
+                    {{ 'Get a new avatar' if lang == 'en' else 'Dohvati novi avatar' }}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-7 col-lg-8">
+        <div class="card card-body">
+            <h2 class="h5">{{ 'Avatar download' if lang == 'en' else 'Dohvat avatara' }}</h2>
+            <p class="mb-2">
+                {% if lang == 'en' %}
+                    The avatar is downloaded from Pravatar by launching the external <code>wget</code> executable installed in the same ParKING container.
+                {% else %}
+                    Avatar se preuzima s Pravatara pokretanjem vanjske izvršne aplikacije <code>wget</code> instalirane u istom ParKING containeru.
+                {% endif %}
+            </p>
+            <div class="small text-muted">
+                {% if wget_available %}
+                    {{ 'wget is available in the container.' if lang == 'en' else 'wget je dostupan u containeru.' }}
+                {% else %}
+                    {{ 'wget is not available in the container.' if lang == 'en' else 'wget nije dostupan u containeru.' }}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
