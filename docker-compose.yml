@@ -7,6 +7,7 @@ services:
       - "5001:5001"
     environment:
       SECRET_KEY: ${SECRET_KEY:-parking-development-secret}
+      PROMO_SYSTEM_PEPPER: ${PROMO_SYSTEM_PEPPER:-173}
     volumes:
       - ./data:/app/data
       - ./exports:/app/exports
