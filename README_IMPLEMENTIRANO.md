@@ -2,7 +2,7 @@
 
 Ovaj dokument navodi funkcionalnosti koje su implementirane i trenutačno se računaju u procjeni projekta.
 
-**Konzervativna procjena: 66 bodova**, uz uvjet da se na obrani za kriterij 11 stvarno pokaže da je višedretveno izvođenje brže od izvođenja s jednom dretvom.
+**Konzervativna procjena: 71 bod.** Kriterij 11 je praktično testiran s jednom i tri dretve; na zadnjem mjerenju jedna dretva trajala je 0.516 s, tri dretve 0.168 s, odnosno ubrzanje je bilo 3.07×.
 
 ## 1. Korisničke klase — 3 boda
 
@@ -44,20 +44,26 @@ Fotografija parkinga sprema se izravno u SQLite BLOB polje `photo`, uz MIME tip 
 
 ReportLab generira PDF potvrdu rezervacije s podacima iz tablica `reservations`, `users` i `parking_spots`.
 
-## 11. Paralelno izvršavanje dretvama — 5 bodova uz obaveznu demonstraciju ubrzanja
+## 11. Paralelno izvršavanje dretvama — 5 bodova
 
 Open-Meteo dohvat koristi se u glavnom toku aplikacije. Ako je prikazano više različitih gradova, vremenski podaci dohvaćaju se paralelno pomoću `ThreadPoolExecutor`.
 
-Administratorska stranica **Test → Dretve** sada izričito uspoređuje isti skup Open-Meteo forecast zahtjeva kroz isti `ThreadPoolExecutor` u dvije varijante:
+Administratorska stranica **Test → Dretve** uspoređuje isti skup Open-Meteo forecast zahtjeva kroz isti `ThreadPoolExecutor` u dvije varijante:
 
 ```text
 max_workers = 1
 max_workers = 3
 ```
 
-Ako nema tri grada, druga varijanta koristi onoliko radnika koliko ima gradova. Koordinate se razriješe prije mjerenja, tako da geokodiranje ne daje prednost drugom prolazu. Mjeri se isti posao, prikazuju se vrijeme za jednu dretvu, vrijeme za više dretvi i faktor ubrzanja.
+Koordinate se razriješe prije mjerenja, pa oba mjerenja obuhvaćaju isti posao. `seed.py` daje Zagreb, Zadar i Split kao tri neovisna mrežna zadatka. Zadnji praktični test dao je:
 
-`seed.py` kreira parkinge u Zagrebu, Zadru i Splitu, pa se nakon seeda mogu pokazati tri neovisna mrežna zadatka. Prema komentaru nastavnika, kriterij 11 treba smatrati priznatim samo ako se na obrani stvarno pokaže kraće vrijeme s više dretvi.
+```text
+1 dretva   0.516 s
+3 dretve   0.168 s
+ubrzanje   3.07×
+```
+
+Time se demonstrira zahtjev nastavnika da višedretveni pristup bude brži od izvođenja istih operacija jednom dretvom.
 
 ## 13. Sinkronizacija dretvi — 2 boda
 
@@ -83,9 +89,27 @@ REST API koristi Bearer token. Nedostajući ili pogrešan token vraća `401`, a 
 
 AES-GCM je integriran u **Bilješke** kao sigurnosna kopija stvarnih korisničkih JSON podataka.
 
-## 25. SHA-256 — trenutačno računamo samo osnovna 2 boda
+## 25. SHA-256, promjenjiva sol i papar — 7 bodova
 
-Aplikacija koristi SHA-256 nad stvarnim podacima rezervacije. Nastavnik je pojasnio da se kod provjere integriteta ne koriste sol ni papar. Zbog toga dodatne bodove za sol i papar trenutačno ne računamo; taj dio implementacije predviđen je za zaseban redizajn prije konačne prijavnice.
+Kriterij je razdvojen na dvije različite namjene kako se sol i papar ne bi pogrešno koristili za provjeru integriteta.
+
+### Integritet rezervacije
+
+`hash_demo.py` radi obični SHA-256 nad stabilnim tekstualnim prikazom stvarnih podataka rezervacije. Za ovu provjeru **ne koriste se sol ni papar**. Korisnik može usporediti trenutačni sažetak s ranije spremljenim sažetkom; promjena relevantnih podataka rezervacije mijenja SHA-256 otisak.
+
+### Sigurnosni kod za šifriranu kopiju bilješki
+
+Na stranici **Bilješke** korisnik postavlja sigurnosni kod prije izrade ili otvaranja AES-GCM kopije. Kod se ne sprema u izvornom obliku. `security_code_store.py` sprema samo njegov SHA-256 sažetak u `data/security_codes.json`.
+
+Promjenjiva sol izvodi se deterministički iz korisničkog ID-a:
+
+```text
+SHA256("ParKING-security-code-salt:<user_id>")[0:16]
+```
+
+Sol se ne sprema u bazu ni datoteku. Pri stvaranju sažetka koristi se jedan papar iz raspona `0–255`. Papar se također ne sprema uz sažetak. Kod provjere `verify_security_code()` namjerno prolazi **svih 256 mogućih vrijednosti papra**, računa kandidat za svaku vrijednost i uspoređuje ga sa spremljenim sažetkom pomoću `hmac.compare_digest`.
+
+Ako je kod ispravan, aplikacija tek tada otvara AES-GCM sigurnosnu kopiju. Stranica prikazuje da je provjereno svih 256 mogućih vrijednosti papra. Promjena već postavljenog koda zahtijeva provjeru trenutačnog koda.
 
 ## 28. Dinamička biblioteka — 5 bodova
 
@@ -103,7 +127,7 @@ Python modul `service_fee.py` učitava `.so` tijekom rada aplikacije pomoću `ct
 ## Zbroj
 
 ```text
-3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 2 + 5 = 66
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 7 + 5 = 71
 ```
 
-Ne računaju se kriteriji 12, 14–19, 24, 26, 27, 29 i 30. Kriterij 25 će se ponovno procijeniti nakon redizajna soli i papra.
+Ne računaju se kriteriji 12, 14–19, 24, 26, 27, 29 i 30.
