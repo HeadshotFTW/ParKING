@@ -33,6 +33,16 @@ def ensure_database():
         if "access_instructions" not in parking_columns:
             db.session.execute(text("ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB"))
 
+        reservation_columns = {
+            row[1] for row in db.session.execute(text("PRAGMA table_info(reservations)")).all()
+        }
+        if "discount_percent" not in reservation_columns:
+            db.session.execute(
+                text("ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0")
+            )
+        if "promo_code_id" not in reservation_columns:
+            db.session.execute(text("ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER"))
+
         db.session.commit()
 
         changed = False
@@ -81,6 +91,8 @@ def reservation_to_dict(reservation):
         "start_time": reservation.start_time.isoformat(timespec="minutes"),
         "end_time": reservation.end_time.isoformat(timespec="minutes"),
         "status": reservation.status,
+        "base_price": round(reservation.base_price(), 2),
+        "discount_percent": round(float(reservation.discount_percent or 0), 2),
         "total_price": round(reservation.total_price(), 2),
     }
 
@@ -200,6 +212,7 @@ def api_reservations():
         start_time=start_time,
         end_time=end_time,
         status="ACTIVE",
+        discount_percent=0.0,
     )
     db.session.add(reservation)
     db.session.commit()
