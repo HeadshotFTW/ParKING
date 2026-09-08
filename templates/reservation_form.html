@@ -38,14 +38,7 @@
     {% endif %}
 
     <label class="form-label" for="promo_code">{{ 'Promo code (optional)' if lang == 'en' else 'Promo kod (opcionalno)' }}</label>
-    <input class="form-control mb-2 text-uppercase" id="promo_code" name="promo_code" maxlength="40" placeholder="POPUST" value="{{ request.form.get('promo_code', '') }}">
-    <div class="form-text mb-3">
-        {% if lang == 'en' %}
-            Enter POPUST if a discount has been assigned to your account.
-        {% else %}
-            Unesite POPUST ako je vašem korisničkom računu dodijeljen popust.
-        {% endif %}
-    </div>
+    <input class="form-control mb-3 text-uppercase" id="promo_code" name="promo_code" maxlength="40" placeholder="POPUST" value="{{ request.form.get('promo_code', '') }}">
 
     <div>
         <button class="btn btn-primary">{{ tr('reservation.submit') }}</button>
