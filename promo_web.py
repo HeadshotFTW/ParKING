@@ -4,15 +4,15 @@ from flask import flash, redirect, render_template, request, url_for
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 
-from models import db, ParkingSpot, PromoCode, Reservation
-from promo_code_hash import create_promo_digest, verify_promo_code
+from models import db, ParkingSpot, PromoCode, Reservation, User
+from promo_code_hash import PROMO_CODE, create_user_promo_digest, verify_user_promo
 from vehicle_store import get_vehicle, list_vehicles
 
 
-def _add_column_if_missing(column_name, ddl):
+def _add_column_if_missing(table_name, column_name, ddl):
     columns = {
         row[1]
-        for row in db.session.execute(text("PRAGMA table_info(reservations)")).all()
+        for row in db.session.execute(text(f"PRAGMA table_info({table_name})")).all()
     }
     if column_name in columns:
         return
@@ -23,40 +23,65 @@ def _add_column_if_missing(column_name, ddl):
     except OperationalError as exc:
         db.session.rollback()
         # The REST process and web process can start almost simultaneously.
-        # If the other process added the same column first, the schema is already correct.
         if "duplicate column" not in str(exc).lower():
             raise
 
 
 def ensure_promo_schema(app):
-    """Upgrade an existing SQLite database with reservation promo and vehicle columns."""
+    """Upgrade an existing SQLite database with user promo and vehicle columns."""
     with app.app_context():
         db.create_all()
         _add_column_if_missing(
+            "promo_codes",
+            "user_id",
+            "ALTER TABLE promo_codes ADD COLUMN user_id INTEGER",
+        )
+        _add_column_if_missing(
+            "reservations",
             "discount_percent",
             "ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0",
         )
         _add_column_if_missing(
+            "reservations",
             "promo_code_id",
             "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER",
         )
         _add_column_if_missing(
+            "reservations",
             "vehicle_id",
             "ALTER TABLE reservations ADD COLUMN vehicle_id INTEGER",
         )
         _add_column_if_missing(
+            "reservations",
             "vehicle_name",
             "ALTER TABLE reservations ADD COLUMN vehicle_name VARCHAR(120)",
         )
         _add_column_if_missing(
+            "reservations",
             "vehicle_registration",
             "ALTER TABLE reservations ADD COLUMN vehicle_registration VARCHAR(40)",
         )
 
 
-def find_active_promo(code):
-    promos = PromoCode.query.filter_by(active=True).order_by(PromoCode.id.asc()).all()
-    return verify_promo_code(code, promos)
+def _assignment_for_user(user_id):
+    return PromoCode.query.filter_by(user_id=user_id).order_by(PromoCode.id.desc()).first()
+
+
+def verify_assigned_discount(code, user_id):
+    assignment = PromoCode.query.filter_by(user_id=user_id, active=True).order_by(
+        PromoCode.id.desc()
+    ).first()
+    if assignment is None:
+        return {
+            "valid": False,
+            "assignment": None,
+            "matched_pepper": None,
+            "attempts": 0,
+        }
+
+    result = verify_user_promo(code, user_id, assignment.code_hash)
+    result["assignment"] = assignment if result["valid"] else None
+    return result
 
 
 def install_promo_features(app, admin_required, login_required, current_user, local_text):
@@ -65,65 +90,78 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
     @app.route("/admin/promos", methods=["GET", "POST"])
     @admin_required
     def admin_promos():
+        users = User.query.order_by(User.username.asc()).all()
+
         if request.method == "POST":
-            code = request.form.get("code", "").strip()
-            try:
-                discount_percent = float(request.form.get("discount_percent", ""))
-            except ValueError:
-                discount_percent = 0
+            selected_ids = {
+                int(value)
+                for value in request.form.getlist("selected_users")
+                if value.isdigit()
+            }
 
-            if len(code) < 4 or not 1 <= discount_percent <= 100:
-                flash(local_text(
-                    "Promo kod mora imati najmanje 4 znaka, a popust mora biti između 1 i 100%.",
-                    "The promo code must have at least 4 characters and the discount must be between 1 and 100%.",
-                ), "danger")
-            else:
-                existing = PromoCode.query.order_by(PromoCode.id.asc()).all()
-                if verify_promo_code(code, existing)["valid"]:
+            percentages = {}
+            validation_error = False
+            for user in users:
+                if user.id not in selected_ids:
+                    continue
+                try:
+                    percent = float(request.form.get(f"discount_{user.id}", ""))
+                except ValueError:
+                    percent = 0
+                if not 1 <= percent <= 100:
+                    validation_error = True
                     flash(local_text(
-                        "Promo kod s tom vrijednošću već postoji.",
-                        "A promo code with that value already exists.",
+                        f"Popust za korisnika {user.username} mora biti između 1 i 100%.",
+                        f"Discount for user {user.username} must be between 1 and 100%.",
                     ), "danger")
-                else:
-                    promo = PromoCode(code_hash="", discount_percent=discount_percent, active=True)
-                    db.session.add(promo)
-                    db.session.flush()
-                    promo.code_hash = create_promo_digest(promo.id, code)
-                    db.session.commit()
-                    flash(local_text(
-                        "Promo kod je kreiran. Izvorni kod, sol i papar nisu spremljeni; spremljen je samo SHA-256 sažetak.",
-                        "Promo code created. The original code, salt and pepper were not stored; only the SHA-256 digest was saved.",
-                    ), "success")
+                percentages[user.id] = percent
 
-        promos = PromoCode.query.order_by(PromoCode.id.desc()).all()
-        return render_template("admin_promos.html", promos=promos)
+            if not validation_error:
+                for user in users:
+                    assignments = PromoCode.query.filter_by(user_id=user.id).order_by(
+                        PromoCode.id.desc()
+                    ).all()
+                    assignment = assignments[0] if assignments else None
 
-    @app.route("/admin/promos/<int:promo_id>/toggle", methods=["POST"])
-    @admin_required
-    def admin_promo_toggle(promo_id):
-        promo = db.get_or_404(PromoCode, promo_id)
-        promo.active = not promo.active
-        db.session.commit()
-        flash(local_text(
-            "Status promo koda je promijenjen.",
-            "Promo code status changed.",
-        ), "success")
-        return redirect(url_for("admin_promos"))
+                    # If an older database somehow contains duplicates, only the newest
+                    # assignment remains active.
+                    for duplicate in assignments[1:]:
+                        duplicate.active = False
 
-    @app.route("/admin/promos/<int:promo_id>/delete", methods=["POST"])
-    @admin_required
-    def admin_promo_delete(promo_id):
-        promo = db.get_or_404(PromoCode, promo_id)
-        if Reservation.query.filter_by(promo_code_id=promo.id).first():
-            flash(local_text(
-                "Promo kod je već korišten u rezervaciji. Deaktivirajte ga umjesto brisanja.",
-                "This promo code has already been used by a reservation. Deactivate it instead of deleting it.",
-            ), "warning")
-        else:
-            db.session.delete(promo)
-            db.session.commit()
-            flash(local_text("Promo kod je obrisan.", "Promo code deleted."), "info")
-        return redirect(url_for("admin_promos"))
+                    if user.id in selected_ids:
+                        if assignment is None:
+                            assignment = PromoCode(
+                                user_id=user.id,
+                                code_hash="",
+                                discount_percent=percentages[user.id],
+                                active=True,
+                            )
+                            db.session.add(assignment)
+                        assignment.code_hash = create_user_promo_digest(user.id, PROMO_CODE)
+                        assignment.discount_percent = percentages[user.id]
+                        assignment.active = True
+                    elif assignment is not None:
+                        assignment.active = False
+
+                db.session.commit()
+                flash(local_text(
+                    "Popusti za promo kod POPUST su primijenjeni.",
+                    "Discounts for promo code POPUST were applied.",
+                ), "success")
+                return redirect(url_for("admin_promos"))
+
+        assignment_map = {}
+        for assignment in PromoCode.query.filter(PromoCode.user_id.isnot(None)).order_by(
+            PromoCode.id.desc()
+        ).all():
+            assignment_map.setdefault(assignment.user_id, assignment)
+
+        return render_template(
+            "admin_promos.html",
+            users=users,
+            assignments=assignment_map,
+            promo_code=PROMO_CODE,
+        )
 
     def reserve_with_promo(parking_id):
         parking = db.get_or_404(ParkingSpot, parking_id)
@@ -189,17 +227,17 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                     return render_form()
 
             promo_text = request.form.get("promo_code", "").strip()
-            promo = None
+            assignment = None
             verification = None
             if promo_text:
-                verification = find_active_promo(promo_text)
+                verification = verify_assigned_discount(promo_text, user.id)
                 if not verification["valid"]:
                     flash(local_text(
-                        "Promo kod nije valjan ili nije aktivan.",
-                        "The promo code is invalid or inactive.",
+                        "Promo kod POPUST nije dodijeljen vašem korisničkom računu ili nije valjan.",
+                        "Promo code POPUST is not assigned to your account or is invalid.",
                     ), "danger")
                     return render_form()
-                promo = verification["promo"]
+                assignment = verification["assignment"]
 
             reservation = Reservation(
                 parking_id=parking.id,
@@ -207,8 +245,8 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
                 start_time=start_time,
                 end_time=end_time,
                 status="ACTIVE",
-                discount_percent=promo.discount_percent if promo else 0.0,
-                promo_code_id=promo.id if promo else None,
+                discount_percent=assignment.discount_percent if assignment else 0.0,
+                promo_code_id=assignment.id if assignment else None,
                 vehicle_id=selected_vehicle["id"] if selected_vehicle else None,
                 vehicle_name=selected_vehicle["name"] if selected_vehicle else None,
                 vehicle_registration=selected_vehicle["registration"] if selected_vehicle else None,
@@ -216,10 +254,10 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
             db.session.add(reservation)
             db.session.commit()
 
-            if promo:
+            if assignment:
                 flash(local_text(
-                    f"Promo kod je prihvaćen: {promo.discount_percent:.0f}% popusta. Provjereno je svih {verification['attempts_for_match']} mogućih vrijednosti papra.",
-                    f"Promo code accepted: {promo.discount_percent:.0f}% discount. All {verification['attempts_for_match']} possible pepper values were checked.",
+                    f"Promo kod POPUST je prihvaćen: {assignment.discount_percent:.0f}% popusta. Provjereno je svih {verification['attempts']} vrijednosti papra.",
+                    f"Promo code POPUST accepted: {assignment.discount_percent:.0f}% discount. All {verification['attempts']} pepper values were checked.",
                 ), "success")
             else:
                 flash(local_text("Rezervacija je spremljena.", "Reservation saved."), "success")
@@ -228,5 +266,5 @@ def install_promo_features(app, admin_required, login_required, current_user, lo
         return render_form()
 
     # The base app already owns the /parking/<id>/reserve URL. Replace only its view
-    # so the main business flow gains promo and vehicle selection without a second route.
+    # so the main business flow gains the user-specific POPUST discount and vehicle selection.
     app.view_functions["reserve"] = login_required(reserve_with_promo)
