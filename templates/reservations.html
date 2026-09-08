@@ -7,6 +7,7 @@
     <thead>
         <tr>
             <th>Parking</th>
+            <th>{{ 'Vehicle' if lang == 'en' else 'Vozilo' }}</th>
             <th>{{ tr('common.start') }}</th>
             <th>{{ tr('common.end') }}</th>
             <th>{{ tr('reservations.duration') }}</th>
@@ -20,6 +21,13 @@
     {% for reservation in reservations %}
         <tr>
             <td>{{ reservation.parking.name }}</td>
+            <td>
+                {% if reservation.vehicle_display() %}
+                    <span class="small">{{ reservation.vehicle_display() }}</span>
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
             <td>{{ reservation.start_time.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>{{ reservation.end_time.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>{{ "%.1f" | format(reservation.duration_hours()) }} {{ tr('reservations.hours') }}</td>
@@ -56,7 +64,7 @@
             </td>
         </tr>
     {% else %}
-        <tr><td colspan="8">{{ tr('reservations.none') }}</td></tr>
+        <tr><td colspan="9">{{ tr('reservations.none') }}</td></tr>
     {% endfor %}
     </tbody>
 </table>
