@@ -7,6 +7,7 @@ from hash_demo import create_integrity_hash, reservation_integrity_text, verify_
 from models import ParkingSpot, Reservation
 from parallel_tasks import run_thread_demo
 from parking_availability import install_parking_availability
+from promo_web import install_promo_features
 from service_fee import (
     SERVICE_FEE_PERCENTAGE,
     calculate_service_fee,
@@ -28,6 +29,15 @@ app.jinja_env.globals.update(
 
 def tech_text(hr, en):
     return en if current_language() == "en" else hr
+
+
+install_promo_features(
+    app,
+    admin_required=admin_required,
+    login_required=login_required,
+    current_user=current_user,
+    local_text=tech_text,
+)
 
 
 @app.route("/rest-client")
