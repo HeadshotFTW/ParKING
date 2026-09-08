@@ -36,6 +36,12 @@
                     <a class="nav-link" href="/admin/promos">{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }}</a>
                     <a class="nav-link" href="{{ url_for('admin_settings') }}">{{ tr('nav.settings') }}</a>
                 {% endif %}
+
+                <a class="nav-link d-flex align-items-center gap-2" href="/profile">
+                    <img src="/avatar/{{ current_user.id }}.jpg" alt="Avatar" width="28" height="28"
+                         class="rounded-circle border border-secondary" style="object-fit: cover;">
+                    <span>{{ 'Profile' if lang == 'en' else 'Profil' }}</span>
+                </a>
                 <a class="nav-link" href="{{ url_for('logout') }}">{{ tr('nav.logout') }} ({{ current_user.username }})</a>
             {% else %}
                 <a class="nav-link" href="{{ url_for('login') }}">{{ tr('nav.login') }}</a>
