@@ -85,13 +85,54 @@ Za dokaz da se u bazi ne nalazi čitljiv tekst može se izvršiti:
 docker compose exec parking python -c "from app import app; from models import ParkingSpot; app.app_context().push(); p=ParkingSpot.query.filter(ParkingSpot.access_instructions.isnot(None)).first(); print(p.access_instructions.hex() if p else 'nema uputa')"
 ```
 
-Važno za objašnjenje: AES-GCM ovdje štiti stvaran privatni podatak parkinga. Nema dodatnog sigurnosnog koda, soli ni papra.
+Važno za objašnjenje: AES-GCM ovdje štiti stvaran privatni podatak parkinga.
 
-## 5. BLOB fotografija
+## 5. Promo kodovi — SHA-256, promjenjiva sol i papar
+
+Kao administrator otvoriti **Promo kodovi**. Kreirati primjerice:
+
+```text
+kod: PARK10
+popust: 10%
+```
+
+Nakon spremanja pokazati da se u tablici vidi samo SHA-256 sažetak, ne izvorni kod.
+
+Objasniti:
+
+```text
+promo kod + promjenjiva sol + papar
+              ↓
+           SHA-256
+              ↓
+      sprema se samo sažetak
+```
+
+Promjenjiva sol izvodi se pravilom:
+
+```text
+SHA256("ParKING-promo-salt:<promo_id>")[0:16]
+```
+
+Sol se ne sprema. Kod stvaranja sažetka slučajno se bira jedan papar iz raspona `0–255`, a ni papar se ne sprema.
+
+Zatim kao obični korisnik rezervirati parking i u polje **Promo kod** unijeti `PARK10`. Aplikacija kod provjere prolazi svih **256 vrijednosti papra** za kandidat i tek nakon cijelog raspona prihvaća podudaranje. Nakon rezervacije poruka izričito prikazuje da je provjereno svih 256 vrijednosti, a na **Moje rezervacije** vidi se stara cijena, popust i konačna cijena.
+
+Ključne datoteke:
+
+```text
+promo_code_hash.py     generiranje soli, SHA-256 i puni pepper scan 0–255
+promo_web.py           admin promo rute i primjena popusta u rezervaciji
+models.py              PromoCode + discount_percent + promo_code_id
+```
+
+Važno: ovo je zasebno od provjere integriteta rezervacije. Kod integriteta nema soli ni papra.
+
+## 6. BLOB fotografija
 
 Kao vlasnik urediti parking i učitati fotografiju. Pokazati prikaz, zamjenu i uklanjanje slike.
 
-## 6. Admin CRUD + dinamička biblioteka
+## 7. Admin CRUD + dinamička biblioteka
 
 Kao administrator na **Korisnici** pokazati CRUD. Na **Admin rezervacije** pokazati:
 
@@ -108,11 +149,11 @@ docker compose exec parking python -c "import service_fee; print(service_fee.nat
 
 Očekuje se `True` i `/app/native/libservice_fee.so`.
 
-## 7. INI postavke
+## 8. INI postavke
 
 Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `config.ini`.
 
-## 8. Dretve, ubrzanje, kritična sekcija i Open-Meteo
+## 9. Dretve, ubrzanje, kritična sekcija i Open-Meteo
 
 Kao administrator otvoriti **Test → Dretve**. Koordinate gradova razriješe se prije mjerenja, a potpuno isti Open-Meteo forecast zahtjevi izvršavaju se kroz isti `ThreadPoolExecutor`:
 
@@ -140,7 +181,7 @@ with _request_log_lock:
 
 `threading.Lock` štiti zajednički `_request_log`.
 
-## 9. Test → REST
+## 10. Test → REST
 
 Pokazati odvojeni web proces na `5000` i vlastiti REST servis na `5001`:
 
@@ -160,7 +201,7 @@ Očekivano:
 
 Za kriterij 22 treba pokazati i stvarni `403` za nedopuštenu akciju.
 
-## 10. SHA-256 integritet rezervacije
+## 11. SHA-256 integritet rezervacije
 
 Otvoriti **Moje rezervacije → SHA-256**.
 
@@ -173,11 +214,14 @@ Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A 
 ## Datoteke koje je korisno znati
 
 ```text
-models.py                    SQLAlchemy modeli
+models.py                    SQLAlchemy modeli + PromoCode
 app.py                       web rute, CRUD, vozila, AES pristupne upute
+run.py                       instalira prošireni parking tok i promo funkcionalnost
 vehicle_store.py             JSON CRUD vozila
 parking_access_crypto.py     AES-GCM šifriranje/dešifriranje pristupnih uputa
 hash_demo.py                 SHA-256 integritet rezervacije
+promo_code_hash.py           promjenjiva sol + slučajni papar + provjera 0–255
+promo_web.py                 administracija promo kodova + primjena u rezervaciji
 parking_availability.py      dostupnost + binarna povijest + vrijeme
 binary_store.py              PKSR binarni format
 parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
@@ -189,4 +233,4 @@ config.ini                   INI postavke
 
 ## Bodovna procjena
 
-Konzervativna procjena je oko **66 bodova**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen, a kriterij 25 računamo samo kao 2 boda za pravilno korištenje SHA-256 pri provjeri integriteta.
+Konzervativna procjena je oko **71 bod**. Kriterij 11 je praktično potvrdio ubrzanje. Kriterij 14 je uklonjen. Kriterij 25 sada ima čistu provjeru integriteta bez soli/papra te zasebnu poslovnu primjenu promjenjive soli i papra na promo kodovima.
