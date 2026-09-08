@@ -6,11 +6,19 @@
 <div class="row g-4">
     <div class="col-md-5 col-lg-4">
         <div class="card card-body text-center">
-            <img src="{{ url_for('user_avatar', user_id=user.id) }}"
-                 alt="Avatar"
-                 class="rounded-circle mx-auto mb-3 border"
-                 width="220" height="220"
-                 style="object-fit: cover;">
+            {% if avatar_exists %}
+                <img src="{{ url_for('user_avatar', user_id=user.id) }}"
+                     alt="Avatar"
+                     class="rounded-circle mx-auto mb-3 border"
+                     width="220" height="220"
+                     style="object-fit: cover;">
+            {% else %}
+                <div class="rounded-circle mx-auto mb-3 border d-flex align-items-center justify-content-center bg-light text-muted"
+                     style="width: 220px; height: 220px;">
+                    {{ 'No avatar' if lang == 'en' else 'Nema avatara' }}
+                </div>
+            {% endif %}
+
             <h2 class="h5 mb-1">{{ user.username }}</h2>
             <div class="text-muted mb-3">{{ user.role }}</div>
 
