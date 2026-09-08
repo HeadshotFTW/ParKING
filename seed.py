@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from app import app
+from avatar_fetch import ensure_avatar
 from models import db, User, ParkingSpot, Reservation
 
 
@@ -63,6 +64,11 @@ def seed():
         )
         db.session.add(reservation)
         db.session.commit()
+
+        # Avatar download is best-effort: a temporary Pravatar/network failure must
+        # not prevent the development database from being seeded.
+        for user in (owner, guest, admin):
+            ensure_avatar(user.id)
 
         print("Početni podaci su kreirani.")
         print("vlasnik / parking123")
