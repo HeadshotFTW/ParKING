@@ -54,15 +54,42 @@ postojeći završetak > traženi početak
 
 Prebaciti HR → EN i otvoriti nekoliko stranica.
 
-## 3. JSON CRUD + AES-GCM
+## 3. JSON CRUD + AES-GCM + sigurnosni kod
 
-Na stranici **Bilješke** pokazati dodavanje, uređivanje i brisanje JSON bilješke, zatim izradu i otvaranje AES-GCM šifrirane sigurnosne kopije.
+Na stranici **Bilješke**:
 
-Dokaz datoteke:
+1. pokazati dodavanje, uređivanje i brisanje JSON bilješke
+2. postaviti sigurnosni kod od barem 4 znaka
+3. izraditi AES-GCM šifriranu sigurnosnu kopiju
+4. unijeti sigurnosni kod i otvoriti kopiju
+5. pokazati poruku da je kod provjere pregledano svih 256 mogućih vrijednosti papra
+
+Kod sigurnosnog koda objasniti:
+
+```text
+sigurnosni kod + promjenjiva sol + slučajni papar 0–255
+                         ↓
+                      SHA-256
+                         ↓
+                 sprema se samo sažetak
+```
+
+Promjenjiva sol izvodi se pravilom:
+
+```text
+SHA256("ParKING-security-code-salt:<user_id>")[0:16]
+```
+
+Sol se ne sprema. Papar se kod postavljanja slučajno bira iz raspona `0–255` i također se ne sprema. Kod provjere `verify_security_code()` prolazi svih 256 vrijednosti i traži onu koja zajedno s unesenim kodom daje spremljeni SHA-256 sažetak.
+
+Dokaz datoteka:
 
 ```bash
+cat data/security_codes.json
 xxd exports/notes_user_<id>.aes | head
 ```
+
+U `security_codes.json` vidi se samo SHA-256 sažetak, ne izvorni kod, sol ili papar. AES datoteka počinje s `PKAE`.
 
 ## 4. BLOB fotografija
 
@@ -103,26 +130,24 @@ Na **Postavke** promijeniti `default_language` ili `items_per_page` i pokazati `
 
 ## 7. Dretve, ubrzanje, kritična sekcija i Open-Meteo
 
-Ovo je važan dio zbog komentara nastavnika za kriterij 11.
-
 Kao administrator otvoriti **Test → Dretve**. `run.py` čita lokacije stvarnih parkinga iz baze, a `parallel_tasks.py` izdvaja jedinstvene gradove. Nakon seeda trebali bi se pojaviti Zagreb, Zadar i Split.
 
-U kodu objasniti da se koordinate prvo razriješe **prije mjerenja**, kako geokodiranje ne bi dalo prednost jednom prolazu. Zatim se potpuno isti Open-Meteo forecast zahtjevi izvršavaju kroz isti `ThreadPoolExecutor`:
+Koordinate se razriješe **prije mjerenja**, kako geokodiranje ne bi dalo prednost jednom prolazu. Zatim se potpuno isti Open-Meteo forecast zahtjevi izvršavaju kroz isti `ThreadPoolExecutor`:
 
 ```text
 1. max_workers = 1
 2. max_workers = 3
 ```
 
-Na stranici pokazati:
+Na zadnjem praktičnom testu dobiveno je:
 
-- vrijeme **1 dretva**
-- vrijeme **3 dretve**
-- faktor ubrzanja
-- da je vrijeme s tri dretve manje od vremena s jednom dretvom
-- nazive radnih dretvi u rezultatima
+```text
+1 dretva   0.516 s
+3 dretve   0.168 s
+ubrzanje   3.07×
+```
 
-Prema komentaru nastavnika, kriterij 11 računamo samo ako se na obrani stvarno vidi da je višedretvena varijanta brža.
+Na obrani ponovno pokazati da je vrijeme s tri dretve manje od vremena s jednom dretvom. Zbog mrežne latencije konkretne brojke mogu varirati.
 
 Kritična sekcija:
 
@@ -153,24 +178,35 @@ Očekivano:
 
 Za autorizaciju pokazati stvarni `403` na nedopuštenoj akciji.
 
-## 9. SHA-256
+## 9. SHA-256 integritet rezervacije
 
-Trenutačna SHA-256 funkcionalnost postoji, ali dio sa soli i paprom nije konačan. Nastavnik je pojasnio da se za provjeru integriteta ne koriste sol ni papar. Prije obrane ovaj dio treba proći zaseban redizajn; do tada ne učiti trenutačno rješenje kao konačan odgovor za kriterij 25.
+Kao `gost` otvoriti **Moje rezervacije → SHA-256**.
+
+Ovdje se namjerno koristi **obični SHA-256 bez soli i papra**. Objasniti da je cilj provjera integriteta: isti podaci daju isti kontrolni otisak, a promjena podataka rezervacije mijenja otisak.
+
+Pokazati:
+
+1. trenutačni SHA-256 otisak rezervacije
+2. uspješnu provjeru trenutačnog otiska
+3. po želji promijeniti jedan znak otiska i pokazati neuspješnu provjeru
+
+Važno: sol i papar ne braniti na ovoj stranici. Oni su zasebno implementirani kod sigurnosnog koda na **Bilješke**.
 
 ## Kriterij 14 — ne demonstrirati
 
-Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A i B kao izvršne EXE aplikacije, pa kriterij 14 trenutačno ne prijavljujemo i ne pokazujemo.
+Ranija Python procesna demonstracija je uklonjena. Nastavnik očekuje procese A i B kao izvršne EXE aplikacije, pa kriterij 14 ne prijavljujemo i ne pokazujemo.
 
 ## Datoteke koje je korisno znati
 
 ```text
 models.py                    SQLAlchemy modeli
 app.py                       osnovni CRUD i web rute
-run.py                       REST klijent, AES backup, SHA-256 ruta, thread test, service fee Jinja funkcije
+run.py                       REST klijent, AES backup, security-code ruta, SHA-256 ruta, thread test, service fee Jinja funkcije
 parking_availability.py      dostupnost + binarna povijest + vrijeme uz parkinge
 binary_store.py              PKSR binarni format
 crypto_store.py              AES-GCM
-hash_demo.py                 SHA-256 dio koji treba redizajn soli/papra
+hash_demo.py                 obični SHA-256 integritet rezervacije
+security_code_store.py       promjenjiva sol + slučajni papar + provjera 0–255
 parallel_tasks.py            Open-Meteo + ThreadPoolExecutor + Lock
 service_fee.py               ctypes wrapper za dinamičku biblioteku
 native/service_fee.cpp       C++ ServiceFeeCalculator
@@ -181,4 +217,4 @@ config.ini                   INI postavke
 
 ## Bodovna procjena
 
-Trenutačna konzervativna procjena je oko **66 bodova**, uz uvjet da kriterij 11 na obrani stvarno pokaže ubrzanje. Kriterij 25 ponovno procijeniti nakon redizajna soli i papra.
+Konzervativna procjena je oko **71 bod**. Kriterij 14 je namjerno izbačen, kriterij 11 je praktično potvrdio ubrzanje, a kriterij 25 sada jasno razdvaja integritet rezervacije od hashiranja sigurnosnog koda sa soli i paprom.
