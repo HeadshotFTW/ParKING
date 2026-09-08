@@ -4,7 +4,7 @@ Ovaj dokument je interna kontrolna lista trenutnog stanja projekta.
 
 ## Procijenjeni rezultat
 
-Konzervativna procjena: **75 bodova**.
+Konzervativna procjena: **66 bodova**, uz uvjet da se za kriterij 11 na obrani stvarno pokaže ubrzanje višedretvenog pristupa u odnosu na jednu dretvu.
 
 | Rb. | Kriterij | Bodovi | Procjena | Dokaz / napomena |
 |---:|---|---:|---|---|
@@ -13,15 +13,15 @@ Konzervativna procjena: **75 bodova**.
 | 3 | HR / EN | 4 | sigurno | Dva jezika, više od pet prevedenih stranica. |
 | 4 | INI / Registry | 2 | sigurno | `config.ini`: `default_language`, `items_per_page`. |
 | 5 | XML / JSON CRUD | 4 | sigurno | JSON CRUD bilješki u `data/parking_notes.json`. |
-| 6 | Vlastiti binarni format | 3 | sigurno | Stvarne pretrage u `data/search_history.bin`, `PKSR` v2, čitanje/migracija v1. |
+| 6 | Vlastiti binarni format | 3 | sigurno | Stvarne pretrage u `data/search_history.bin`, `PKSR` v2. |
 | 7 | Baza i CRUD | 6 | sigurno | SQLite + SQLAlchemy, CRUD nad tri tablice. |
 | 8 | Sort / filter / calculated / lookup | 5 | sigurno | Lokacija, maksimalna cijena, vremenska dostupnost, sortiranje, ukupna cijena i ORM relacije. |
 | 9 | BLOB | 3 | sigurno | Fotografija parkinga u BLOB polju. |
 | 10 | PDF / master-detail | 5 | sigurno | PDF potvrda rezervacije iz tri povezane tablice. |
-| 11 | Dretve / thread pool | 5 | sigurno | Open-Meteo se dohvaća paralelno za gradove stvarnih parkinga; **Test → Dretve** koristi jedinstvene gradove iz baze i najviše tri radne dretve. Seed osigurava Zagreb, Zadar i Split. |
+| 11 | Dretve / thread pool | 5 | uvjetno | **Test → Dretve** uspoređuje isti posao kroz `ThreadPoolExecutor(max_workers=1)` i `ThreadPoolExecutor(max_workers=3)`. Koordinate se razrješavaju prije mjerenja. Na obrani se mora pokazati da je višedretvena varijanta brža. |
 | 12 | Sigurno UI ažuriranje iz dretve | 0 | ne računamo | Web izvedba ne pokriva desktop kriterij dovoljno jasno. |
-| 13 | Sinkronizacija | 2 | sigurno | `threading.Lock` štiti kritičnu sekciju koja mijenja zajednički `_request_log` i kratke pristupe geocode cacheu. |
-| 14 | Proces A → B | 4 | sigurno | **Admin rezervacije → Provjeri rezervacije** pokreće `reservation_worker.py` preko `subprocess.run`. |
+| 13 | Sinkronizacija | 2 | sigurno | `threading.Lock` štiti kritičnu sekciju koja mijenja zajednički `_request_log`. |
+| 14 | Proces A → B | 0 | uklonjeno | Nastavnik očekuje A i B kao izvršne EXE aplikacije. Ranija Python `subprocess` demonstracija i `reservation_worker.py` uklonjeni su. |
 | 15 | TCP | 0 | nije implementirano | — |
 | 16 | UDP | 0 | nije implementirano | — |
 | 17 | HTTP downloader | 0 | nije implementirano | — |
@@ -32,125 +32,63 @@ Konzervativna procjena: **75 bodova**.
 | 22 | REST auth/authz | 4 | vjerojatno | Bearer token, 401 bez tokena, 403 za nedopuštene akcije. |
 | 23 | AES-GCM | 2 | sigurno | **Bilješke** imaju stvarnu šifriranu sigurnosnu kopiju u `PKAE` datoteci. |
 | 24 | Asimetrična kriptografija | 0 | nije implementirano | — |
-| 25 | SHA-256 + sol + papar | 7 | vrlo vjerojatno | Integritet stvarne rezervacije, promjenjiva sol, papar 0–255, provjera svih 256 vrijednosti. |
+| 25 | SHA-256 | 2 | privremeno | SHA-256 se koristi, ali dodatne bodove za sol i papar trenutačno ne računamo. Nastavnik je pojasnio da se kod provjere integriteta ne koriste sol ni papar. Potreban je redizajn prije konačne procjene. |
 | 26 | Digitalni potpis | 0 | nije implementirano | — |
-| 27 | Biblioteka kriterij 27 | 0 | nije implementirano | — |
+| 27 | Statička biblioteka | 0 | nije implementirano | — |
 | 28 | Dinamička biblioteka | 5 | sigurno nakon Docker builda | `native/service_fee.cpp` sadrži C++ klasu `ServiceFeeCalculator` i dvije računske funkcionalnosti; Docker stvara `libservice_fee.so`, a `service_fee.py` je učitava preko `ctypes`. |
 | 29 | DLL dijalozi | 0 | nije implementirano | — |
-| 30 | Biblioteka kriterij 30 | 0 | nije implementirano | — |
+| 30 | Resurs u dinamičkoj biblioteci | 0 | nije implementirano | — |
 
 ## Zbroj
 
 ```text
-3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 4 + 3 + 4 + 4 + 2 + 7 + 5 = 75
+3 + 4 + 4 + 2 + 4 + 3 + 6 + 5 + 3 + 5 + 5 + 2 + 3 + 4 + 4 + 2 + 2 + 5 = 66
 ```
 
-## Integracije koje više nisu samo testne stranice
+## Kriterij 11 — provjera koju obavezno napraviti prije obrane
 
-### Vlastiti binarni format
+`parallel_tasks.py` sada radi pošteniju usporedbu:
 
-Klik na **Pretraži** kod valjane pretrage prijavljenog korisnika automatski sprema stvarne kriterije u `data/search_history.bin`. **Povijest pretraga** ih ponovno čita i omogućuje akciju **Ponovi**.
+1. iz stvarnih parkinga izdvoji jedinstvene gradove
+2. prije mjerenja razriješi koordinate svih gradova
+3. iste forecast HTTP zahtjeve izvrši s `max_workers=1`
+4. iste forecast HTTP zahtjeve izvrši s `max_workers=3`
+5. prikaže oba vremena i omjer `one_thread_time / multi_thread_time`
 
-Provjera:
+Time geokodiranje nije dio jednog mjerenja, a iz drugog izostavljeno zbog cachea. Seed sadrži Zagreb, Zadar i Split, pa druga varijanta može koristiti tri radne dretve.
 
-```bash
-xxd data/search_history.bin | head
-```
+Na obranu ne ići dok praktični test više puta ne pokaže da je vrijeme s tri dretve manje od vremena s jednom dretvom.
 
-### AES-GCM
+## Kriterij 14 — uklonjen
 
-AES nije više pod **Test**. Nalazi se na stranici **Bilješke** kao sigurnosna kopija stvarnih JSON bilješki.
-
-Korisnik može izraditi i otvoriti šifriranu kopiju. Datoteka je:
+Iz projekta su uklonjeni:
 
 ```text
-exports/notes_user_<id>.aes
+reservation_worker.py
+run_reservation_check()
+/admin/reservations/check
+/admin/process
+UI gumb "Provjeri rezervacije"
+prikaz returncode/stdout/stderr na Admin rezervacije
 ```
 
-Provjera:
+Administratorska stranica sada ponovno služi samo stvarnom CRUD-u rezervacija i prikazu service fee naknada.
 
-```bash
-xxd exports/notes_user_<id>.aes | head
-```
+## SHA-256 / kriterij 25
 
-Na početku se vidi `PKAE`.
+Trenutačna implementacija još sadrži raniji pristup sa soli i paprom. Taj dio ne smije se braniti kao konačno rješenje za provjeru integriteta. Redizajn će se napraviti zasebno prema komentaru nastavnika.
 
-### Proces A → B
+## Dinamička C++ biblioteka za service fee
 
-Zasebna stranica **Procesi** više se ne koristi. Na **Admin rezervacije** postoji gumb **Provjeri rezervacije**.
+`native/service_fee.cpp` sadrži klasu `ServiceFeeCalculator` s metodama `calculateFee()` i `calculateTotalFees()`. `service_fee.py` ih poziva preko `ctypes`, a Dockerfile prevodi kod u `/app/native/libservice_fee.so`.
 
-`run.py` pokreće `reservation_worker.py` kao zasebni proces i čita:
-
-```text
-returncode
-stdout
-stderr
-```
-
-Kodovi su:
-
-```text
-0 = sve ispravno
-1 = problem u rezervacijama
-2 = tehnička greška
-```
-
-### SHA-256
-
-SHA-256 ostaje integriran u **Moje rezervacije** kao provjera integriteta stvarnih podataka rezervacije.
-
-### Open-Meteo + dretve + kritična sekcija
-
-Open-Meteo je integriran u **Dostupni parkinzi** i **Detalji parkinga**. Aplikacija iz lokacije parkinga izdvaja naziv grada. Zagreb, Samobor i Velika Gorica imaju unaprijed poznate koordinate, dok se ostali hrvatski gradovi dinamički geokodiraju preko Open-Meteo Geocoding API-ja uz `countryCode=HR`.
-
-Na popisu parkinga `parking_availability.py` grupira prikazane parkinge po gradu i poziva `fetch_weather_for_parking_locations()`. Ako je prikazano više različitih gradova, HTTP zahtjevi izvršavaju se paralelno kroz `ThreadPoolExecutor`. Više parkinga u istom gradu koristi jedan rezultat.
-
-**Test → Dretve** više nema zaseban popis od tri preset grada. `run.py` dohvaća lokacije iz stvarnih `parking_spots` zapisa, `parallel_tasks.py` izdvaja jedinstvene gradove, a zatim isti skup izvršava sekvencijalno i paralelno. Seed sada sadrži parkinge u Zagrebu, Zadru i Splitu kako bi test nakon resetiranja imao najmanje tri neovisna zadatka.
-
-`parallel_tasks.py` nakon svakog HTTP poziva upisuje rezultat u zajednički `_request_log`. Kritična sekcija je:
-
-```python
-with _request_log_lock:
-    _request_log.append(...)
-```
-
-`threading.Lock` osigurava da samo jedna dretva mijenja zajednički zapisnik u jednom trenutku. Isti Lock koristi se i pri resetiranju i kopiranju zapisnika te za kratke pristupe cacheu geokodiranih gradova. Vidljivi tekst **Sinkronizacija** uklonjen je sa stranice Test → Dretve; kriterij sinkronizacije dokazuje se u kodu.
-
-Ako udaljeni servis ne odgovara ili grad nije prepoznat, parking stranice i dalje se učitavaju, samo bez vremenskog podatka.
-
-### Dinamička C++ biblioteka za service fee
-
-`native/service_fee.cpp` sadrži klasu `ServiceFeeCalculator` s metodama `calculateFee()` i `calculateTotalFees()`. C sučelje izvozi `parking_calculate_service_fee` i `parking_calculate_total_service_fees`, a `service_fee.py` ih poziva preko `ctypes`.
-
-Dockerfile u zasebnom build stageu prevodi kod naredbom `g++ -shared -fPIC` u `/app/native/libservice_fee.so`. Na stranici **Admin rezervacije** prva funkcionalnost računa 5% service fee za svaku `ACTIVE` rezervaciju, a druga računa ukupan service fee svih aktivnih rezervacija. `CANCELLED` rezervacije se ne računaju.
+Na stranici **Admin rezervacije** prva funkcionalnost računa 5% service fee za svaku `ACTIVE` rezervaciju, a druga ukupan service fee svih aktivnih rezervacija.
 
 Provjera nakon builda:
 
 ```bash
 docker compose exec parking python -c "import service_fee; print(service_fee.native_library_loaded(), service_fee.LIBRARY_PATH)"
 ```
-
-Očekuje se `True` i `/app/native/libservice_fee.so`.
-
-## Dostupnost parkinga
-
-Parking se isključuje iz rezultata samo ako postoji `ACTIVE` rezervacija koja zadovoljava:
-
-```text
-Reservation.start_time < traženi_završetak
-AND
-Reservation.end_time > traženi_početak
-```
-
-`CANCELLED` rezervacije ne blokiraju dostupnost. Maksimalna cijena je dodatni filter.
-
-## 24-satni unos
-
-Flatpickr s `time_24hr: true` koristi se na:
-
-- pretrazi parkinga
-- korisničkoj rezervaciji
-- administratorskom uređivanju rezervacije
 
 ## REST — obavezna provjera prije obrane
 
@@ -169,22 +107,8 @@ Očekivano:
 5000 /api/parkings  → 404
 ```
 
-Za kriterij 22 treba pokazati i stvarni `403`, ne samo `401`.
-
-## Demo stanje
-
-```bash
-docker compose exec parking python seed.py
-```
-
-```text
-vlasnik / parking123
-gost     / parking123
-admin    / admin123
-```
-
-Seed kreira četiri parkinga u Zagrebu, Zadru i Splitu. Time se odmah mogu pokazati dinamičko geokodiranje i najmanje tri thread-pool zadatka.
+Za kriterij 22 treba pokazati i stvarni `403`.
 
 ## Zaključak
 
-Projekt je sada konzervativno procijenjen na **75 bodova**. Kriteriji 6, 11, 13, 14, 20, 23, 25 i 28 povezani su sa stvarnim funkcionalnostima ParKING aplikacije umjesto s izdvojenim demonstracijskim ekranima.
+Projekt je trenutačno konzervativno procijenjen na **66 bodova**. Kriterij 14 je namjerno uklonjen umjesto da se brani implementacija koja ne odgovara nastavnikovoj interpretaciji. Kriterij 25 čeka redizajn, a kriterij 11 mora prije obrane biti praktično potvrđen mjerenjem.
