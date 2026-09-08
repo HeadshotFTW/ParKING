@@ -23,7 +23,15 @@
             <td>{{ reservation.start_time.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>{{ reservation.end_time.strftime('%d.%m.%Y %H:%M') }}</td>
             <td>{{ "%.1f" | format(reservation.duration_hours()) }} {{ tr('reservations.hours') }}</td>
-            <td>{{ "%.2f €" | format(reservation.total_price()) }}</td>
+            <td>
+                {% if reservation.discount_percent %}
+                    <div><del class="text-muted small">{{ "%.2f €" | format(reservation.base_price()) }}</del></div>
+                    <strong>{{ "%.2f €" | format(reservation.total_price()) }}</strong>
+                    <span class="badge text-bg-success">-{{ "%.0f" | format(reservation.discount_percent) }}%</span>
+                {% else %}
+                    {{ "%.2f €" | format(reservation.total_price()) }}
+                {% endif %}
+            </td>
             <td>{{ reservation.status }}</td>
             <td style="min-width: 220px">
                 {% if reservation.status == 'ACTIVE' %}
