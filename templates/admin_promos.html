@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }} - ParKING{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <h1 class="h3 mb-1">{{ 'Promo codes' if lang == 'en' else 'Promo kodovi' }}</h1>
+        <p class="text-muted mb-0">
+            {% if lang == 'en' %}
+                Create discounts without storing the original promo code. Only a SHA-256 digest is stored.
+            {% else %}
+                Kreirajte popuste bez spremanja izvornog promo koda. Sprema se samo SHA-256 sažetak.
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-5">
+        <form method="post" class="card card-body">
+            <h2 class="h5">{{ 'New promo code' if lang == 'en' else 'Novi promo kod' }}</h2>
+            <label class="form-label" for="code">{{ 'Code' if lang == 'en' else 'Kod' }}</label>
+            <input class="form-control mb-3 text-uppercase" id="code" name="code" minlength="4" maxlength="40" required>
+
+            <label class="form-label" for="discount_percent">{{ 'Discount (%)' if lang == 'en' else 'Popust (%)' }}</label>
+            <input class="form-control mb-3" id="discount_percent" name="discount_percent" type="number" min="1" max="100" step="1" required>
+
+            <button class="btn btn-primary" type="submit">{{ 'Create promo' if lang == 'en' else 'Kreiraj promo kod' }}</button>
+        </form>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card card-body h-100">
+            <h2 class="h5">{{ 'SHA-256, variable salt and pepper' if lang == 'en' else 'SHA-256, promjenjiva sol i papar' }}</h2>
+            <p class="mb-2">
+                {% if lang == 'en' %}
+                    The original promo code, salt and pepper are not stored. The salt is derived from the promo ID by a fixed rule, while one random pepper value from 0 to 255 is used when the digest is created.
+                {% else %}
+                    Izvorni promo kod, sol i papar se ne spremaju. Sol se izvodi iz ID-a promo koda po zadanom pravilu, a pri stvaranju sažetka koristi se jedna slučajna vrijednost papra od 0 do 255.
+                {% endif %}
+            </p>
+            <code class="text-break">SHA256("ParKING-promo-salt:&lt;promo_id&gt;")[0:16]</code>
+            <p class="small text-muted mt-2 mb-0">
+                {% if lang == 'en' %}
+                    During verification the application intentionally checks all 256 possible pepper values before accepting a matching promo.
+                {% else %}
+                    Kod provjere aplikacija namjerno prolazi svih 256 mogućih vrijednosti papra prije prihvaćanja odgovarajućeg promo koda.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</div>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>{{ 'Discount' if lang == 'en' else 'Popust' }}</th>
+            <th>{{ 'Status' if lang == 'en' else 'Status' }}</th>
+            <th>SHA-256</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for promo in promos %}
+        <tr>
+            <td>{{ promo.id }}</td>
+            <td>{{ '%.0f%%'|format(promo.discount_percent) }}</td>
+            <td>
+                <span class="badge {% if promo.active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                    {% if promo.active %}{{ 'Active' if lang == 'en' else 'Aktivan' }}{% else %}{{ 'Inactive' if lang == 'en' else 'Neaktivan' }}{% endif %}
+                </span>
+            </td>
+            <td><code class="small text-break">{{ promo.code_hash }}</code></td>
+            <td class="text-nowrap">
+                <form class="d-inline" method="post" action="{{ url_for('admin_promo_toggle', promo_id=promo.id) }}">
+                    <button class="btn btn-sm btn-outline-secondary" type="submit">
+                        {% if promo.active %}{{ 'Deactivate' if lang == 'en' else 'Deaktiviraj' }}{% else %}{{ 'Activate' if lang == 'en' else 'Aktiviraj' }}{% endif %}
+                    </button>
+                </form>
+                <form class="d-inline" method="post" action="{{ url_for('admin_promo_delete', promo_id=promo.id) }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">{{ 'Delete' if lang == 'en' else 'Obriši' }}</button>
+                </form>
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="5" class="text-muted">{{ 'No promo codes yet.' if lang == 'en' else 'Još nema promo kodova.' }}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
