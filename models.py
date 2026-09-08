@@ -50,6 +50,7 @@ class ParkingSpot(db.Model):
     description = db.Column(db.Text, nullable=True)
     photo = db.Column(db.LargeBinary, nullable=True)
     photo_mime = db.Column(db.String(100), nullable=True)
+    access_instructions = db.Column(db.LargeBinary, nullable=True)
 
     owner = db.relationship("User", back_populates="parkings", foreign_keys=[owner_id])
     reservations = db.relationship(
