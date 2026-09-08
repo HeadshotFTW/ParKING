@@ -1,13 +1,12 @@
 import hashlib
 import hmac
 import json
-import os
+import secrets
 from pathlib import Path
 
 
 PEPPER_MIN = 0
 PEPPER_MAX = 255
-DEFAULT_PEPPER = 137
 STORE_VERSION = 1
 
 
@@ -15,15 +14,6 @@ def derive_variable_salt(user_id):
     """Derive a per-user salt by rule; the salt itself is never stored."""
     source = f"ParKING-security-code-salt:{user_id}".encode("utf-8")
     return hashlib.sha256(source).digest()[:16]
-
-
-def configured_pepper():
-    """Return the pepper used when a new security-code digest is created."""
-    try:
-        value = int(os.environ.get("SECURITY_CODE_PEPPER", str(DEFAULT_PEPPER)))
-    except ValueError:
-        value = DEFAULT_PEPPER
-    return max(PEPPER_MIN, min(value, PEPPER_MAX))
 
 
 def _hash_security_code(code, salt, pepper):
@@ -61,7 +51,7 @@ def security_code_is_set(path, user_id):
 def set_security_code(path, user_id, code):
     """Store only the salted-and-peppered SHA-256 digest of a security code."""
     salt = derive_variable_salt(user_id)
-    pepper = configured_pepper()
+    pepper = secrets.randbelow(PEPPER_MAX - PEPPER_MIN + 1) + PEPPER_MIN
     digest = _hash_security_code(code, salt, pepper)
 
     data = _read_store(path)
