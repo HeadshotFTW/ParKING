@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{% if lang == 'en' %}My vehicles{% else %}Moja vozila{% endif %} - ParKING{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h1 class="h3 mb-1">{% if lang == 'en' %}My vehicles{% else %}Moja vozila{% endif %}</h1>
+        <p class="text-muted mb-0">
+            {% if lang == 'en' %}
+                Manage the vehicles you use when parking.
+            {% else %}
+                Upravljajte vozilima koja koristite pri parkiranju.
+            {% endif %}
+        </p>
+    </div>
+    <a class="btn btn-primary" href="{{ url_for('vehicle_new') }}">+ {% if lang == 'en' %}Add vehicle{% else %}Dodaj vozilo{% endif %}</a>
+</div>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th>{% if lang == 'en' %}Vehicle{% else %}Vozilo{% endif %}</th>
+            <th>{% if lang == 'en' %}Registration{% else %}Registracija{% endif %}</th>
+            <th class="text-end">{% if lang == 'en' %}Actions{% else %}Akcije{% endif %}</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for vehicle in vehicles %}
+        <tr>
+            <td>{{ vehicle.name }}</td>
+            <td><strong>{{ vehicle.registration }}</strong></td>
+            <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('vehicle_edit', vehicle_id=vehicle.id) }}">
+                    {% if lang == 'en' %}Edit{% else %}Uredi{% endif %}
+                </a>
+                <form class="d-inline" method="post" action="{{ url_for('vehicle_delete', vehicle_id=vehicle.id) }}" onsubmit="return confirm('{% if lang == 'en' %}Delete this vehicle?{% else %}Obrisati ovo vozilo?{% endif %}')">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">{% if lang == 'en' %}Delete{% else %}Obriši{% endif %}</button>
+                </form>
+            </td>
+        </tr>
+    {% else %}
+        <tr><td colspan="3" class="text-muted">{% if lang == 'en' %}You have no saved vehicles.{% else %}Nemate spremljenih vozila.{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}
