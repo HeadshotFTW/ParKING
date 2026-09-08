@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}{{ tr('reservation.title') }} - ParKING{% endblock %}
 {% block content %}
+{% set available_vehicles = vehicles if vehicles is defined else [] %}
 <h1 class="h3 mb-3">{{ tr('reservation.title') }}: {{ parking.name }}</h1>
 <form method="post" class="card card-body">
     <label class="form-label">{{ tr('common.start') }}</label>
@@ -8,6 +9,33 @@
 
     <label class="form-label">{{ tr('common.end') }}</label>
     <input class="form-control mb-3 datetime-24h" type="text" name="end_time" value="{{ request.form.get('end_time', request.args.get('end_time', '')) }}" required>
+
+    <label class="form-label" for="vehicle_id">{{ 'Vehicle (optional)' if lang == 'en' else 'Vozilo (opcionalno)' }}</label>
+    {% if available_vehicles %}
+        <select class="form-select mb-2" id="vehicle_id" name="vehicle_id">
+            <option value="">{{ 'No vehicle' if lang == 'en' else 'Bez vozila' }}</option>
+            {% for vehicle in available_vehicles %}
+                <option value="{{ vehicle.id }}" {% if request.form.get('vehicle_id') == vehicle.id|string %}selected{% endif %}>
+                    {{ vehicle.name }} — {{ vehicle.registration }}
+                </option>
+            {% endfor %}
+        </select>
+        <div class="form-text mb-3">
+            {% if lang == 'en' %}
+                Select one of the vehicles from My vehicles. The selected vehicle is saved with the reservation.
+            {% else %}
+                Odaberite jedno od vozila iz Moja vozila. Odabrano vozilo sprema se uz rezervaciju.
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="alert alert-light border mb-3">
+            {% if lang == 'en' %}
+                You have no saved vehicles. You can reserve without one or <a href="{{ url_for('vehicle_new') }}">add a vehicle</a> first.
+            {% else %}
+                Nemate spremljenih vozila. Možete rezervirati bez vozila ili prvo <a href="{{ url_for('vehicle_new') }}">dodati vozilo</a>.
+            {% endif %}
+        </div>
+    {% endif %}
 
     <label class="form-label" for="promo_code">{{ 'Promo code (optional)' if lang == 'en' else 'Promo kod (opcionalno)' }}</label>
     <input class="form-control mb-2 text-uppercase" id="promo_code" name="promo_code" maxlength="40" value="{{ request.form.get('promo_code', '') }}">
