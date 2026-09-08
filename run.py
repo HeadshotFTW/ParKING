@@ -41,7 +41,7 @@ install_promo_features(
 
 
 @app.route("/rest-client")
-@login_required
+@admin_required
 def rest_client():
     """REST client in the main app calling the separate API process on port 5001."""
     user = current_user()
@@ -101,7 +101,7 @@ def admin_threads():
 
 @app.route("/search-history")
 @app.route("/binary-history")
-@login_required
+@admin_required
 def binary_history():
     records = list(reversed(records_for_user(BINARY_HISTORY_PATH, current_user().id)))
     return render_template("binary_history.html", records=records)
