@@ -2,6 +2,7 @@
 {% block title %}{{ tr('reservation.title') }} - ParKING{% endblock %}
 {% block content %}
 {% set available_vehicles = vehicles if vehicles is defined else [] %}
+{% set demo_peppers = pepper_values if pepper_values is defined else range(1, 6) %}
 <h1 class="h3 mb-3">{{ tr('reservation.title') }}: {{ parking.name }}</h1>
 <form method="post" class="card card-body">
     <label class="form-label">{{ tr('common.start') }}</label>
@@ -37,8 +38,33 @@
         </div>
     {% endif %}
 
-    <label class="form-label" for="promo_code">{{ 'Promo code (optional)' if lang == 'en' else 'Promo kod (opcionalno)' }}</label>
-    <input class="form-control mb-3 text-uppercase" id="promo_code" name="promo_code" maxlength="40" placeholder="POPUST" value="{{ request.form.get('promo_code', '') }}">
+    <div class="row g-2 align-items-end mb-2">
+        <div class="col-md-8">
+            <label class="form-label" for="promo_code">{{ 'Promo code (optional)' if lang == 'en' else 'Promo kod (opcionalno)' }}</label>
+            <input class="form-control text-uppercase" id="promo_code" name="promo_code" maxlength="40" placeholder="POPUST" value="{{ request.form.get('promo_code', '') }}">
+        </div>
+        <div class="col-md-4">
+            <label class="form-label" for="promo_pepper">
+                {{ 'Pepper' if lang == 'en' else 'Papar' }}
+                <span class="badge text-bg-warning">DEMO</span>
+            </label>
+            <select class="form-select" id="promo_pepper" name="promo_pepper">
+                <option value="">{{ 'Choose 1-5' if lang == 'en' else 'Odaberi 1-5' }}</option>
+                {% for pepper in demo_peppers %}
+                    <option value="{{ pepper }}" {% if request.form.get('promo_pepper') == pepper|string %}selected{% endif %}>{{ pepper }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="alert alert-warning py-2 small mb-3">
+        <strong>{{ 'DEMONSTRATION:' if lang == 'en' else 'DEMONSTRACIJA:' }}</strong>
+        {% if lang == 'en' %}
+            The pepper is intentionally limited to values 1-5 for demonstration purposes. The POPUST discount is applied only if the selected pepper is correct.
+        {% else %}
+            Papar je namjerno ograničen na vrijednosti 1-5 isključivo u demonstracijske svrhe. Popust POPUST primjenjuje se samo ako je odabran ispravan papar.
+        {% endif %}
+    </div>
 
     <div>
         <button class="btn btn-primary">{{ tr('reservation.submit') }}</button>
