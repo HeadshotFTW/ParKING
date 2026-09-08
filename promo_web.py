@@ -2,28 +2,43 @@ from datetime import datetime
 
 from flask import flash, redirect, render_template, request, url_for
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 
 from models import db, ParkingSpot, PromoCode, Reservation
 from promo_code_hash import create_promo_digest, verify_promo_code
+
+
+def _add_column_if_missing(column_name, ddl):
+    columns = {
+        row[1]
+        for row in db.session.execute(text("PRAGMA table_info(reservations)")).all()
+    }
+    if column_name in columns:
+        return
+
+    try:
+        db.session.execute(text(ddl))
+        db.session.commit()
+    except OperationalError as exc:
+        db.session.rollback()
+        # The REST process and web process can start almost simultaneously.
+        # If the other process added the same column first, the schema is already correct.
+        if "duplicate column" not in str(exc).lower():
+            raise
 
 
 def ensure_promo_schema(app):
     """Upgrade an existing SQLite database with reservation promo columns."""
     with app.app_context():
         db.create_all()
-        columns = {
-            row[1]
-            for row in db.session.execute(text("PRAGMA table_info(reservations)")).all()
-        }
-        if "discount_percent" not in columns:
-            db.session.execute(
-                text("ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0")
-            )
-        if "promo_code_id" not in columns:
-            db.session.execute(
-                text("ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER")
-            )
-        db.session.commit()
+        _add_column_if_missing(
+            "discount_percent",
+            "ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0",
+        )
+        _add_column_if_missing(
+            "promo_code_id",
+            "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER",
+        )
 
 
 def find_active_promo(code):
