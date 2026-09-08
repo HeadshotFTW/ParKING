@@ -12,6 +12,7 @@
             <th>{{ tr('reservations.duration') }}</th>
             <th>{{ tr('common.total') }}</th>
             <th>{{ tr('common.status') }}</th>
+            <th>{% if lang == 'en' %}Access instructions{% else %}Pristupne upute{% endif %}</th>
             <th></th>
         </tr>
     </thead>
@@ -24,6 +25,18 @@
             <td>{{ "%.1f" | format(reservation.duration_hours()) }} {{ tr('reservations.hours') }}</td>
             <td>{{ "%.2f €" | format(reservation.total_price()) }}</td>
             <td>{{ reservation.status }}</td>
+            <td style="min-width: 220px">
+                {% if reservation.status == 'ACTIVE' %}
+                    {% set access_text = access_instructions.get(reservation.id, '') %}
+                    {% if access_text %}
+                        <span class="small">{{ access_text }}</span>
+                    {% else %}
+                        <span class="text-muted small">{% if lang == 'en' %}No special instructions.{% else %}Nema posebnih uputa.{% endif %}</span>
+                    {% endif %}
+                {% else %}
+                    <span class="text-muted">—</span>
+                {% endif %}
+            </td>
             <td class="text-nowrap">
                 <a class="btn btn-sm btn-outline-primary" href="{{ url_for('reservation_pdf', reservation_id=reservation.id) }}">PDF</a>
                 <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('hash_demo_page', reservation_id=reservation.id) }}">SHA-256</a>
@@ -35,7 +48,7 @@
             </td>
         </tr>
     {% else %}
-        <tr><td colspan="7">{{ tr('reservations.none') }}</td></tr>
+        <tr><td colspan="8">{{ tr('reservations.none') }}</td></tr>
     {% endfor %}
     </tbody>
 </table>
