@@ -89,6 +89,13 @@ class Reservation(db.Model):
     discount_percent = db.Column(db.Float, nullable=False, default=0.0)
     promo_code_id = db.Column(db.Integer, db.ForeignKey("promo_codes.id"), nullable=True)
 
+    # Vehicle data originates from data/vehicles.json. We keep a snapshot on the
+    # reservation so an old reservation remains understandable even if the user
+    # later edits or deletes that JSON vehicle record.
+    vehicle_id = db.Column(db.Integer, nullable=True)
+    vehicle_name = db.Column(db.String(120), nullable=True)
+    vehicle_registration = db.Column(db.String(40), nullable=True)
+
     parking = db.relationship("ParkingSpot", back_populates="reservations")
     user = db.relationship("User", back_populates="reservations", foreign_keys=[user_id])
     promo_code = db.relationship("PromoCode", back_populates="reservations")
@@ -106,6 +113,13 @@ class Reservation(db.Model):
 
     def total_price(self):
         return self.base_price() - self.discount_amount()
+
+    def vehicle_display(self):
+        if not self.vehicle_name and not self.vehicle_registration:
+            return ""
+        if self.vehicle_name and self.vehicle_registration:
+            return f"{self.vehicle_name} ({self.vehicle_registration})"
+        return self.vehicle_name or self.vehicle_registration or ""
 
     def overlaps(self, start_time, end_time):
         return self.status == "ACTIVE" and start_time < self.end_time and end_time > self.start_time
