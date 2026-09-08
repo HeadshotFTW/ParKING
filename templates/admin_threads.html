@@ -4,9 +4,9 @@
 <h1 class="h3 mb-3">{{ tr('threads.title') }}</h1>
 <p class="text-muted">
     {% if lang == 'en' %}
-        Open-Meteo requests for cities detected from published parking locations are executed first sequentially and then in parallel using a thread pool.
+        The same Open-Meteo requests are executed with ThreadPoolExecutor first using one worker thread and then using up to three worker threads.
     {% else %}
-        Open-Meteo zahtjevi za gradove pronađene iz lokacija objavljenih parkinga izvršavaju se najprije sekvencijalno, a zatim paralelno pomoću bazena dretvi.
+        Isti Open-Meteo zahtjevi izvršavaju se pomoću ThreadPoolExecutora najprije s jednom radnom dretvom, a zatim s najviše tri radne dretve.
     {% endif %}
 </p>
 
@@ -25,10 +25,41 @@
         <strong>{{ demo.city_names|join(', ') }}</strong>
     </div>
 
+    {% if demo.multi_thread_workers < 2 %}
+    <div class="alert alert-warning">
+        {% if lang == 'en' %}
+            At least two different cities are needed to demonstrate a multi-thread speedup. The seeded data contains three cities.
+        {% else %}
+            Za demonstraciju ubrzanja s više dretvi potrebna su barem dva različita grada. Početno stanje sadrži tri grada.
+        {% endif %}
+    </div>
+    {% endif %}
+
     <div class="row g-3 mb-4">
-        <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.sequential') }}</strong><span class="fs-4">{{ "%.3f"|format(demo.sequential_time) }} s</span></div></div>
-        <div class="col-md-4"><div class="card card-body"><strong>Thread Pool</strong><span class="fs-4">{{ "%.3f"|format(demo.parallel_time) }} s</span></div></div>
-        <div class="col-md-4"><div class="card card-body"><strong>{{ tr('threads.speedup') }}</strong><span class="fs-4">{{ "%.2f"|format(demo.speedup) }}×</span></div></div>
+        <div class="col-md-4">
+            <div class="card card-body">
+                <strong>{% if lang == 'en' %}1 thread{% else %}1 dretva{% endif %}</strong>
+                <span class="fs-4">{{ "%.3f"|format(demo.one_thread_time) }} s</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-body">
+                <strong>
+                    {% if lang == 'en' %}
+                        {{ demo.multi_thread_workers }} threads
+                    {% else %}
+                        {{ demo.multi_thread_workers }} dretve
+                    {% endif %}
+                </strong>
+                <span class="fs-4">{{ "%.3f"|format(demo.multi_thread_time) }} s</span>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card card-body">
+                <strong>{{ tr('threads.speedup') }}</strong>
+                <span class="fs-4">{{ "%.2f"|format(demo.speedup) }}×</span>
+            </div>
+        </div>
     </div>
 
     <h2 class="h5">{{ tr('threads.results') }}</h2>
@@ -36,7 +67,7 @@
     <table class="table table-striped align-middle">
         <thead><tr><th>{{ tr('common.location') }}</th><th>{{ tr('threads.temperature') }}</th><th>{{ tr('threads.wind') }}</th><th>Weather code</th><th>{{ tr('threads.thread') }}</th><th>{{ tr('threads.duration') }}</th></tr></thead>
         <tbody>
-        {% for item in demo.parallel_results %}
+        {% for item in demo.multi_thread_results %}
         <tr>
             <td>{{ item.location }}</td>
             <td>{{ item.temperature }} °C</td>
