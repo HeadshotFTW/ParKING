@@ -2,16 +2,7 @@
 {% block title %}{{ 'Search history' if lang == 'en' else 'Povijest pretraga' }} - ParKING{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h1 class="h3 mb-1">{{ 'Search history' if lang == 'en' else 'Povijest pretraga' }}</h1>
-        <p class="text-muted mb-0">
-            {% if lang == 'en' %}
-                Searches made on the Available parking page are saved automatically to the custom binary file <code>data/search_history.bin</code>.
-            {% else %}
-                Pretrage napravljene na stranici Dostupni parkinzi automatski se spremaju u prilagođenu binarnu datoteku <code>data/search_history.bin</code>.
-            {% endif %}
-        </p>
-    </div>
+    <h1 class="h3 mb-0">{{ 'Search history' if lang == 'en' else 'Povijest pretraga' }}</h1>
     <a class="btn btn-primary" href="{{ url_for('parkings') }}">{{ 'New search' if lang == 'en' else 'Nova pretraga' }}</a>
 </div>
 
