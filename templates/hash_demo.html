@@ -6,9 +6,9 @@
 </h1>
 <p class="text-muted mb-4">
     {% if lang == 'en' %}
-        ParKING creates a SHA-256 fingerprint from the current reservation data. If any relevant reservation value changes, the fingerprint changes as well.
+        ParKING creates a plain SHA-256 fingerprint from the current reservation data. Salt and pepper are intentionally not used for integrity verification.
     {% else %}
-        ParKING izrađuje SHA-256 kontrolni otisak iz trenutačnih podataka rezervacije. Ako se promijeni bilo koji relevantan podatak rezervacije, mijenja se i kontrolni otisak.
+        ParKING izrađuje obični SHA-256 kontrolni otisak iz trenutačnih podataka rezervacije. Sol i papar namjerno se ne koriste za provjeru integriteta.
     {% endif %}
 </p>
 
@@ -54,11 +54,8 @@
     <div class="card-body">
         <h2 class="h5">{{ 'Kontrolni otisak' if lang == 'hr' else 'Integrity fingerprint' }}</h2>
         <dl class="row mb-0">
-            <dt class="col-sm-3">{{ tr('hash.algorithm') }}</dt><dd class="col-sm-9">{{ result.algorithm }}</dd>
-            <dt class="col-sm-3">{{ tr('hash.digest') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.digest }}</code></dd>
-            <dt class="col-sm-3">{{ tr('hash.salt_rule') }}</dt><dd class="col-sm-9"><code>SHA256("ParKING-SHA256-salt:&lt;user_id&gt;:&lt;username&gt;")[0:16]</code></dd>
-            <dt class="col-sm-3">{{ tr('hash.salt') }}</dt><dd class="col-sm-9"><code class="text-break">{{ result.salt_hex }}</code></dd>
-            <dt class="col-sm-3">{{ tr('hash.pepper_range') }}</dt><dd class="col-sm-9">{{ result.pepper_range }}</dd>
+            <dt class="col-sm-3">Algoritam</dt><dd class="col-sm-9">{{ result.algorithm }}</dd>
+            <dt class="col-sm-3">SHA-256</dt><dd class="col-sm-9"><code class="text-break">{{ result.digest }}</code></dd>
         </dl>
     </div>
 </div>
@@ -71,9 +68,9 @@
     <input class="form-control font-monospace mb-2" id="expected_digest" name="expected_digest" value="{{ expected_digest }}" maxlength="64" required>
     <div class="form-text mb-3">
         {% if lang == 'en' %}
-            The current fingerprint is filled in automatically. You can also paste a previously saved fingerprint; verification fails if the reservation data no longer matches it.
+            The current fingerprint is filled in automatically. A previously saved fingerprint will fail verification if the reservation data has changed.
         {% else %}
-            Trenutačni kontrolni otisak automatski je upisan. Možete zalijepiti i ranije spremljeni otisak; provjera neće uspjeti ako mu trenutačni podaci rezervacije više ne odgovaraju.
+            Trenutačni kontrolni otisak automatski je upisan. Ranije spremljeni otisak neće proći provjeru ako su se podaci rezervacije promijenili.
         {% endif %}
     </div>
     <button class="btn btn-primary" type="submit">
@@ -83,14 +80,11 @@
 
 {% if verification is not none %}
 <div class="alert {% if verification.valid %}alert-success{% else %}alert-danger{% endif %}">
-    <strong>{{ tr('hash.verify') }}:</strong>
     {% if verification.valid %}
-        {{ 'podaci rezervacije odgovaraju kontrolnom otisku.' if lang == 'hr' else 'the reservation data matches the fingerprint.' }}
-        {{ tr('hash.valid') }}: <strong>{{ verification.matches|join(', ') }}</strong>.
+        {{ 'Podaci rezervacije odgovaraju kontrolnom SHA-256 otisku.' if lang == 'hr' else 'The reservation data matches the SHA-256 fingerprint.' }}
     {% else %}
-        {{ 'podaci rezervacije ne odgovaraju zadanom kontrolnom otisku.' if lang == 'hr' else 'the reservation data does not match the supplied fingerprint.' }}
+        {{ 'Podaci rezervacije ne odgovaraju zadanom SHA-256 otisku.' if lang == 'hr' else 'The reservation data does not match the supplied SHA-256 fingerprint.' }}
     {% endif %}
-    {{ tr('hash.checked') }} <strong>{{ verification.attempts }}</strong> {{ tr('hash.values') }}
 </div>
 {% endif %}
 {% endif %}
