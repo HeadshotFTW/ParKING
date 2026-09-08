@@ -27,27 +27,6 @@
             <button class="btn btn-primary" type="submit">{{ 'Create promo' if lang == 'en' else 'Kreiraj promo kod' }}</button>
         </form>
     </div>
-
-    <div class="col-lg-7">
-        <div class="card card-body h-100">
-            <h2 class="h5">{{ 'SHA-256, variable salt and pepper' if lang == 'en' else 'SHA-256, promjenjiva sol i papar' }}</h2>
-            <p class="mb-2">
-                {% if lang == 'en' %}
-                    The original promo code, salt and pepper are not stored. The salt is derived from the promo ID by a fixed rule, while one random pepper value from 0 to 255 is used when the digest is created.
-                {% else %}
-                    Izvorni promo kod, sol i papar se ne spremaju. Sol se izvodi iz ID-a promo koda po zadanom pravilu, a pri stvaranju sažetka koristi se jedna slučajna vrijednost papra od 0 do 255.
-                {% endif %}
-            </p>
-            <code class="text-break">SHA256("ParKING-promo-salt:&lt;promo_id&gt;")[0:16]</code>
-            <p class="small text-muted mt-2 mb-0">
-                {% if lang == 'en' %}
-                    During verification the application intentionally checks all 256 possible pepper values before accepting a matching promo.
-                {% else %}
-                    Kod provjere aplikacija namjerno prolazi svih 256 mogućih vrijednosti papra prije prihvaćanja odgovarajućeg promo koda.
-                {% endif %}
-            </p>
-        </div>
-    </div>
 </div>
 
 <div class="table-responsive">
