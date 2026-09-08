@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{% if vehicle %}{% if lang == 'en' %}Edit vehicle{% else %}Uredi vozilo{% endif %}{% else %}{% if lang == 'en' %}New vehicle{% else %}Novo vozilo{% endif %}{% endif %} - ParKING{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">
+    {% if vehicle %}
+        {% if lang == 'en' %}Edit vehicle{% else %}Uredi vozilo{% endif %}
+    {% else %}
+        {% if lang == 'en' %}New vehicle{% else %}Novo vozilo{% endif %}
+    {% endif %}
+</h1>
+<form method="post" class="card card-body">
+    <label class="form-label" for="name">{% if lang == 'en' %}Vehicle name{% else %}Naziv vozila{% endif %}</label>
+    <input class="form-control mb-3" id="name" name="name" value="{{ vehicle.name if vehicle else '' }}" placeholder="Volkswagen Golf" required>
+
+    <label class="form-label" for="registration">{% if lang == 'en' %}Registration plate{% else %}Registracijska oznaka{% endif %}</label>
+    <input class="form-control mb-3" id="registration" name="registration" value="{{ vehicle.registration if vehicle else '' }}" placeholder="ZG-1234-AB" required>
+
+    <div>
+        <button class="btn btn-primary" type="submit">{{ tr('common.save') }}</button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('vehicles') }}">{{ tr('common.cancel') }}</a>
+    </div>
+</form>
+{% endblock %}
