@@ -1,133 +1,114 @@
-import json
 import re
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
+from concurrent.futures import ThreadPoolExecutor
+
+import requests
 
 
-# Poznate koordinate služe samo kao brza prečica. Gradovi za Test → Dretve
-# više nisu zadani ovim popisom nego se dohvaćaju iz stvarnih parkinga u bazi.
 KNOWN_WEATHER_LOCATIONS = [
     {"name": "Zagreb", "latitude": 45.8150, "longitude": 15.9819},
     {"name": "Samobor", "latitude": 45.8031, "longitude": 15.7181},
     {"name": "Velika Gorica", "latitude": 45.7125, "longitude": 16.0756},
 ]
 
-# Zajednički resurs kojem pristupa više dretvi.
 _request_log = []
 _request_log_lock = threading.Lock()
 _geocode_cache = {}
 
 
 def parking_city_name(location_text):
-    """Iz teksta lokacije izdvoji grad koji se koristi za vremenski servis."""
+    """Iz teksta adrese izdvoji grad."""
     text = (location_text or "").strip()
     if not text:
         return None
 
-    normalized = text.casefold()
     for location in KNOWN_WEATHER_LOCATIONS:
-        if location["name"].casefold() in normalized:
+        if location["name"].casefold() in text.casefold():
             return location["name"]
 
-    parts = [part.strip() for part in text.split(",") if part.strip()]
-    if not parts:
-        return None
-
-    cleaned_parts = []
+    parts = [
+        re.sub(r"^\d{4,6}\s+", "", part.strip())
+        for part in text.split(",")
+        if part.strip()
+    ]
     for part in parts:
-        # Podržava i unos poput "23000 Zadar".
-        cleaned = re.sub(r"^\d{4,6}\s+", "", part).strip()
-        if cleaned:
-            cleaned_parts.append(cleaned)
-
-    # Kod unosa "Ulica 5, Zadar" radije uzmi dio bez kućnog broja.
-    for part in cleaned_parts:
-        if not any(character.isdigit() for character in part):
+        if not any(char.isdigit() for char in part):
             return part
-
-    return cleaned_parts[0] if cleaned_parts else None
+    return parts[0] if parts else None
 
 
 def parking_cities(location_texts):
-    """Vrati jedinstvene gradove iz stvarnih lokacija parkinga."""
+    """Vrati sortirani popis jedinstvenih gradova."""
     cities = {}
-    for location_text in location_texts:
-        city_name = parking_city_name(location_text)
-        if city_name:
-            cities[city_name.casefold()] = city_name
+    for text in location_texts:
+        city = parking_city_name(text)
+        if city:
+            cities[city.casefold()] = city
     return sorted(cities.values(), key=str.casefold)
 
 
 def _geocode_city(city_name):
-    """Pretvori naziv hrvatskog grada u koordinate preko Open-Meteo Geocoding API-ja."""
-    cache_key = city_name.casefold()
+    key = city_name.casefold()
     with _request_log_lock:
-        if cache_key in _geocode_cache:
-            return _geocode_cache[cache_key]
+        if key in _geocode_cache:
+            return _geocode_cache[key]
 
-    params = urlencode({
-        "name": city_name,
-        "count": 1,
-        "language": "hr",
-        "format": "json",
-        "countryCode": "HR",
-    })
-    url = f"https://geocoding-api.open-meteo.com/v1/search?{params}"
-    request = Request(url, headers={"User-Agent": "ParKING/1.0"})
-
-    with urlopen(request, timeout=6) as response:
-        payload = json.loads(response.read().decode("utf-8"))
-
-    results = payload.get("results") or []
-    if not results:
-        resolved = None
-    else:
-        first = results[0]
-        resolved = {
-            "name": first.get("name") or city_name,
-            "latitude": first["latitude"],
-            "longitude": first["longitude"],
-            "timezone": first.get("timezone") or "Europe/Zagreb",
-        }
+    response = requests.get(
+        "https://geocoding-api.open-meteo.com/v1/search",
+        params={
+            "name": city_name,
+            "count": 1,
+            "language": "hr",
+            "format": "json",
+            "countryCode": "HR",
+        },
+        headers={"User-Agent": "ParKING/1.0"},
+        timeout=6,
+    )
+    response.raise_for_status()
+    results = response.json().get("results") or []
+    first = results[0] if results else None
+    location = None if first is None else {
+        "name": first.get("name") or city_name,
+        "latitude": first["latitude"],
+        "longitude": first["longitude"],
+        "timezone": first.get("timezone") or "Europe/Zagreb",
+    }
 
     with _request_log_lock:
-        _geocode_cache[cache_key] = resolved
-    return resolved
+        _geocode_cache[key] = location
+    return location
 
 
 def weather_location_for_parking(location_text):
-    """Poveži tekstualnu lokaciju parkinga s Open-Meteo koordinatama."""
-    city_name = parking_city_name(location_text)
-    if city_name is None:
+    city = parking_city_name(location_text)
+    if city is None:
         return None
-
     for location in KNOWN_WEATHER_LOCATIONS:
-        if location["name"].casefold() == city_name.casefold():
+        if location["name"].casefold() == city.casefold():
             return location
-
-    return _geocode_city(city_name)
+    return _geocode_city(city)
 
 
 def fetch_weather(location):
-    """Dohvati trenutačno vrijeme iz Open-Meteo REST servisa."""
+    """Jedan HTTP zahtjev prema Open-Meteo servisu."""
     started = time.perf_counter()
-    params = urlencode({
-        "latitude": location["latitude"],
-        "longitude": location["longitude"],
-        "current": "temperature_2m,wind_speed_10m,weather_code",
-        "timezone": location.get("timezone", "Europe/Zagreb"),
-    })
-    url = f"https://api.open-meteo.com/v1/forecast?{params}"
-    request = Request(url, headers={"User-Agent": "ParKING/1.0"})
-
-    with urlopen(request, timeout=6) as response:
-        payload = json.loads(response.read().decode("utf-8"))
-
+    response = requests.get(
+        "https://api.open-meteo.com/v1/forecast",
+        params={
+            "latitude": location["latitude"],
+            "longitude": location["longitude"],
+            "current": "temperature_2m,wind_speed_10m,weather_code",
+            "timezone": location.get("timezone", "Europe/Zagreb"),
+        },
+        headers={"User-Agent": "ParKING/1.0"},
+        timeout=6,
+    )
+    response.raise_for_status()
+    current = response.json().get("current", {})
     elapsed = time.perf_counter() - started
-    current = payload.get("current", {})
+
     result = {
         "location": location["name"],
         "temperature": current.get("temperature_2m"),
@@ -137,91 +118,75 @@ def fetch_weather(location):
         "thread": threading.current_thread().name,
     }
 
-    # Kritična sekcija: Lock sprječava da dvije dretve istodobno mijenjaju zapisnik.
+    # Kritična sekcija: samo jedna dretva smije mijenjati zajednički log.
     with _request_log_lock:
         _request_log.append({
-            "location": location["name"],
+            "location": result["location"],
             "thread": result["thread"],
             "elapsed": elapsed,
         })
-
     return result
 
 
 def fetch_weather_for_parking(location_text):
-    """Dohvati vrijeme za grad iz lokacije jednog parkinga."""
     location = weather_location_for_parking(location_text)
-    return fetch_weather(location) if location is not None else None
+    return fetch_weather(location) if location else None
 
 
-def _fetch_weather_for_city(city_name):
-    location = weather_location_for_parking(city_name)
-    if location is None:
-        raise ValueError(f"Lokacija nije pronađena: {city_name}")
-    return fetch_weather(location)
+def _fetch_city_safely(city_name):
+    try:
+        location = weather_location_for_parking(city_name)
+        if location is None:
+            raise ValueError(f"Lokacija nije pronađena: {city_name}")
+        return city_name.casefold(), fetch_weather(location)
+    except Exception as exc:
+        return city_name.casefold(), {"error": str(exc)}
 
 
 def fetch_weather_for_parking_locations(location_texts):
-    """Paralelno dohvati vrijeme za jedinstvene gradove prikazanih parkinga."""
+    """Paralelno dohvati vrijeme za jedinstvene gradove parkinga."""
     cities = parking_cities(location_texts)
     if not cities:
         return {}
 
-    results = {}
     workers = min(3, len(cities))
     with ThreadPoolExecutor(max_workers=workers, thread_name_prefix="parking-weather") as executor:
-        futures = {
-            executor.submit(_fetch_weather_for_city, city_name): city_name.casefold()
-            for city_name in cities
-        }
-        for future in as_completed(futures):
-            city_key = futures[future]
-            try:
-                results[city_key] = future.result()
-            except Exception as exc:
-                # Nedostupnost vremenskog servisa ne smije srušiti popis parkinga.
-                results[city_key] = {"error": str(exc)}
-
-    return results
+        pairs = executor.map(_fetch_city_safely, cities)
+        return dict(pairs)
 
 
 def resolve_weather_locations(city_names):
-    """Razriješi koordinate prije mjerenja kako geokodiranje ne bi utjecalo na usporedbu."""
+    """Razriješi koordinate prije mjerenja dretvi."""
     locations = []
-    for city_name in city_names:
-        location = weather_location_for_parking(city_name)
+    for city in city_names:
+        location = weather_location_for_parking(city)
         if location is None:
-            raise ValueError(f"Lokacija nije pronađena: {city_name}")
+            raise ValueError(f"Lokacija nije pronađena: {city}")
         locations.append(location)
     return locations
 
 
 def run_weather_with_workers(locations, max_workers):
-    """Izvrši iste vremenske zahtjeve kroz ThreadPoolExecutor sa zadanim brojem radnika."""
+    """Izvrši isti posao sa zadanim brojem radnih dretvi."""
     if not locations:
         return [], 0.0, 0
 
-    workers = max(1, min(max_workers, len(locations)))
+    workers = min(max_workers, len(locations))
     started = time.perf_counter()
-    results = []
-
     with ThreadPoolExecutor(
         max_workers=workers,
         thread_name_prefix=f"parking-weather-{workers}",
     ) as executor:
-        futures = [executor.submit(fetch_weather, location) for location in locations]
-        for future in as_completed(futures):
-            results.append(future.result())
+        results = list(executor.map(fetch_weather, locations))
 
     results.sort(key=lambda item: item["location"].casefold())
     return results, time.perf_counter() - started, workers
 
 
 def run_thread_demo(location_texts):
-    """Usporedi isti ThreadPoolExecutor s jednom i s najviše tri radne dretve."""
-    global _request_log
+    """Usporedi isti posao s 1 i s najviše 3 dretve."""
     with _request_log_lock:
-        _request_log = []
+        _request_log.clear()
 
     city_names = parking_cities(location_texts)
     if not city_names:
@@ -236,24 +201,20 @@ def run_thread_demo(location_texts):
             "request_log": [],
         }
 
-    # Koordinate se razrješavaju prije mjerenja tako da obje varijante mjere
-    # isti posao: Open-Meteo forecast HTTP zahtjeve za isti skup gradova.
     locations = resolve_weather_locations(city_names)
+    one_results, one_time, _ = run_weather_with_workers(locations, 1)
+    multi_results, multi_time, workers = run_weather_with_workers(locations, 3)
 
-    one_thread_results, one_thread_time, _ = run_weather_with_workers(locations, 1)
-    multi_thread_results, multi_thread_time, multi_thread_workers = run_weather_with_workers(locations, 3)
-
-    speedup = one_thread_time / multi_thread_time if multi_thread_time > 0 else 0
     with _request_log_lock:
-        log_snapshot = list(_request_log)
+        log = list(_request_log)
 
     return {
         "city_names": city_names,
-        "one_thread_results": one_thread_results,
-        "multi_thread_results": multi_thread_results,
-        "one_thread_time": one_thread_time,
-        "multi_thread_time": multi_thread_time,
-        "multi_thread_workers": multi_thread_workers,
-        "speedup": speedup,
-        "request_log": log_snapshot,
+        "one_thread_results": one_results,
+        "multi_thread_results": multi_results,
+        "one_thread_time": one_time,
+        "multi_thread_time": multi_time,
+        "multi_thread_workers": workers,
+        "speedup": one_time / multi_time if multi_time else 0.0,
+        "request_log": log,
     }
