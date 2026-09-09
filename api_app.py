@@ -4,84 +4,37 @@ from functools import wraps
 from pathlib import Path
 
 from flask import Flask, g, jsonify, request
-from sqlalchemy import text
-from sqlalchemy.exc import OperationalError
 
 from models import db, ParkingSpot, Reservation, User
+from schema_utils import add_column_if_missing
 from vehicle_store import get_vehicle
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = BASE_DIR / "data" / "parking.db"
+
+DB_PATH = Path(__file__).resolve().parent / "data" / "parking.db"
 
 api_app = Flask(__name__)
 api_app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{DB_PATH}"
 api_app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 db.init_app(api_app)
 
-
-def _add_column_if_missing(table_name, column_name, ddl):
-    columns = {
-        row[1]
-        for row in db.session.execute(text(f"PRAGMA table_info({table_name})")).all()
-    }
-    if column_name in columns:
-        return
-
-    try:
-        db.session.execute(text(ddl))
-        db.session.commit()
-    except OperationalError as exc:
-        db.session.rollback()
-        if "duplicate column" not in str(exc).lower():
-            raise
+SCHEMA_UPDATES = [
+    ("users", "api_token", "ALTER TABLE users ADD COLUMN api_token VARCHAR(64)"),
+    ("parking_spots", "access_instructions", "ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB"),
+    ("promo_codes", "user_id", "ALTER TABLE promo_codes ADD COLUMN user_id INTEGER"),
+    ("reservations", "discount_percent", "ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0"),
+    ("reservations", "promo_code_id", "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER"),
+    ("reservations", "vehicle_id", "ALTER TABLE reservations ADD COLUMN vehicle_id INTEGER"),
+    ("reservations", "vehicle_name", "ALTER TABLE reservations ADD COLUMN vehicle_name VARCHAR(120)"),
+    ("reservations", "vehicle_registration", "ALTER TABLE reservations ADD COLUMN vehicle_registration VARCHAR(40)"),
+]
 
 
 def ensure_database():
-    """Ensure the shared SQLite schema and API tokens exist."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with api_app.app_context():
         db.create_all()
-
-        _add_column_if_missing(
-            "users",
-            "api_token",
-            "ALTER TABLE users ADD COLUMN api_token VARCHAR(64)",
-        )
-        _add_column_if_missing(
-            "parking_spots",
-            "access_instructions",
-            "ALTER TABLE parking_spots ADD COLUMN access_instructions BLOB",
-        )
-        _add_column_if_missing(
-            "promo_codes",
-            "user_id",
-            "ALTER TABLE promo_codes ADD COLUMN user_id INTEGER",
-        )
-        _add_column_if_missing(
-            "reservations",
-            "discount_percent",
-            "ALTER TABLE reservations ADD COLUMN discount_percent FLOAT NOT NULL DEFAULT 0",
-        )
-        _add_column_if_missing(
-            "reservations",
-            "promo_code_id",
-            "ALTER TABLE reservations ADD COLUMN promo_code_id INTEGER",
-        )
-        _add_column_if_missing(
-            "reservations",
-            "vehicle_id",
-            "ALTER TABLE reservations ADD COLUMN vehicle_id INTEGER",
-        )
-        _add_column_if_missing(
-            "reservations",
-            "vehicle_name",
-            "ALTER TABLE reservations ADD COLUMN vehicle_name VARCHAR(120)",
-        )
-        _add_column_if_missing(
-            "reservations",
-            "vehicle_registration",
-            "ALTER TABLE reservations ADD COLUMN vehicle_registration VARCHAR(40)",
-        )
+        for table, column, ddl in SCHEMA_UPDATES:
+            add_column_if_missing(table, column, ddl)
 
         changed = False
         for user in User.query.all():
@@ -155,8 +108,8 @@ def api_parkings():
     user = g.api_user
 
     if request.method == "GET":
-        parkings = ParkingSpot.query.order_by(ParkingSpot.id.asc()).all()
-        return jsonify({"items": [parking_to_dict(item) for item in parkings]})
+        items = ParkingSpot.query.order_by(ParkingSpot.id.asc()).all()
+        return jsonify({"items": [parking_to_dict(item) for item in items]})
 
     data = request.get_json(silent=True) or {}
     name = str(data.get("name", "")).strip()
